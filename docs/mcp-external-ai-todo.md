@@ -34,7 +34,7 @@
 | INF-04 | 实现启动时随机 token、受限发现文件和 client 握手。 | P0 | INF-03 | 进行中 | Codex | `apps/shell/src/main/mcp/bridge.ts` | 已实现随机 token 与 0600 discovery；待 Shell 生命周期接入及失效测试。 | |
 | INF-05 | 定义稳定的 MCP 错误码与错误 payload。 | P0 | INF-02 | 进行中 | Codex | `packages/genoffice-capabilities/`、gateway | 已定义错误码与 bridge 映射；待 gateway 所有工具采用。 | |
 | INF-06 | 将 Shell 的 MCP gateway 注册到应用启动与退出生命周期。 | P0 | INF-02 | 已完成 | Codex | `apps/shell/src/main/index.ts` | Shell 启动后创建 bridge，退出时撤销 discovery 并关闭 socket；崩溃后随机 token/endpoint 自动失效。 | |
-| INF-07 | 更新 electron-vite / electron-builder 配置，确保 adapter 在开发与三端打包产物可执行。 | P0 | INF-01 | 进行中 | Codex | MCP Vite bundle、Shell builder、构建脚本 | 已增加独立 ESM bundle、打包资源与 discovery adapterPath；待三端实际打包验证。 | |
+| INF-07 | 更新 electron-vite / electron-builder 配置，确保 adapter 在开发与三端打包产物可执行。 | P0 | INF-01 | 进行中 | Codex | MCP Vite bundle、Shell builder、构建脚本、使用说明 | 已增加独立 ESM bundle、打包资源、discovery adapterPath 与双分发启动说明；待三端实际打包验证。 | |
 
 ## 2. 共享能力协议与文档路由
 
