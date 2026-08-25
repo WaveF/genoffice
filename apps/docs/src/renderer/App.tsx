@@ -691,6 +691,7 @@ export function App() {
   const [showParaDialog, setShowParaDialog] = useState(false)
   const [, forceRender] = useReducer((x: number) => x + 1, 0)
   const dirtyRef = useRef(false)
+  const mcpRevisionRef = useRef(0)
   // serializes save(): overlapping saves (Cmd+S vs autosave timer vs blur) would
   // otherwise race on the write + reparse + setContent sequence
   const saveInFlightRef = useRef(false)
@@ -847,6 +848,7 @@ export function App() {
     onFocus: () => setActiveSubEditor(null),
     onUpdate: () => {
       dirtyRef.current = true
+      window.desktop.reportMcpRevision(++mcpRevisionRef.current)
       forceRender()
     },
   })

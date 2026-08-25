@@ -136,6 +136,7 @@ export interface MarkdownApi {
     }) => void,
   ): () => void
   respondMcpRequest(response: { requestId: string; ok: boolean; result?: unknown; error?: string }): void
+  reportMcpRevision(revision: number): void
   /**
    * Pick an image file and copy it into `assets/` next to the open document;
    * returns the relative path to author into the markdown, or null when the

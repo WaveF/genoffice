@@ -4,8 +4,14 @@ import { CapabilityError } from '@genoffice/capabilities'
 
 const REQUEST_CHANNEL = 'mcp:renderer-request'
 const RESPONSE_CHANNEL = 'mcp:renderer-response'
+const REVISION_CHANNEL = 'mcp:renderer-revision'
 const MAX_RENDERER_RESULT_BYTES = 512 * 1024
 const RENDERER_TIMEOUT_MS = 15_000
+const revisions = new Map<number, number>()
+
+export function rendererMcpRevision(webContentsId: number): number {
+  return revisions.get(webContentsId) ?? 0
+}
 
 export type RendererMcpAction =
   | 'docs.get_context'
@@ -33,6 +39,11 @@ export class RendererMcpBridge {
 
   constructor() {
     ipcMain.on(RESPONSE_CHANNEL, (event, response: unknown) => this.receive(event.sender.id, response))
+    ipcMain.on(REVISION_CHANNEL, (event, revision: unknown) => {
+      if (typeof revision === 'number' && Number.isSafeInteger(revision) && revision >= 0) {
+        revisions.set(event.sender.id, revision)
+      }
+    })
   }
 
   async request(

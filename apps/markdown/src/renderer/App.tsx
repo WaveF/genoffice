@@ -133,6 +133,7 @@ export default function App() {
   const dirtyRef = useRef(false)
   const savingRef = useRef(false)
   const envelopeRef = useRef<DocEnvelope>(EMPTY_ENVELOPE)
+  const mcpRevisionRef = useRef(0)
   const editorRef = useRef<Editor | null>(null)
   const filePathRef = useRef<string | null>(null)
   const slashMenuRef = useRef<SlashMenuHandle>(null)
@@ -150,6 +151,7 @@ export default function App() {
   const markDirty = useCallback(() => {
     if (statusRef.current !== 'ready' || dirtyRef.current) return
     dirtyRef.current = true
+    window.markdownApi.reportMcpRevision(++mcpRevisionRef.current)
     setDirty(true)
     setSaveState('idle')
     window.markdownApi.setDirty(true)

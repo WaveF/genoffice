@@ -75,6 +75,7 @@ const api: DesktopApi = {
     return () => ipcRenderer.removeListener('mcp:renderer-request', listener)
   },
   respondMcpRequest: (response) => ipcRenderer.send('mcp:renderer-response', response),
+  reportMcpRevision: (revision) => ipcRenderer.send('mcp:renderer-revision', revision),
   saveDocx: (path: string, data: ArrayBuffer, auto?: boolean) =>
     ipcRenderer.invoke('docs:save', path, data, auto === true),
   writeRecoveryCopy: (path: string, data: ArrayBuffer) =>

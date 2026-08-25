@@ -40,6 +40,7 @@ const api: MarkdownApi = {
     return () => ipcRenderer.removeListener('mcp:renderer-request', listener)
   },
   respondMcpRequest: (response) => ipcRenderer.send('mcp:renderer-response', response),
+  reportMcpRevision: (revision) => ipcRenderer.send('mcp:renderer-revision', revision),
   pickImage: () => ipcRenderer.invoke(MARKDOWN_CHANNELS.pickImage),
   saveImage: (data) => ipcRenderer.invoke(MARKDOWN_CHANNELS.saveImage, data),
   readImage: (src) => ipcRenderer.invoke(MARKDOWN_CHANNELS.readImage, src),

@@ -41,6 +41,7 @@ import {
   slidesRevision,
 } from '../../../slides/src/main/slides-main'
 import type { TabKind, TabSummary } from '../shared/tabs-api'
+import { rendererMcpRevision } from './mcp/renderer-bridge'
 
 interface TabRecord {
   id: string
@@ -223,7 +224,9 @@ export class TabManager {
   }
 
   private documentRevision(tab: TabRecord & { view: WebContentsView; documentId: string }): number {
-    return tab.kind === 'slides' ? slidesRevision(tab.view.webContents.id) : (tab.revision ?? 0)
+    if (tab.kind === 'slides') return slidesRevision(tab.view.webContents.id)
+    if (tab.kind === 'docs' || tab.kind === 'markdown') return rendererMcpRevision(tab.view.webContents.id)
+    return tab.revision ?? 0
   }
 
   openHomeTab(): void {

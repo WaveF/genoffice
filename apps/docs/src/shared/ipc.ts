@@ -229,6 +229,7 @@ export interface DesktopApi {
     }) => void,
   ): () => void
   respondMcpRequest(response: { requestId: string; ok: boolean; result?: unknown; error?: string }): void
+  reportMcpRevision(revision: number): void
   /** auto=true marks an autosave: an externally modified file then fails with
    *  reason 'external-modified' instead of prompting (manual saves get an
    *  Overwrite/Cancel dialog in the main process) */
