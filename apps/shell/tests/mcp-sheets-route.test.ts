@@ -34,12 +34,19 @@ describe('ShellMcpGateway Sheets renderer route', () => {
       activateDocument: async () => document,
     }
     const renderer: RendererMcpReader = {
-      request: async (_webContentsId, action, input) => Promise.resolve(handleSheetsMcpRequest(
-        workbook,
-        action,
-        input,
-        async (plan) => { document.revision = workbook.apply(plan).revision },
-      )),
+      request: async (_webContentsId, action, input) => {
+        if (action === 'sheets.undo') {
+          if (input.expectedRevision !== document.revision) throw new Error('Workbook changed since it was read')
+          document.revision = workbook.undo().revision
+          return { applied: true, revision: document.revision }
+        }
+        return Promise.resolve(handleSheetsMcpRequest(
+          workbook,
+          action,
+          input,
+          async (plan) => { document.revision = workbook.apply(plan).revision },
+        ))
+      },
     }
     const permissions: string[] = []
     const gateway = new ShellMcpGateway(source, undefined, {
@@ -67,5 +74,27 @@ describe('ShellMcpGateway Sheets renderer route', () => {
     expect(JSON.parse((updated as { content: string }).content)).toMatchObject({
       revision: 1, cells: [{ address: 'A1', value: 'After' }],
     })
+
+    const formula = await gateway.handle(toolRequest('sheets.apply_operations', {
+      documentId: 'sheet-doc', expectedRevision: 1, transactionId: 'formula-b1', summary: 'Calculate B1',
+      operations: [{ op: 'set_formula', sheetId: 'sheet-1', address: 'B1', formula: '=A1' }],
+    }))
+    expect(formula).toMatchObject({ mutated: true, revision: 2 })
+    const trace = await gateway.handle(toolRequest('sheets.trace_formula', {
+      documentId: 'sheet-doc', sheetId: 'sheet-1', address: 'B1',
+    }))
+    expect(JSON.parse((trace as { content: string }).content)).toMatchObject({ formula: '=A1', precedents: ['A1'] })
+
+    const undo = await gateway.handle(toolRequest('sheets.undo', {
+      documentId: 'sheet-doc', expectedRevision: 2,
+    }))
+    expect(undo).toMatchObject({ mutated: true, revision: 3 })
+    const afterUndo = await gateway.handle(toolRequest('sheets.trace_formula', {
+      documentId: 'sheet-doc', sheetId: 'sheet-1', address: 'B1',
+    }))
+    expect(JSON.parse((afterUndo as { content: string }).content)).toMatchObject({ formula: null, precedents: [] })
+    expect(permissions).toEqual([
+      'sheets.apply_operations:write', 'sheets.apply_operations:write', 'sheets.undo:write',
+    ])
   })
 })
