@@ -33,6 +33,8 @@ export interface SlidesMcpWriter extends SlidesMcpReader {
   ):
     | { applied: boolean; revision: number; [key: string]: unknown }
     | Promise<{ applied: boolean; revision: number; [key: string]: unknown }>
+  undo(webContentsId: number, expectedRevision: number): { applied: boolean; revision: number }
+  redo(webContentsId: number, expectedRevision: number): { applied: boolean; revision: number }
 }
 
 interface ToolDescriptor {
@@ -64,6 +66,16 @@ const GET_DOCUMENT_STATUS: CapabilityTool<{ documentId: string }> = {
   execute: (target) => {
     if (!target) throw new CapabilityError('not_found', 'Document is no longer open')
     return toolResult(JSON.stringify(target), false, target.revision)
+  },
+}
+
+const DOCUMENT_REVISION_INPUT_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['documentId', 'expectedRevision'],
+  properties: {
+    documentId: { type: 'string', minLength: 1, maxLength: 128 },
+    expectedRevision: { type: 'integer', minimum: 0 },
   },
 }
 
@@ -102,6 +114,16 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
         dryRun: { type: 'boolean' },
       },
     },
+  },
+  {
+    name: 'undo',
+    description: 'Undo the latest supported MCP or manual edit in an open Slides document.',
+    inputSchema: DOCUMENT_REVISION_INPUT_SCHEMA,
+  },
+  {
+    name: 'redo',
+    description: 'Redo the latest supported MCP or manual edit in an open Slides document.',
+    inputSchema: DOCUMENT_REVISION_INPUT_SCHEMA,
   },
 ].map(({ name, description, inputSchema }) => ({ name, description, inputSchema }))
 
@@ -180,7 +202,9 @@ export class ShellMcpGateway implements McpBridgeGateway {
       if (
         typeof documentId !== 'string' ||
         documentId.length === 0 ||
+        typeof expectedRevision !== 'number' ||
         !Number.isSafeInteger(expectedRevision) ||
+        expectedRevision < 0 ||
         !Array.isArray(rawOps) ||
         typeof dryRun !== 'boolean' ||
         Object.keys(argumentsValue).some((key) => !['documentId', 'expectedRevision', 'ops', 'dryRun'].includes(key))
@@ -205,6 +229,23 @@ export class ShellMcpGateway implements McpBridgeGateway {
         : await this.writeQueue.enqueue(target.documentId, context.signal, execute)
       return toolResult(JSON.stringify(result), result.applied, result.revision)
     }
+    if (name === 'undo' || name === 'redo') {
+      const { documentId, expectedRevision } = this.requireDocumentRevision(argumentsValue)
+      const target = await this.requireSlidesTarget(documentId)
+      const slides = this.requireSlidesWriter()
+      const result = await this.writeQueue.enqueue(target.documentId, context.signal, async () => {
+        await this.requirePermissions().authorize({
+          clientId: context.clientId,
+          toolName: name,
+          risk: 'write',
+          document: target,
+        })
+        return name === 'undo'
+          ? slides.undo(target.webContentsId, expectedRevision)
+          : slides.redo(target.webContentsId, expectedRevision)
+      })
+      return toolResult(JSON.stringify(result), result.applied, result.revision)
+    }
     throw new CapabilityError('not_found', `Unknown MCP tool: ${name}`)
   }
 
@@ -227,6 +268,25 @@ export class ShellMcpGateway implements McpBridgeGateway {
     return documentId
   }
 
+  private requireDocumentRevision(argumentsValue: Record<string, unknown>): {
+    documentId: string
+    expectedRevision: number
+  } {
+    const documentId = argumentsValue.documentId
+    const expectedRevision = argumentsValue.expectedRevision
+    if (
+      typeof documentId !== 'string' ||
+      documentId.length === 0 ||
+      typeof expectedRevision !== 'number' ||
+      !Number.isSafeInteger(expectedRevision) ||
+      expectedRevision < 0 ||
+      Object.keys(argumentsValue).length !== 2
+    ) {
+      throw new CapabilityError('validation_error', 'documentId and expectedRevision are required')
+    }
+    return { documentId, expectedRevision }
+  }
+
   private async requireSlidesTarget(documentId: string): Promise<DocumentTarget> {
     const target = await this.documents.findDocumentTarget(documentId)
     if (!target) throw new CapabilityError('not_found', 'Document is no longer open')
@@ -241,7 +301,11 @@ export class ShellMcpGateway implements McpBridgeGateway {
 
   private requireSlidesWriter(): SlidesMcpWriter {
     const slides = this.requireSlides()
-    if (typeof (slides as Partial<SlidesMcpWriter>).applyOps !== 'function') {
+    if (
+      typeof (slides as Partial<SlidesMcpWriter>).applyOps !== 'function' ||
+      typeof (slides as Partial<SlidesMcpWriter>).undo !== 'function' ||
+      typeof (slides as Partial<SlidesMcpWriter>).redo !== 'function'
+    ) {
       throw new CapabilityError('not_running', 'Slides write support is unavailable')
     }
     return slides as SlidesMcpWriter

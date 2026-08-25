@@ -6,8 +6,12 @@ import {
   buildAllRenderSlides,
   journalOps,
   pushHistory,
+  restoreSnapshot,
   scheduleDeckBroadcast,
+  scheduleHistoryNotify,
+  settleStaleHistoryBatch,
   sessions,
+  takeSnapshot,
   type Session,
 } from './session-state'
 
@@ -32,6 +36,11 @@ export interface SlidesMcpApplyResult {
   plan?: string[]
   records?: Array<{ op: string; slideId?: string; created?: string[] }>
   failures?: Array<{ index: number; error: string }>
+}
+
+export interface SlidesMcpHistoryResult {
+  applied: boolean
+  revision: number
 }
 
 const MAX_READ_RESULT_BYTES = 512 * 1024
@@ -193,5 +202,39 @@ export class SlidesMcpAdapter {
         ...(record.created ? { created: record.created } : {}),
       })),
     }
+  }
+
+  undo(webContentsId: number, expectedRevision: number): SlidesMcpHistoryResult {
+    const session = requireSession(webContentsId)
+    ensureExpectedRevision(session, expectedRevision)
+    if (session.masterEdit) {
+      throw new CapabilityError('validation_error', 'Undo is unavailable while editing a master slide')
+    }
+    settleStaleHistoryBatch(session)
+    const snapshot = session.undoStack.pop()
+    if (!snapshot) return { applied: false, revision: session.revision ?? 0 }
+    session.redoStack.push(takeSnapshot(session))
+    restoreSnapshot(session, snapshot)
+    scheduleHistoryNotify(session)
+    scheduleDeckBroadcast(session)
+    notifyRenderer(webContentsId, session)
+    return { applied: true, revision: session.revision ?? 0 }
+  }
+
+  redo(webContentsId: number, expectedRevision: number): SlidesMcpHistoryResult {
+    const session = requireSession(webContentsId)
+    ensureExpectedRevision(session, expectedRevision)
+    if (session.masterEdit) {
+      throw new CapabilityError('validation_error', 'Redo is unavailable while editing a master slide')
+    }
+    settleStaleHistoryBatch(session)
+    const snapshot = session.redoStack.pop()
+    if (!snapshot) return { applied: false, revision: session.revision ?? 0 }
+    session.undoStack.push(takeSnapshot(session))
+    restoreSnapshot(session, snapshot)
+    scheduleHistoryNotify(session)
+    scheduleDeckBroadcast(session)
+    notifyRenderer(webContentsId, session)
+    return { applied: true, revision: session.revision ?? 0 }
   }
 }

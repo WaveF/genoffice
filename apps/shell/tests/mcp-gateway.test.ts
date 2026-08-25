@@ -33,6 +33,8 @@ function gatewayWith(documents: DocumentTarget[] = [target]): ShellMcpGateway {
       applied: !dryRun,
       revision: expectedRevision + (dryRun ? 0 : 1),
     }),
+    undo: (_webContentsId, expectedRevision) => ({ applied: true, revision: expectedRevision + 1 }),
+    redo: (_webContentsId, expectedRevision) => ({ applied: true, revision: expectedRevision + 1 }),
   }, {
     authorize: async () => undefined,
   })
@@ -102,6 +104,17 @@ describe('ShellMcpGateway', () => {
           ops: [{ op: 'setFill' }],
         },
       }),
+    )
+    expect(result).toEqual({
+      content: JSON.stringify({ applied: true, revision: 4 }),
+      mutated: true,
+      revision: 4,
+    })
+  })
+
+  it('serializes Slides undo through the same explicit document/revision route', async () => {
+    const result = await gatewayWith().handle(
+      request({ name: 'undo', input: { documentId: 'doc-123', expectedRevision: 3 } }),
     )
     expect(result).toEqual({
       content: JSON.stringify({ applied: true, revision: 4 }),
