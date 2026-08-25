@@ -38,6 +38,10 @@ describe('handleSheetsMcpRequest', () => {
     expect(handleSheetsMcpRequest(adapter, 'sheets.aggregate', { sheetId: 'sheet-1', range: 'A1:B2', operation: 'sum' })).toMatchObject({ value: 42, numericCellCount: 1 })
   })
 
+  it('traces direct A1 precedents in a formula cell', () => {
+    expect(handleSheetsMcpRequest(adapter, 'sheets.trace_formula', { sheetId: 'sheet-1', address: 'A2' })).toMatchObject({ formula: '=B1*2', precedents: ['B1'] })
+  })
+
   it('rejects oversized or malformed range requests', () => {
     expect(() => handleSheetsMcpRequest(adapter, 'sheets.read_range', { sheetId: 'sheet-1', range: 'A1:A2001' })).toThrow('2000')
     expect(() => handleSheetsMcpRequest(adapter, 'sheets.read_range', { sheetId: 'sheet-1' })).toThrow('sheetId and range')

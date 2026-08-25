@@ -7,7 +7,7 @@ const MAX_READ_CELLS = 2_000
 /** Read-only MCP facade over the already-authoritative workbook adapter. */
 export function handleSheetsMcpRequest(
   adapter: InMemoryWorkbookAdapter,
-  action: 'sheets.get_workbook_context' | 'sheets.read_range' | 'sheets.find' | 'sheets.aggregate' | 'sheets.apply_operations',
+  action: 'sheets.get_workbook_context' | 'sheets.read_range' | 'sheets.find' | 'sheets.aggregate' | 'sheets.trace_formula' | 'sheets.apply_operations',
   input: Record<string, unknown>,
   applyPlan?: (plan: ChangePlan) => Promise<void>,
 ): unknown | Promise<unknown> {
@@ -41,9 +41,18 @@ export function handleSheetsMcpRequest(
   }
   const sheetId = input.sheetId
   const range = input.range
-  if (typeof sheetId !== 'string' || typeof range !== 'string') throw new Error('sheetId and range are required')
+  if (typeof sheetId !== 'string') throw new Error('sheetId is required')
   const sheet = snapshot.sheets.find((candidate) => candidate.id === sheetId)
   if (!sheet) throw new Error('Sheet is not present')
+  if (action === 'sheets.trace_formula') {
+    const address = input.address
+    if (typeof address !== 'string') throw new Error('sheetId and address are required')
+    const formula = sheet.cells[address]?.formula
+    if (!formula) return { revision: snapshot.revision, sheetId, address, formula: null, precedents: [] }
+    const precedents = [...new Set(formula.match(/(?:'[^']+'|[A-Za-z_][A-Za-z0-9_]*)?!?\$?[A-Z]{1,3}\$?[1-9][0-9]*/g) ?? [])].slice(0, 100)
+    return { revision: snapshot.revision, sheetId, address, formula, precedents, truncated: precedents.length >= 100 }
+  }
+  if (typeof range !== 'string') throw new Error('sheetId and range are required')
   const bounds = parseRange(range)
   const requestedCellCount = rangeCellCount(bounds)
   if (requestedCellCount > MAX_READ_CELLS) throw new Error(`range exceeds the ${MAX_READ_CELLS}-cell read limit`)

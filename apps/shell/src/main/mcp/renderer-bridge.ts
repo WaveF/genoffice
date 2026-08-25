@@ -26,6 +26,7 @@ export type RendererMcpAction =
   | 'sheets.read_range'
   | 'sheets.find'
   | 'sheets.aggregate'
+  | 'sheets.trace_formula'
   | 'sheets.apply_operations'
   | 'pdf.get_document_context'
   | 'pdf.read_page_context'
