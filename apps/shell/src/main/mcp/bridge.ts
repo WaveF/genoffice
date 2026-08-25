@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID } from 'node:crypto'
 import { chmod, mkdir, rename, rm, writeFile } from 'node:fs/promises'
 import { createServer, type Server, type Socket } from 'node:net'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { CapabilityError, type CapabilityErrorCode } from '@genoffice/capabilities'
 
@@ -70,7 +71,10 @@ export class LocalMcpBridge {
     this.endpoint =
       this.platform === 'win32'
         ? `\\\\.\\pipe\\genoffice-mcp-${instance}`
-        : join(this.socketDir, `genoffice-mcp-${instance}.sock`)
+        // macOS limits Unix-domain socket paths to roughly 104 bytes. userData
+        // paths are often longer (notably “Application Support/GenOffice Dev”),
+        // so keep the ephemeral socket in the short system temp directory.
+        : join(tmpdir(), `genoffice-mcp-${instance}.sock`)
   }
 
   get discoveryPath(): string {

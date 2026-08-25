@@ -35,6 +35,7 @@ describe('LocalMcpBridge', () => {
     })
     await bridge.start()
     try {
+      expect(bridge.discovery.endpoint.length).toBeLessThan(100)
       const discovery = JSON.parse(await readFile(bridge.discoveryPath, 'utf8')) as Record<string, string>
       expect(discovery.endpoint).toBe(bridge.discovery.endpoint)
       expect(discovery.adapterPath).toBe(
