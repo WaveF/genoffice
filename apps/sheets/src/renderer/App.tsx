@@ -146,7 +146,11 @@ import {
   type CellBounds,
 } from '../domain/chart-visual'
 import { InMemoryWorkbookAdapter } from '../domain/in-memory-workbook'
-import { handleSheetsMcpRequest } from './mcp-adapter'
+import {
+  handleSheetsMcpReadRequest,
+  handleSheetsMcpRequest,
+  type SheetsMcpReadAction,
+} from './mcp-adapter'
 import { cfRuleUnsaveableReason, iconSetSaveable } from '../gateway/xlsx-cf'
 import { installLazyFindBridge } from './lazy-find'
 import {
@@ -411,9 +415,14 @@ export function App(): React.JSX.Element {
   const mcpLazyOperationsRef = useRef<(input: Record<string, unknown>) => Promise<unknown>>(async () => {
     throw new Error('Workbook is not ready')
   })
+  const mcpLazyReadRef = useRef<(action: SheetsMcpReadAction, input: Record<string, unknown>) => unknown | Promise<unknown>>(() => {
+    throw new Error('Workbook is not ready')
+  })
   useEffect(() => window.desktopApi.onMcpRequest((request) => {
-    const result = request.action === 'sheets.apply_operations' && lazyWorkbookRef.current
-      ? mcpLazyOperationsRef.current(request.input)
+    const result = lazyWorkbookRef.current
+      ? request.action === 'sheets.apply_operations'
+        ? mcpLazyOperationsRef.current(request.input)
+        : mcpLazyReadRef.current(request.action, request.input)
       : handleSheetsMcpRequest(adapterRef.current, request.action, request.input, mcpApplyPlanRef.current)
     void Promise.resolve(result)
       .then((result) => window.desktopApi.respondMcpRequest({ requestId: request.requestId, ok: true, result }))
@@ -2888,6 +2897,48 @@ export function App(): React.JSX.Element {
     setRevision(revision)
     window.desktopApi.reportMcpRevision(revision)
     return { ...result, dryRun: false, revision }
+  }
+
+  mcpLazyReadRef.current = async (action, input) => {
+    const state = lazyWorkbookRef.current
+    const workbook = univerRef.current?.univerAPI.getActiveWorkbook()
+    if (!state || !workbook) throw new Error('Workbook is not ready')
+    const sheetId = typeof input.sheetId === 'string' ? input.sheetId : undefined
+    const requestedRange =
+      action === 'sheets.trace_formula'
+        ? typeof input.address === 'string' ? input.address : undefined
+        : typeof input.range === 'string' ? input.range : undefined
+    if (sheetId && requestedRange && !state.flags.preloadComplete) {
+      const worksheet = workbook.getSheetBySheetId(sheetId)
+      const isFileSheet = state.file.sheets.some((sheet) => sheet.id === sheetId)
+      if (worksheet && isFileSheet) {
+        let loaded = false
+        try {
+          loaded = await ensureLazyRangeLoaded(
+            univerRef.current as UniverRuntime,
+            lazyWorkbookRef,
+            worksheet,
+            parseRange(requestedRange),
+            () => undefined,
+          )
+        } catch {
+          throw new Error('Requested workbook range could not be loaded')
+        }
+        if (!loaded) throw new Error('Requested workbook range is not available yet')
+      }
+    }
+    const readerContext: WorkbookReadContext = { univerRef, lazyWorkbookRef, adapterRef }
+    return handleSheetsMcpReadRequest({
+      revision: _revision,
+      sheets: state.file.sheets.map((sheet) => ({
+        id: sheet.id,
+        name: sheet.name,
+        rowCount: sheet.rowCount,
+        columnCount: sheet.columnCount,
+      })),
+      readCells: (sheetId, addresses) => readCellsImpl(readerContext, addresses, sheetId),
+      readFormats: (sheetId, addresses) => readFormatsImpl(readerContext, addresses, sheetId),
+    }, action, input)
   }
 
   async function handleLazyApply(state: LazyWorkbookState): Promise<ApplyOutcome> {

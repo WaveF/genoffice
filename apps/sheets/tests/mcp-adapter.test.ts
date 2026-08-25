@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { InMemoryWorkbookAdapter } from '../src/domain/in-memory-workbook'
-import { handleSheetsMcpRequest } from '../src/renderer/mcp-adapter'
+import { handleSheetsMcpReadRequest, handleSheetsMcpRequest } from '../src/renderer/mcp-adapter'
 
 const adapter = new InMemoryWorkbookAdapter({
   revision: 7,
@@ -25,6 +25,28 @@ describe('handleSheetsMcpRequest', () => {
         { address: 'A2', formula: '=B1*2', value: null }, { address: 'B2', value: null },
       ],
     })
+  })
+
+  it('reads an imported workbook through the supplied live cell and format view', () => {
+    const reads: string[][] = []
+    const result = handleSheetsMcpReadRequest({
+      revision: 12,
+      sheets: [{ id: 'import-1', name: 'Imported', rowCount: 8, columnCount: 4 }],
+      readCells: (_sheetId, addresses) => {
+        reads.push([...addresses])
+        return { A1: { value: 'Live' }, B1: { value: 8 }, A2: { value: null, formula: '=B1*2' } }
+      },
+      readFormats: () => ({ A1: { bold: true } }),
+    }, 'sheets.read_range', { sheetId: 'import-1', range: 'A1:B2' })
+
+    expect(result).toEqual({
+      revision: 12, sheetId: 'import-1', range: 'A1:B2',
+      cells: [
+        { address: 'A1', value: 'Live', format: { bold: true } }, { address: 'B1', value: 8 },
+        { address: 'A2', value: null, formula: '=B1*2' }, { address: 'B2', value: null },
+      ],
+    })
+    expect(reads).toEqual([['A1', 'B1', 'A2', 'B2']])
   })
 
   it('finds bounded case-insensitive matches only in the requested range', () => {
