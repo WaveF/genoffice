@@ -31,4 +31,19 @@ describe('handleSheetsMcpRequest', () => {
     expect(() => handleSheetsMcpRequest(adapter, 'sheets.read_range', { sheetId: 'sheet-1', range: 'A1:A2001' })).toThrow('2000')
     expect(() => handleSheetsMcpRequest(adapter, 'sheets.read_range', { sheetId: 'sheet-1' })).toThrow('sheetId and range')
   })
+
+  it('dry-runs and applies a revision-checked operation batch', async () => {
+    const input = {
+      expectedRevision: 7,
+      transactionId: 'mcp-cell-edit',
+      summary: 'Set a value',
+      operations: [{ op: 'set_cell', sheetId: 'sheet-1', address: 'B2', value: 'Done' }],
+    }
+    await expect(Promise.resolve(handleSheetsMcpRequest(adapter, 'sheets.apply_operations', { ...input, dryRun: true }))).resolves.toMatchObject({
+      revision: 7, dryRun: true, changes: { cells: 1 },
+    })
+    await expect(handleSheetsMcpRequest(adapter, 'sheets.apply_operations', input, async (plan) => { adapter.apply(plan) })).resolves.toMatchObject({
+      revision: 8, dryRun: false,
+    })
+  })
 })

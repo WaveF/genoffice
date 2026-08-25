@@ -183,6 +183,20 @@ describe('ShellMcpGateway', () => {
     ).rejects.toMatchObject({ code: 'conflict' })
   })
 
+  it('requires a Sheets revision and sends operation batches through the renderer write queue', async () => {
+    const sheetsTarget = { ...target, kind: 'sheets' as const }
+    const result = await gatewayWith([sheetsTarget]).handle(
+      request({ name: 'sheets.apply_operations', input: {
+        documentId: 'doc-123', expectedRevision: 3, transactionId: 'tx-1', summary: 'Set B2',
+        operations: [{ op: 'set_cell', sheetId: 'sheet-1', address: 'B2', value: 4 }], dryRun: true,
+      } }),
+    )
+    expect(result).toMatchObject({ mutated: false, revision: 3 })
+    expect(JSON.parse((result as { content: string }).content)).toMatchObject({
+      action: 'sheets.apply_operations', input: { expectedRevision: 3, transactionId: 'tx-1', dryRun: true },
+    })
+  })
+
   it('renders a bounded Slides preview through the explicit document/slide route', async () => {
     const result = await gatewayWith().handle(
       request({ name: 'slides.render_preview', input: { documentId: 'doc-123', slide: 's_1' } }),

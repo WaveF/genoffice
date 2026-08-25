@@ -1,17 +1,44 @@
 import type { InMemoryWorkbookAdapter } from '../domain/in-memory-workbook'
 import { parseRange, rangeAddresses, rangeCellCount } from '../domain/cell-address'
+import type { ChangePlan } from '../domain/workbook.types'
 
 const MAX_READ_CELLS = 2_000
 
 /** Read-only MCP facade over the already-authoritative workbook adapter. */
 export function handleSheetsMcpRequest(
   adapter: InMemoryWorkbookAdapter,
-  action: 'sheets.get_workbook_context' | 'sheets.read_range',
+  action: 'sheets.get_workbook_context' | 'sheets.read_range' | 'sheets.apply_operations',
   input: Record<string, unknown>,
-): unknown {
+  applyPlan?: (plan: ChangePlan) => Promise<void>,
+): unknown | Promise<unknown> {
   const snapshot = adapter.getSnapshot()
   if (action === 'sheets.get_workbook_context')
     return { revision: snapshot.revision, sheets: snapshot.sheets.map((sheet) => ({ id: sheet.id, name: sheet.name, cellCount: Object.keys(sheet.cells).length })) }
+  if (action === 'sheets.apply_operations') {
+    const expectedRevision = input.expectedRevision
+    const transactionId = input.transactionId
+    const summary = input.summary
+    const operations = input.operations
+    const dryRun = input.dryRun === true
+    if (!Number.isSafeInteger(expectedRevision) || (expectedRevision as number) < 0) throw new Error('expectedRevision is required')
+    if (typeof transactionId !== 'string' || typeof summary !== 'string' || !Array.isArray(operations)) throw new Error('transactionId, summary, and operations are required')
+    const plan = adapter.plan({ dslVersion: 1, transactionId, baseRevision: expectedRevision, summary, operations })
+    const result = {
+      revision: snapshot.revision,
+      dryRun,
+      transactionId: plan.transactionId,
+      changes: {
+        cells: plan.cellChanges.length,
+        formats: plan.formatChanges.length,
+        sheets: plan.sheetRenames.length,
+        structural: plan.structuralChanges.length,
+      },
+      warnings: plan.warnings,
+    }
+    if (dryRun) return result
+    if (!applyPlan) throw new Error('Workbook apply handler is unavailable')
+    return applyPlan(plan).then(() => ({ ...result, dryRun: false, revision: adapter.getSnapshot().revision }))
+  }
   const sheetId = input.sheetId
   const range = input.range
   if (typeof sheetId !== 'string' || typeof range !== 'string') throw new Error('sheetId and range are required')

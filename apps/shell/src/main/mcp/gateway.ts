@@ -214,6 +214,21 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
     },
   },
   {
+    name: 'sheets.apply_operations',
+    description: 'Dry-run or atomically apply a validated operation batch to an open workbook.',
+    inputSchema: {
+      type: 'object', additionalProperties: false, required: ['documentId', 'expectedRevision', 'transactionId', 'summary', 'operations'],
+      properties: {
+        documentId: { type: 'string', minLength: 1, maxLength: 128 },
+        expectedRevision: { type: 'integer', minimum: 0 },
+        transactionId: { type: 'string', minLength: 1, maxLength: 128 },
+        summary: { type: 'string', minLength: 1, maxLength: 500 },
+        operations: { type: 'array', minItems: 1, maxItems: 1000 },
+        dryRun: { type: 'boolean' },
+      },
+    },
+  },
+  {
     name: 'pdf.read_page_context',
     description: 'Read bounded text context for one explicit page of an open PDF.',
     inputSchema: { type: 'object', additionalProperties: false, required: ['documentId', 'page'], properties: { documentId: { type: 'string' }, page: { type: 'integer', minimum: 0 } } },
@@ -358,6 +373,22 @@ export class ShellMcpGateway implements McpBridgeGateway {
       const target = await this.requireRendererTarget(documentId, 'sheets')
       const result = await this.requireRenderer().request(target.webContentsId, 'sheets.read_range', { sheetId, range }, context.signal)
       return toolResult(JSON.stringify(result), false, target.revision)
+    }
+    if (name === 'sheets.apply_operations') {
+      const { documentId, expectedRevision, transactionId, summary, operations, dryRun = false } = argumentsValue
+      if (
+        typeof documentId !== 'string' || !Number.isSafeInteger(expectedRevision) || (expectedRevision as number) < 0 ||
+        typeof transactionId !== 'string' || typeof summary !== 'string' || !Array.isArray(operations) || typeof dryRun !== 'boolean' ||
+        Object.keys(argumentsValue).some((key) => !['documentId', 'expectedRevision', 'transactionId', 'summary', 'operations', 'dryRun'].includes(key))
+      ) throw new CapabilityError('validation_error', 'A complete Sheets operation batch is required')
+      const target = await this.requireRendererTarget(documentId, 'sheets')
+      if (target.revision !== expectedRevision) throw new CapabilityError('conflict', 'Workbook changed since it was read', { expectedRevision, actualRevision: target.revision })
+      const result = await this.writeQueue.enqueue(target.documentId, context.signal, async () => {
+        if (!dryRun) await this.requirePermissions().authorize({ clientId: context.clientId, toolName: name, risk: 'write', document: target })
+        return this.requireRenderer().request(target.webContentsId, 'sheets.apply_operations', { expectedRevision, transactionId, summary, operations, dryRun }, context.signal)
+      })
+      const updated = await this.requireRendererTarget(documentId, 'sheets')
+      return toolResult(JSON.stringify(result), !dryRun, updated.revision)
     }
     if (name === 'pdf.read_page_context') {
       const documentId = argumentsValue.documentId

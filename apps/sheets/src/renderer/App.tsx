@@ -405,9 +405,13 @@ let pendingCopySource: string | undefined
 
 export function App(): React.JSX.Element {
   const adapterRef = useRef(new InMemoryWorkbookAdapter(initialSnapshot))
+  const mcpApplyPlanRef = useRef<(plan: ChangePlan) => Promise<void>>(async () => {
+    throw new Error('Workbook is not ready')
+  })
   useEffect(() => window.desktopApi.onMcpRequest((request) => {
-    try { const result = handleSheetsMcpRequest(adapterRef.current, request.action, request.input); window.desktopApi.respondMcpRequest({ requestId: request.requestId, ok: true, result }) }
-    catch (error) { window.desktopApi.respondMcpRequest({ requestId: request.requestId, ok: false, error: error instanceof Error ? error.message : 'Sheets MCP request failed' }) }
+    void Promise.resolve(handleSheetsMcpRequest(adapterRef.current, request.action, request.input, mcpApplyPlanRef.current))
+      .then((result) => window.desktopApi.respondMcpRequest({ requestId: request.requestId, ok: true, result }))
+      .catch((error: unknown) => window.desktopApi.respondMcpRequest({ requestId: request.requestId, ok: false, error: error instanceof Error ? error.message : 'Sheets MCP request failed' }))
   }), [])
   const univerRef = useRef<UniverRuntime | null>(null)
   const lazyWorkbookRef = useRef<LazyWorkbookState | null>(null)
@@ -2835,6 +2839,14 @@ export function App(): React.JSX.Element {
       setMessage(reason)
       return Promise.resolve({ ok: false, reason })
     }
+  }
+
+  mcpApplyPlanRef.current = async (plan) => {
+    if (lazyWorkbookRef.current) throw new Error('MCP workbook writes for imported files are not ready')
+    const outcome = await autoApplySafePlan(plan)
+    if (!outcome.ok) throw new Error(outcome.reason ?? 'Workbook changes were not applied')
+    const revision = adapterRef.current.getSnapshot().revision
+    window.desktopApi.reportMcpRevision(revision)
   }
 
   async function handleLazyApply(state: LazyWorkbookState): Promise<ApplyOutcome> {
