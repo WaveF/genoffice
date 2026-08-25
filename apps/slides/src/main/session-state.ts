@@ -75,6 +75,8 @@ export interface Session {
   opSeq?: number
   /** Applied-op journal, capped ring — the attachment point for a future sync transport */
   opLog?: OpLogEntry[]
+  /** Monotonic document content revision used by external capability clients. */
+  revision?: number
 }
 export const sessions = new Map<number, Session>()
 
@@ -85,7 +87,7 @@ export const sessions = new Map<number, Session>()
 // bytes) are kept verbatim; content-addressing them is the transport layer's job.
 export interface OpLogEntry {
   seq: number
-  source: 'edit' | 'batch' | 'script' | 'generate' | 'reset'
+  source: 'edit' | 'batch' | 'script' | 'generate' | 'mcp' | 'reset'
   ops: Array<{ op: { op: string; [k: string]: unknown }; slideId?: string; created?: string[] }>
 }
 const OP_LOG_MAX = 200
@@ -100,6 +102,7 @@ export function journalOps(
   }>,
 ): void {
   if (records.length === 0) return
+  session.revision = (session.revision ?? 0) + 1
   const seq = (session.opSeq = (session.opSeq ?? 0) + 1)
   const log = (session.opLog ??= [])
   log.push({
@@ -298,6 +301,7 @@ export function restoreSnapshot(session: Session, snap: HistorySnapshot): void {
   const entries = session.opened.archive.entries
   entries.clear()
   for (const [k, v] of fresh.entries) entries.set(k, v)
+  session.revision = (session.revision ?? 0) + 1
   // The journal cannot express a snapshot jump as ops; mark the divergence so a
   // future consumer knows to full-resync rather than replay across it.
   if (session.opLog?.length) {

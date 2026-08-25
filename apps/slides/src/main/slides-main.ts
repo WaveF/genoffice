@@ -571,6 +571,11 @@ export function slidesIsDirty(webContentsId: number): boolean {
   return !!session && sessionDirty(session)
 }
 
+/** Current main-process document revision for an open Slides renderer. */
+export function slidesRevision(webContentsId: number): number {
+  return sessions.get(webContentsId)?.revision ?? 0
+}
+
 /**
  * Close guard for the slides renderer: true means proceed with closing.
  * Clean -> true; with changes -> Save/Don't Save/Cancel. Choosing Save asks the renderer to run

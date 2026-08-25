@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { CapabilityError, type DocumentTarget } from '@genoffice/capabilities'
-import { ShellMcpGateway, type DocumentTargetSource } from '../src/main/mcp/gateway'
+import {
+  ShellMcpGateway,
+  type DocumentTargetSource,
+  type SlidesMcpReader,
+} from '../src/main/mcp/gateway'
 
 const target: DocumentTarget = {
   documentId: 'doc-123',
@@ -18,7 +22,11 @@ function gatewayWith(documents: DocumentTarget[] = [target]): ShellMcpGateway {
     findDocumentTarget: async (documentId) =>
       documents.find((candidate) => candidate.documentId === documentId) ?? null,
   }
-  return new ShellMcpGateway(source)
+  const slides: SlidesMcpReader = {
+    getDeckContext: () => ({ revision: 3, slideCount: 1, slides: [{ slideId: 's_1', index: 0 }] }),
+    readSlide: (_webContentsId, slide) => ({ revision: 3, slide }),
+  }
+  return new ShellMcpGateway(source, slides)
 }
 
 function request(params: Record<string, unknown>) {
@@ -46,6 +54,17 @@ describe('ShellMcpGateway', () => {
       request({ name: 'get_document_status', arguments: { documentId: 'doc-123' } }),
     )
     expect(result).toEqual({ content: JSON.stringify(target), mutated: false, revision: 3 })
+  })
+
+  it('routes Slides reads through an explicit documentId, not the active tab', async () => {
+    const context = await gatewayWith().handle(
+      request({ name: 'slides.get_deck_context', arguments: { documentId: 'doc-123' } }),
+    )
+    const slide = await gatewayWith().handle(
+      request({ name: 'slides.read_slide', arguments: { documentId: 'doc-123', slide: 's_1' } }),
+    )
+    expect(context).toMatchObject({ revision: 3, mutated: false })
+    expect(JSON.parse((slide as { content: string }).content)).toEqual({ revision: 3, slide: 's_1' })
   })
 
   it('rejects unknown, closed, and malformed document requests', async () => {

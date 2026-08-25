@@ -63,10 +63,10 @@
 
 | ID | 任务 | 优先级 | 依赖 | 状态 | 负责人 | 代码落点 | 验收标准 | PR |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| SLD-01 | 将 Slides session 适配为 `DocumentTarget`，暴露 revision、dirty、path、title。 | P0 | CAP-03 | 未开始 | TBD | `apps/slides/src/main/session-state.ts` | 多个 Slides Tab 对应独立 target；关闭时自动注销。 | |
-| SLD-02 | 从现有 operation registry 导出经验证的 canonical ops facade。 | P0 | CAP-01 | 未开始 | TBD | `apps/slides/src/main/ops/` | 不允许外部传入内部 `source` / archive bytes / 任意脚本。 | |
-| SLD-03 | 实现 `slides.get_deck_context`。 | P0 | SLD-01 | 未开始 | TBD | `apps/slides/src/main/mcp-adapter.ts` | 返回页数、页面 IDs、元素摘要、revision；正文与结果有大小上限。 | |
-| SLD-04 | 实现 `slides.read_slide`。 | P0 | SLD-01 | 未开始 | TBD | 同上 | 指定 slideId/索引后返回完整可编辑元素信息；无效目标返回 not_found。 | |
+| SLD-01 | 将 Slides session 适配为 `DocumentTarget`，暴露 revision、dirty、path、title。 | P0 | CAP-03 | 进行中 | Codex | `apps/slides/src/main/session-state.ts`、`mcp-adapter.ts` | 已为 canonical transaction/undo/redo 增加 session revision；仍需纳入所有人工变更路径并接入 Shell target。 | |
+| SLD-02 | 从现有 operation registry 导出经验证的 canonical ops facade。 | P0 | CAP-01 | 进行中 | Codex | `apps/slides/src/main/mcp-op-guard.ts`、`mcp-adapter.ts` | 已建立 allow-list facade，拒绝 archive bytes、文件路径、脚本及超限 payload；待 gateway 接入。 | |
+| SLD-03 | 实现 `slides.get_deck_context`。 | P0 | SLD-01 | 进行中 | Codex | `apps/slides/src/main/mcp-adapter.ts`、shell gateway | 已实现页数、页面 IDs、元素摘要、revision 与显式 documentId 路由；待真实 Slides session 集成测试。 | |
+| SLD-04 | 实现 `slides.read_slide`。 | P0 | SLD-01 | 进行中 | Codex | 同上 | 已支持 slideId/索引，过滤敏感字段并限制 512 KiB 输出；待真实 Slides session 集成测试。 | |
 | SLD-05 | 实现 `slides.apply_ops`，支持 `dryRun` 与 `expectedRevision`。 | P0 | SLD-02, CAP-07, SEC-02 | 未开始 | TBD | 同上 | dryRun 不改变 session；失败时原子回滚；成功后仅产生一个 UI undo step。 | |
 | SLD-06 | 实现 `slides.add_slide`、`slides.delete_slide`。 | P1 | SLD-05, SEC-03 | 未开始 | TBD | 同上 | 插入/删除、undo、redo、保存/重新打开均正确。 | |
 | SLD-07 | 实现 `slides.render_preview`，返回受限尺寸 PNG 或应用生成的临时资源句柄。 | P1 | SLD-03 | 未开始 | TBD | 同上 | 不暴露任意文件路径；临时资源有 TTL 清理。 | |

@@ -14,6 +14,12 @@ export interface DocumentTargetSource {
   findDocumentTarget(documentId: string): Promise<DocumentTarget | null>
 }
 
+/** Read-only portion of the Slides facade, injected to avoid an Electron dependency in gateway tests. */
+export interface SlidesMcpReader {
+  getDeckContext(webContentsId: number): unknown
+  readSlide(webContentsId: number, slideRef: number | string): unknown
+}
+
 interface ToolDescriptor {
   name: string
   description: string
@@ -46,9 +52,28 @@ const GET_DOCUMENT_STATUS: CapabilityTool<{ documentId: string }> = {
   },
 }
 
-const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [LIST_OPEN_DOCUMENTS, GET_DOCUMENT_STATUS].map(
-  ({ name, description, inputSchema }) => ({ name, description, inputSchema }),
-)
+const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
+  LIST_OPEN_DOCUMENTS,
+  GET_DOCUMENT_STATUS,
+  {
+    name: 'slides.get_deck_context',
+    description: 'Read the slide IDs and element counts for one open Slides document.',
+    inputSchema: GET_DOCUMENT_STATUS.inputSchema,
+  },
+  {
+    name: 'slides.read_slide',
+    description: 'Read the editable element model for one slide in an open Slides document.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['documentId', 'slide'],
+      properties: {
+        documentId: { type: 'string', minLength: 1, maxLength: 128 },
+        slide: { anyOf: [{ type: 'integer', minimum: 0 }, { type: 'string', minLength: 1 }] },
+      },
+    },
+  },
+].map(({ name, description, inputSchema }) => ({ name, description, inputSchema }))
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
@@ -60,7 +85,10 @@ function executionContext(request: McpBridgeRequest): ExecutionContext {
 
 /** Main-process router for the initial, capability-scoped MCP tool surface. */
 export class ShellMcpGateway implements McpBridgeGateway {
-  constructor(private readonly documents: DocumentTargetSource) {}
+  constructor(
+    private readonly documents: DocumentTargetSource,
+    private readonly slides?: SlidesMcpReader,
+  ) {}
 
   async handle(request: McpBridgeRequest): Promise<unknown> {
     if (request.method === 'tools/list') return { tools: TOOL_DESCRIPTORS }
@@ -84,18 +112,32 @@ export class ShellMcpGateway implements McpBridgeGateway {
       return toolResult(JSON.stringify(documents))
     }
     if (name === GET_DOCUMENT_STATUS.name) {
-      const documentId = argumentsValue.documentId
-      if (
-        typeof documentId !== 'string' ||
-        documentId.length === 0 ||
-        documentId.length > 128 ||
-        Object.keys(argumentsValue).length !== 1
-      ) {
-        throw new CapabilityError('validation_error', 'documentId must be the only non-empty string argument')
-      }
+      const documentId = this.requireOnlyDocumentId(argumentsValue)
       if (context.signal.aborted) throw new CapabilityError('cancelled', 'MCP request was cancelled')
       const target = await this.documents.findDocumentTarget(documentId)
       return GET_DOCUMENT_STATUS.execute(target, { documentId }, context)
+    }
+    if (name === 'slides.get_deck_context') {
+      const target = await this.requireSlidesTarget(this.requireOnlyDocumentId(argumentsValue))
+      return toolResult(JSON.stringify(this.requireSlides().getDeckContext(target.webContentsId)), false, target.revision)
+    }
+    if (name === 'slides.read_slide') {
+      const documentId = argumentsValue.documentId
+      const slide = argumentsValue.slide
+      if (
+        typeof documentId !== 'string' ||
+        documentId.length === 0 ||
+        (typeof slide !== 'string' && (!Number.isInteger(slide) || (slide as number) < 0)) ||
+        Object.keys(argumentsValue).length !== 2
+      ) {
+        throw new CapabilityError('validation_error', 'documentId and a non-negative slide index or slide ID are required')
+      }
+      const target = await this.requireSlidesTarget(documentId)
+      return toolResult(
+        JSON.stringify(this.requireSlides().readSlide(target.webContentsId, slide)),
+        false,
+        target.revision,
+      )
     }
     throw new CapabilityError('not_found', `Unknown MCP tool: ${name}`)
   }
@@ -104,5 +146,30 @@ export class ShellMcpGateway implements McpBridgeGateway {
     if (Object.keys(argumentsValue).length > 0) {
       throw new CapabilityError('validation_error', 'This tool does not accept arguments')
     }
+  }
+
+  private requireOnlyDocumentId(argumentsValue: Record<string, unknown>): string {
+    const documentId = argumentsValue.documentId
+    if (
+      typeof documentId !== 'string' ||
+      documentId.length === 0 ||
+      documentId.length > 128 ||
+      Object.keys(argumentsValue).length !== 1
+    ) {
+      throw new CapabilityError('validation_error', 'documentId must be the only non-empty string argument')
+    }
+    return documentId
+  }
+
+  private async requireSlidesTarget(documentId: string): Promise<DocumentTarget> {
+    const target = await this.documents.findDocumentTarget(documentId)
+    if (!target) throw new CapabilityError('not_found', 'Document is no longer open')
+    if (target.kind !== 'slides') throw new CapabilityError('validation_error', 'Document is not a Slides deck')
+    return target
+  }
+
+  private requireSlides(): SlidesMcpReader {
+    if (!this.slides) throw new CapabilityError('not_running', 'Slides MCP support is unavailable')
+    return this.slides
   }
 }

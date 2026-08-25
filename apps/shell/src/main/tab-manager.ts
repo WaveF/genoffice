@@ -38,6 +38,7 @@ import {
   requestSlidesClose,
   setActiveSlidesWebContents,
   slidesIsDirty,
+  slidesRevision,
 } from '../../../slides/src/main/slides-main'
 import type { TabKind, TabSummary } from '../shared/tabs-api'
 
@@ -183,7 +184,7 @@ export class TabManager {
       documentId: tab.documentId,
       kind: tab.kind as DocumentKind,
       title: tab.title,
-      revision: tab.revision ?? 0,
+      revision: this.documentRevision(tab),
       dirty: await this.isDocumentDirty(tab),
       active: tab.id === this.activeId,
       webContentsId: tab.view.webContents.id,
@@ -208,6 +209,10 @@ export class TabManager {
       case 'home':
         return false
     }
+  }
+
+  private documentRevision(tab: TabRecord & { view: WebContentsView; documentId: string }): number {
+    return tab.kind === 'slides' ? slidesRevision(tab.view.webContents.id) : (tab.revision ?? 0)
   }
 
   openHomeTab(): void {

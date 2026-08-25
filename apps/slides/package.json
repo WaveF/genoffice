@@ -20,6 +20,7 @@
   "devDependencies": {
     "@genoffice/agent-core": "*",
     "@genoffice/ai-provider": "*",
+    "@genoffice/capabilities": "*",
     "@genoffice/ai-search": "*",
     "@genoffice/file-parse": "*",
     "@genoffice/i18n": "*",
