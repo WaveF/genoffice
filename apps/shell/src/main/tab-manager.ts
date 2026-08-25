@@ -1,6 +1,8 @@
+import { randomUUID } from 'node:crypto'
 import { basename } from 'node:path'
 import { BrowserWindow } from 'electron'
 import type { Rectangle, WebContents, WebContentsView } from 'electron'
+import type { DocumentKind, DocumentTarget } from '@genoffice/capabilities'
 
 import {
   createDocsView,
@@ -42,6 +44,10 @@ import type { TabKind, TabSummary } from '../shared/tabs-api'
 interface TabRecord {
   id: string
   kind: TabKind
+  /** Opaque capability ID. It expires when this tab is closed. */
+  documentId?: string
+  /** Reserved for the document adapters, which will increment it on every write. */
+  revision?: number
   /** null for the Home tab — it's rendered by the shell window's own webContents */
   view: WebContentsView | null
   title: string
@@ -148,6 +154,62 @@ export class TabManager {
     }))
   }
 
+  /**
+   * Return only shell-issued document handles.  File paths intentionally stay
+   * private until a future, explicitly authorized file-disclosure tool exists.
+   */
+  async listDocumentTargets(): Promise<DocumentTarget[]> {
+    return Promise.all(
+      this.tabs
+        .filter((tab): tab is TabRecord & { view: WebContentsView; documentId: string } =>
+          tab.kind !== 'home' && tab.view !== null && typeof tab.documentId === 'string',
+        )
+        .map((tab) => this.toDocumentTarget(tab)),
+    )
+  }
+
+  async findDocumentTarget(documentId: string): Promise<DocumentTarget | null> {
+    const tab = this.tabs.find(
+      (candidate): candidate is TabRecord & { view: WebContentsView; documentId: string } =>
+        candidate.documentId === documentId && candidate.view !== null && candidate.kind !== 'home',
+    )
+    return tab ? this.toDocumentTarget(tab) : null
+  }
+
+  private async toDocumentTarget(
+    tab: TabRecord & { view: WebContentsView; documentId: string },
+  ): Promise<DocumentTarget> {
+    return {
+      documentId: tab.documentId,
+      kind: tab.kind as DocumentKind,
+      title: tab.title,
+      revision: tab.revision ?? 0,
+      dirty: await this.isDocumentDirty(tab),
+      active: tab.id === this.activeId,
+      webContentsId: tab.view.webContents.id,
+    }
+  }
+
+  private async isDocumentDirty(
+    tab: TabRecord & { view: WebContentsView; documentId: string },
+  ): Promise<boolean> {
+    const webContentsId = tab.view.webContents.id
+    switch (tab.kind) {
+      case 'docs':
+        return docsQueryDirty(tab.view.webContents)
+      case 'sheets':
+        return sheetsPendingEditCount(webContentsId) > 0
+      case 'slides':
+        return slidesIsDirty(webContentsId)
+      case 'pdf':
+        return pdfIsDirty(webContentsId)
+      case 'markdown':
+        return markdownIsDirty(webContentsId)
+      case 'home':
+        return false
+    }
+  }
+
   openHomeTab(): void {
     this.activateTab(HOME_ID)
   }
@@ -166,6 +228,8 @@ export class TabManager {
     this.tabs.push({
       id,
       kind: 'docs',
+      documentId: `doc-${randomUUID()}`,
+      revision: 0,
       view,
       title: openPath ? basename(openPath) : this.untitled('docs', 'GenOffice Docs'),
       filePath: openPath,
@@ -188,6 +252,8 @@ export class TabManager {
     this.tabs.push({
       id,
       kind: 'sheets',
+      documentId: `doc-${randomUUID()}`,
+      revision: 0,
       view,
       title: openPath ? basename(openPath) : this.untitled('sheets', 'AI Sheets'),
       filePath: openPath,
@@ -205,6 +271,8 @@ export class TabManager {
     this.tabs.push({
       id,
       kind: 'slides',
+      documentId: `doc-${randomUUID()}`,
+      revision: 0,
       view,
       title: openPath ? basename(openPath) : this.untitled('slides', 'AI Slides'),
       filePath: openPath,
@@ -219,7 +287,15 @@ export class TabManager {
     this.shellWindow.contentView.addChildView(view)
     view.setVisible(false)
     this.trackHtmlFullScreen(id, view)
-    this.tabs.push({ id, kind: 'pdf', view, title: basename(openPath), filePath: openPath })
+    this.tabs.push({
+      id,
+      kind: 'pdf',
+      documentId: `doc-${randomUUID()}`,
+      revision: 0,
+      view,
+      title: basename(openPath),
+      filePath: openPath,
+    })
     this.activateTab(id)
     return id
   }
@@ -242,6 +318,8 @@ export class TabManager {
     this.tabs.push({
       id,
       kind: 'markdown',
+      documentId: `doc-${randomUUID()}`,
+      revision: 0,
       view,
       title: openPath ? basename(openPath) : this.untitled('markdown', 'AI Markdown'),
       filePath: openPath,

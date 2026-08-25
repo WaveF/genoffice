@@ -186,6 +186,8 @@ import { TABS_CHANNELS } from '../shared/tabs-api'
 import { showErrorDialog } from './error-dialog'
 import { normalizeRecentQuery, pageRecentPaths, statExistingPaths } from './recent-files'
 import { TabManager } from './tab-manager'
+import { LocalMcpBridge } from './mcp/bridge'
+import { ShellMcpGateway } from './mcp/gateway'
 import { applyUpdateChannel, initAutoUpdater } from './updater'
 import { isUpdateChannel, type UpdateChannel } from '../shared/update-api'
 
@@ -2292,6 +2294,7 @@ const tm = (key: Parameters<typeof tMain>[1], params?: Parameters<typeof tMain>[
 
 let shellWindow: BrowserWindow | null = null
 let tabManager: TabManager | null = null
+let mcpBridge: LocalMcpBridge | null = null
 
 /**
  * When the user creates a file from a specific project view, remember which
@@ -4203,6 +4206,19 @@ app.whenReady().then(async () => {
   analytics.track('app_launch')
   startSheetsCaptureServer()
   createShellWindow()
+  if (tabManager) {
+    try {
+      mcpBridge = new LocalMcpBridge({
+        userDataPath: app.getPath('userData'),
+        gateway: new ShellMcpGateway(tabManager),
+      })
+      await mcpBridge.start()
+    } catch (error) {
+      // MCP is an optional integration: a startup failure must not prevent local editing.
+      console.warn('Failed to start local MCP bridge', error)
+      mcpBridge = null
+    }
+  }
   // deferred to ready: labels need currentLang(), which reads app.getLocale()
   installBackToHomeItems()
   installDockMenu()
@@ -4224,4 +4240,5 @@ app.on('before-quit', () => {
   // No close prompt may fall through to "Save" during shutdown
   markSheetsShuttingDown()
   stopSheetsSidecar()
+  void mcpBridge?.stop()
 })

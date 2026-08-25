@@ -212,6 +212,26 @@ describe('opening tabs', () => {
     manager.openSheetsTab(undefined, { newBlank: true })
     expect(setSheetsNewBlank).toHaveBeenCalledTimes(1)
   })
+
+  it('assigns opaque document IDs and routes an inactive tab without exposing its path', async () => {
+    const docsTabId = manager.openDocsTab('/tmp/private-report.docx')
+    manager.openSlidesTab('/tmp/deck.pptx')
+
+    const documents = await manager.listDocumentTargets()
+    expect(documents).toHaveLength(2)
+    expect(documents.map((document) => document.documentId)).toEqual(
+      expect.arrayContaining([expect.stringMatching(/^doc-/), expect.stringMatching(/^doc-/)]),
+    )
+    expect(documents[0].documentId).not.toBe(documents[1].documentId)
+    expect(documents[0]).toMatchObject({ kind: 'docs', active: false, dirty: false })
+    expect(documents[0]).not.toHaveProperty('path')
+
+    const inactiveTarget = await manager.findDocumentTarget(documents[0].documentId)
+    expect(inactiveTarget).toMatchObject({ kind: 'docs', active: false })
+
+    await manager.closeTab(docsTabId)
+    await expect(manager.findDocumentTarget(documents[0].documentId)).resolves.toBeNull()
+  })
 })
 
 describe('activation', () => {

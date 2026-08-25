@@ -29,11 +29,11 @@
 | ID | 任务 | 优先级 | 依赖 | 状态 | 负责人 | 代码落点 | 验收标准 | PR |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | INF-01 | 新建 `packages/genoffice-mcp` workspace，提供可执行 stdio MCP adapter。 | P0 | DEC-01 | 进行中 | Codex | `packages/genoffice-mcp/`、根 `package.json` | 已实现 stdio JSON-RPC/MCP tools 子集；待完成打包与真实 Shell 接入。 | |
-| INF-02 | 新建 `apps/shell/src/main/mcp/`，定义 gateway 生命周期、请求路由和错误模型。 | P0 | INF-01 | 进行中 | Codex | `apps/shell/src/main/mcp/` | 已实现 private bridge；待接入 Shell 生命周期与 tool gateway。 | |
+| INF-02 | 新建 `apps/shell/src/main/mcp/`，定义 gateway 生命周期、请求路由和错误模型。 | P0 | INF-01 | 进行中 | Codex | `apps/shell/src/main/mcp/` | 已实现 private bridge、只读 tool gateway；待写入路由与权限层。 | |
 | INF-03 | 实现跨平台本地桥接：macOS/Linux Unix socket、Windows named pipe。 | P0 | INF-02 | 进行中 | Codex | `apps/shell/src/main/mcp/bridge.ts` | 已实现 Unix socket/named pipe 路径；待三平台测试。 | |
 | INF-04 | 实现启动时随机 token、受限发现文件和 client 握手。 | P0 | INF-03 | 进行中 | Codex | `apps/shell/src/main/mcp/bridge.ts` | 已实现随机 token 与 0600 discovery；待 Shell 生命周期接入及失效测试。 | |
 | INF-05 | 定义稳定的 MCP 错误码与错误 payload。 | P0 | INF-02 | 进行中 | Codex | `packages/genoffice-capabilities/`、gateway | 已定义错误码与 bridge 映射；待 gateway 所有工具采用。 | |
-| INF-06 | 将 Shell 的 MCP gateway 注册到应用启动与退出生命周期。 | P0 | INF-02 | 未开始 | TBD | `apps/shell/src/main/index.ts` | Shell 退出、崩溃后重启、第二实例启动时不会留下可用的旧连接。 | |
+| INF-06 | 将 Shell 的 MCP gateway 注册到应用启动与退出生命周期。 | P0 | INF-02 | 已完成 | Codex | `apps/shell/src/main/index.ts` | Shell 启动后创建 bridge，退出时撤销 discovery 并关闭 socket；崩溃后随机 token/endpoint 自动失效。 | |
 | INF-07 | 更新 electron-vite / electron-builder 配置，确保 adapter 在开发与三端打包产物可执行。 | P0 | INF-01 | 未开始 | TBD | `apps/shell/electron-builder.cjs`、构建脚本 | macOS/Windows/Linux 打包检查可找到 adapter，且不依赖 monorepo 相对路径。 | |
 
 ## 2. 共享能力协议与文档路由
@@ -41,10 +41,10 @@
 | ID | 任务 | 优先级 | 依赖 | 状态 | 负责人 | 代码落点 | 验收标准 | PR |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | CAP-01 | 新建 `packages/genoffice-capabilities`，定义 `CapabilityTool`、`DocumentTarget`、`ToolResult` 与 JSON Schema 类型。 | P0 | - | 已完成 | Codex | `packages/genoffice-capabilities/` | 无 Electron/React/AI provider 依赖；可被 main、renderer、adapter 共同引用。 | |
-| CAP-02 | 定义 `DocumentSummary` 与 `DocumentId` 规则；DocumentId 在 Tab 生命周期内稳定且不可猜测。 | P0 | CAP-01 | 未开始 | TBD | capabilities + `TabManager` | `list_open_documents` 不泄露未授权路径；Tab 关闭后 ID 失效。 | |
+| CAP-02 | 定义 `DocumentSummary` 与 `DocumentId` 规则；DocumentId 在 Tab 生命周期内稳定且不可猜测。 | P0 | CAP-01 | 已完成 | Codex | capabilities + `TabManager` | Tab 创建时生成随机 opaque ID；只读列表不含路径，关闭 Tab 后无法再解析。 | |
 | CAP-03 | 为所有文档引入单调递增 `revision`；人工或 MCP 写入都会更新 revision。 | P0 | CAP-02 | 未开始 | TBD | 各 app session/state adapter | 相同 revision 的并发写入仅允许一个成功，另一个返回 `conflict`。 | |
-| CAP-04 | 在 `TabManager` 中实现 documentId → WebContents/adapter 的显式路由。 | P0 | CAP-02 | 未开始 | TBD | `apps/shell/src/main/tab-manager.ts` | 后台 Tab 可被精确读取；写入不受用户随后切换 active Tab 影响。 | |
-| CAP-05 | 实现全局只读 tools：`list_open_documents`、`get_document_status`。 | P0 | CAP-04 | 未开始 | TBD | shell gateway | 多 Tab、不同类型、关闭 Tab、无打开文档均有测试。 | |
+| CAP-04 | 在 `TabManager` 中实现 documentId → WebContents/adapter 的显式路由。 | P0 | CAP-02 | 已完成 | Codex | `apps/shell/src/main/tab-manager.ts` | 通过 documentId 精确查询后台 Tab 的 target，不以 active Tab 作为隐式目标。 | |
+| CAP-05 | 实现全局只读 tools：`list_open_documents`、`get_document_status`。 | P0 | CAP-04 | 已完成 | Codex | shell gateway | 已实现显式 documentId 状态查询、未知/关闭文档错误和参数校验单测。 | |
 | CAP-06 | 实现全局写 tools：`activate_document`、`save_document`、`undo`、`redo`。 | P0 | CAP-03 | 未开始 | TBD | shell gateway + app adapters | 所有写工具需要 expectedRevision；保存后返回 path/revision；已有 UI undo/redo 语义不变。 | |
 | CAP-07 | 建立每个 documentId 的串行写队列与请求取消策略。 | P0 | CAP-03 | 未开始 | TBD | shell gateway | 同文档写请求按顺序执行；客户端断开时未开始请求被取消，执行中的操作安全收尾。 | |
 
