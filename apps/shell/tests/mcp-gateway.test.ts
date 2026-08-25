@@ -197,6 +197,18 @@ describe('ShellMcpGateway', () => {
     })
   })
 
+  it('routes dry-run PDF annotations through the revision-checked renderer route', async () => {
+    const pdfTarget = { ...target, kind: 'pdf' as const }
+    const result = await gatewayWith([pdfTarget]).handle(
+      request({ name: 'pdf.apply_operations', input: {
+        documentId: 'doc-123', expectedRevision: 3, dryRun: true,
+        operations: [{ op: 'add_note', page: 0, x: 10, y: 10, contents: 'Review' }],
+      } }),
+    )
+    expect(result).toMatchObject({ mutated: false, revision: 3 })
+    expect(JSON.parse((result as { content: string }).content)).toMatchObject({ action: 'pdf.apply_operations' })
+  })
+
   it('renders a bounded Slides preview through the explicit document/slide route', async () => {
     const result = await gatewayWith().handle(
       request({ name: 'slides.render_preview', input: { documentId: 'doc-123', slide: 's_1' } }),

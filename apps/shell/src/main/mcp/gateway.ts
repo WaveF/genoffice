@@ -234,6 +234,19 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
     inputSchema: { type: 'object', additionalProperties: false, required: ['documentId', 'page'], properties: { documentId: { type: 'string' }, page: { type: 'integer', minimum: 0 } } },
   },
   {
+    name: 'pdf.apply_operations',
+    description: 'Dry-run or queue bounded non-destructive annotations in an open PDF.',
+    inputSchema: {
+      type: 'object', additionalProperties: false, required: ['documentId', 'expectedRevision', 'operations'],
+      properties: {
+        documentId: { type: 'string', minLength: 1, maxLength: 128 },
+        expectedRevision: { type: 'integer', minimum: 0 },
+        operations: { type: 'array', minItems: 1, maxItems: 50 },
+        dryRun: { type: 'boolean' },
+      },
+    },
+  },
+  {
     name: 'slides.apply_ops',
     description: 'Validate or atomically apply canonical edits to an open Slides document.',
     inputSchema: {
@@ -397,6 +410,22 @@ export class ShellMcpGateway implements McpBridgeGateway {
       const target = await this.requireRendererTarget(documentId, 'pdf')
       const result = await this.requireRenderer().request(target.webContentsId, 'pdf.read_page_context', { page }, context.signal)
       return toolResult(JSON.stringify(result), false, target.revision)
+    }
+    if (name === 'pdf.apply_operations') {
+      const { documentId, expectedRevision, operations, dryRun = false } = argumentsValue
+      if (
+        typeof documentId !== 'string' || !Number.isSafeInteger(expectedRevision) || (expectedRevision as number) < 0 ||
+        !Array.isArray(operations) || operations.length === 0 || operations.length > 50 || typeof dryRun !== 'boolean' ||
+        Object.keys(argumentsValue).some((key) => !['documentId', 'expectedRevision', 'operations', 'dryRun'].includes(key))
+      ) throw new CapabilityError('validation_error', 'A bounded PDF operation batch is required')
+      const target = await this.requireRendererTarget(documentId, 'pdf')
+      if (target.revision !== expectedRevision) throw new CapabilityError('conflict', 'Document changed since it was read', { expectedRevision, actualRevision: target.revision })
+      const result = await this.writeQueue.enqueue(target.documentId, context.signal, async () => {
+        if (!dryRun) await this.requirePermissions().authorize({ clientId: context.clientId, toolName: name, risk: 'write', document: target })
+        return this.requireRenderer().request(target.webContentsId, 'pdf.apply_operations', { expectedRevision, operations, dryRun }, context.signal)
+      })
+      const updated = await this.requireRendererTarget(documentId, 'pdf')
+      return toolResult(JSON.stringify(result), !dryRun, updated.revision)
     }
     if (
       name === 'docs.insert_content' || name === 'docs.replace_blocks' ||

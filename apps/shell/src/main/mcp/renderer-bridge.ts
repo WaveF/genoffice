@@ -27,6 +27,7 @@ export type RendererMcpAction =
   | 'sheets.apply_operations'
   | 'pdf.get_document_context'
   | 'pdf.read_page_context'
+  | 'pdf.apply_operations'
 
 interface PendingRequest {
   webContentsId: number

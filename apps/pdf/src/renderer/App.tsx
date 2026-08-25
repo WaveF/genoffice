@@ -99,7 +99,7 @@ import type { CharStyle } from './color-runs'
 import { platformShortcuts } from '@genoffice/i18n'
 import { Dropdown, useDismissablePopover } from '@genoffice/ui'
 import { useI18n } from './i18n/locale'
-import { handlePdfMcpRequest } from './mcp-adapter'
+import { handlePdfMcpRequest, type PdfMcpOperation } from './mcp-adapter'
 import { useAutosave } from './useAutosave'
 import type {
   AnnotDeleteInput,
@@ -646,10 +646,14 @@ export default function App() {
   const [formEdits, setFormEdits] = useState<Map<string, FormValueInput>>(new Map())
   const [rotations, setRotations] = useState<Map<number, number>>(new Map())
   const [deleted, setDeleted] = useState<Set<number>>(new Set())
+  const mcpRevisionRef = useRef(0)
+  const mcpApplyOperationsRef = useRef<(operations: PdfMcpOperation[]) => Promise<void>>(async () => {
+    throw new Error('PDF is not ready')
+  })
   useEffect(() => window.pdfApi.onMcpRequest((request) => {
-    try {
-      const result = handlePdfMcpRequest(request.action, request.input, {
+    void Promise.resolve(handlePdfMcpRequest(request.action, request.input, {
         pageCount: doc?.numPages ?? 0, sizes, pageBlocks, outline,
+        revision: mcpRevisionRef.current,
         forms: [...(formCatalog?.fields.values() ?? [])].map((field) => ({ name: field.name, kind: field.kind, pageIndex: field.pageIndex, value: field.value, checked: field.checked, required: field.required, readOnly: field.readOnly })),
         annotations: {
           pendingMarkups: markups.length,
@@ -657,11 +661,9 @@ export default function App() {
           savedMarkups: [...savedMarkups.values()].reduce((total, annotations) => total + annotations.length, 0),
           savedNotes: [...savedNotes.values()].reduce((total, annotations) => total + annotations.length, 0),
         },
-      })
-      window.pdfApi.respondMcpRequest({ requestId: request.requestId, ok: true, result })
-    } catch (error) {
-      window.pdfApi.respondMcpRequest({ requestId: request.requestId, ok: false, error: error instanceof Error ? error.message : 'PDF MCP request failed' })
-    }
+      }, mcpApplyOperationsRef.current))
+      .then((result) => window.pdfApi.respondMcpRequest({ requestId: request.requestId, ok: true, result }))
+      .catch((error: unknown) => window.pdfApi.respondMcpRequest({ requestId: request.requestId, ok: false, error: error instanceof Error ? error.message : 'PDF MCP request failed' }))
   }), [doc, sizes, pageBlocks, outline, formCatalog, markups, drawings, savedMarkups, savedNotes])
   /** Markup bar over the current selection; quads (PDF space, keyed by original page
       index) drive the Word-style toggle state of the buttons */
@@ -1510,6 +1512,26 @@ export default function App() {
       validation, and the closure it started with may snapshot stale state by then */
   const pushUndoRef = useRef(pushUndo)
   pushUndoRef.current = pushUndo
+
+  mcpApplyOperationsRef.current = async (operations) => {
+    pushUndoRef.current()
+    for (const operation of operations) {
+      if (operation.op === 'add_note') {
+        const id = newId()
+        setDrawings((previous) => [...previous, {
+          id,
+          input: { kind: 'note', pageIndex: operation.page, color: DRAW_COLORS[0]!.rgb, at: [operation.x, operation.y], contents: operation.contents, author: 'MCP client', createdMs: Date.now(), localId: id },
+        }])
+      } else {
+        setMarkups((previous) => [...previous, {
+          id: `mcp-${newId()}`, pageIndex: operation.page, type: operation.type,
+          color: operation.type === 'highlight' ? MARKUP_COLORS.highlight : MARKUP_COLORS[operation.type], quads: operation.quads,
+        }])
+      }
+    }
+    mcpRevisionRef.current += 1
+    window.pdfApi.reportMcpRevision(mcpRevisionRef.current)
+  }
 
   const applySnapshot = (s: EditSnapshot) => {
     setMarkups(s.markups)

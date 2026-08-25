@@ -6,7 +6,7 @@ import type { PdfApi, UiTheme } from '../shared/ipc'
 
 const api: PdfApi = {
   onMcpRequest: (handler) => {
-    const listener = (_event: Electron.IpcRendererEvent, request: { requestId: string; action: 'pdf.get_document_context' | 'pdf.read_page_context'; input: Record<string, unknown> }) => handler(request)
+    const listener = (_event: Electron.IpcRendererEvent, request: { requestId: string; action: 'pdf.get_document_context' | 'pdf.read_page_context' | 'pdf.apply_operations'; input: Record<string, unknown> }) => handler(request)
     ipcRenderer.on('mcp:renderer-request', listener)
     return () => ipcRenderer.removeListener('mcp:renderer-request', listener)
   },

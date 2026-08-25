@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { handlePdfMcpRequest } from '../src/renderer/mcp-adapter'
 
 describe('handlePdfMcpRequest', () => {
@@ -24,5 +24,16 @@ describe('handlePdfMcpRequest', () => {
 
   it('rejects pages outside the open document', () => {
     expect(() => handlePdfMcpRequest('pdf.read_page_context', { page: 2 }, state)).toThrow('valid page')
+  })
+
+  it('dry-runs and applies bounded annotation operations with revisions', async () => {
+    const input = { expectedRevision: 4, operations: [{ op: 'add_note', page: 0, x: 20, y: 30, contents: 'Review this' }] }
+    const revisioned = { ...state, revision: 4 }
+    await expect(Promise.resolve(handlePdfMcpRequest('pdf.apply_operations', { ...input, dryRun: true }, revisioned))).resolves.toMatchObject({
+      revision: 4, dryRun: true, changes: { notes: 1, markups: 0 },
+    })
+    const apply = vi.fn(async () => undefined)
+    await expect(handlePdfMcpRequest('pdf.apply_operations', input, revisioned, apply)).resolves.toMatchObject({ revision: 5, dryRun: false })
+    expect(apply).toHaveBeenCalledWith(input.operations)
   })
 })
