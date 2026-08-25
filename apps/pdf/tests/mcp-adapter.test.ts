@@ -57,4 +57,13 @@ describe('handlePdfMcpRequest', () => {
       expectedRevision: 4, operations: [{ op: 'insert_image', page: 0, image: 'iVBORw0KGgo=', rect: [10, 10, 100, 100], layer: 'aboveText' }], dryRun: true,
     }, { ...state, revision: 4 }))).resolves.toMatchObject({ dryRun: true, changes: { images: 1 } })
   })
+
+  it('allows one destructive page deletion only when another page remains', async () => {
+    await expect(Promise.resolve(handlePdfMcpRequest('pdf.apply_operations', {
+      expectedRevision: 4, operations: [{ op: 'delete_page', page: 0 }], dryRun: true,
+    }, { ...state, revision: 4 }))).resolves.toMatchObject({ dryRun: true, changes: { pages: 1 } })
+    expect(() => handlePdfMcpRequest('pdf.apply_operations', {
+      expectedRevision: 4, operations: [{ op: 'delete_page', page: 0 }], dryRun: true,
+    }, { ...state, pageCount: 1, revision: 4 })).toThrow('retain one page')
+  })
 })

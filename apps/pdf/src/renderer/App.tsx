@@ -1577,11 +1577,16 @@ export default function App() {
           id: newId(),
           input: { pageIndex: operation.page, origin: [operation.x, operation.y], text: operation.text, fontSize: operation.fontSize ?? 12, color: [0, 0, 0] },
         }])
-      } else {
+      } else if (operation.op === 'insert_image') {
         setImageEdits((previous) => [...previous, {
           id: newId(),
           input: { kind: 'insertImage', pageIndex: operation.page, image: operation.image, rect: operation.rect, layer: operation.layer, rotate: rotations.get(operation.page) ?? 0 },
         }])
+      } else {
+        if (readOnly) throw new Error('PDF is read-only')
+        setDeleted((previous) => new Set(previous).add(operation.page))
+        setMarkups((previous) => previous.filter((markup) => markup.pageIndex !== operation.page))
+        setDrawings((previous) => previous.filter((drawing) => drawing.input.pageIndex !== operation.page))
       }
     }
     mcpRevisionRef.current += 1
