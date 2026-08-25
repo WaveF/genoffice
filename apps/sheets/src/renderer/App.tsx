@@ -151,6 +151,7 @@ import {
   type SheetsMcpReadAction,
 } from './mcp-adapter'
 import { handleLazySheetsMcpReadRequest } from './mcp-lazy-reader'
+import { McpRevisionTracker } from './mcp-revision'
 import { cfRuleUnsaveableReason, iconSetSaveable } from '../gateway/xlsx-cf'
 import { installLazyFindBridge } from './lazy-find'
 import {
@@ -462,6 +463,20 @@ export function App(): React.JSX.Element {
   const [prompt, setPrompt] = useState('')
   const [preview, setPreview] = useState<ChangePlan | null>(null)
   const [_revision, setRevision] = useState(0)
+  // Renderer-local source of truth for MCP CAS. React state updates are
+  // asynchronous, while a second bridge request may arrive immediately after
+  // a user mutation; this ref closes that race before the next render.
+  const mcpRevisionRef = useRef(new McpRevisionTracker())
+  function commitMcpRevision(revision: number): void {
+    const committed = mcpRevisionRef.current.set(revision)
+    setRevision(committed)
+    window.desktopApi.reportMcpRevision(committed)
+  }
+  function advanceMcpRevision(): void {
+    const committed = mcpRevisionRef.current.advance()
+    setRevision(committed)
+    window.desktopApi.reportMcpRevision(committed)
+  }
   const [workbookFile, setWorkbookFile] = useState<WorkbookFile | null>(null)
   const [pendingEdits, setPendingEdits] = useState(0)
   /// Whether any cell in the workbook has content — the ribbon's one-click AI
@@ -1789,6 +1804,11 @@ export function App(): React.JSX.Element {
             }
           | undefined
         if (params?.unitId !== `file-${state.file.sha256}`) return
+        // This event passed the supported-mutation and active-document checks
+        // above, so it represents a user-visible imported-workbook change.
+        // Programmatic MCP writes hold journalSuppression and are committed
+        // explicitly by their request handler instead.
+        advanceMcpRevision()
         if (SHEET_LIFECYCLE_MUTATIONS.has(event.id)) {
           if (event.id === 'sheet.mutation.insert-sheet') {
             const { id, name } = params.sheet ?? {}
@@ -2836,7 +2856,7 @@ export function App(): React.JSX.Element {
         for (const [sheetId, bounds] of chartSyncBounds) queueChartDataSync(sheetId, bounds)
       }
       const revision = prunedRevision ?? receipt.revision
-      setRevision(revision)
+      commitMcpRevision(revision)
       setPreview(null)
       setMessage(t('appAppliedRevision', { revision }))
       // Patch last assistant message to show inline undo button.
@@ -2861,12 +2881,12 @@ export function App(): React.JSX.Element {
     const outcome = await autoApplySafePlan(plan)
     if (!outcome.ok) throw new Error(outcome.reason ?? 'Workbook changes were not applied')
     const revision = adapterRef.current.getSnapshot().revision
-    window.desktopApi.reportMcpRevision(revision)
+    commitMcpRevision(revision)
   }
 
   mcpLazyOperationsRef.current = async (input) => {
     const { expectedRevision, summary, operations, dryRun = false } = input
-    if (!Number.isSafeInteger(expectedRevision) || (expectedRevision as number) !== _revision) {
+    if (!Number.isSafeInteger(expectedRevision) || (expectedRevision as number) !== mcpRevisionRef.current.current) {
       throw new Error('Workbook changed since it was read')
     }
     if (typeof summary !== 'string' || !Array.isArray(operations) || typeof dryRun !== 'boolean') {
@@ -2875,7 +2895,7 @@ export function App(): React.JSX.Element {
     const proposed = proposeOperationsImpl(planContext(), operations as readonly WorkbookOperation[], summary, false)
     if (!proposed.ok) throw new Error(proposed.error)
     const result = {
-      revision: _revision,
+      revision: mcpRevisionRef.current.current,
       dryRun,
       transactionId: proposed.plan.transactionId,
       changes: {
@@ -2893,9 +2913,8 @@ export function App(): React.JSX.Element {
     }
     const outcome = await autoApplySafePlan(proposed.plan)
     if (!outcome.ok) throw new Error(outcome.reason ?? 'Workbook changes were not applied')
-    const revision = _revision + 1
-    setRevision(revision)
-    window.desktopApi.reportMcpRevision(revision)
+    const revision = mcpRevisionRef.current.current + 1
+    commitMcpRevision(revision)
     return { ...result, dryRun: false, revision }
   }
 
@@ -2907,7 +2926,7 @@ export function App(): React.JSX.Element {
         return state ? { preloadComplete: state.flags.preloadComplete, sheets: state.file.sheets } : null
       },
       getWorksheet: (sheetId) => univerRef.current?.univerAPI.getActiveWorkbook()?.getSheetBySheetId(sheetId) ?? null,
-      getRevision: () => _revision,
+      getRevision: () => mcpRevisionRef.current.current,
       ensureRangeLoaded: (worksheet, range) => {
         const runtime = univerRef.current
         if (!runtime) return Promise.resolve(false)
@@ -3762,7 +3781,7 @@ export function App(): React.JSX.Element {
         'Untitled',
       )
       queueDemoVisualInstallForActiveSheet()
-      setRevision(receipt.revision)
+      commitMcpRevision(receipt.revision)
       setPreview(null)
       setMessage(t('appUndoCommitted', { revision: receipt.revision }))
       clearInlineUndo()
@@ -4202,7 +4221,7 @@ export function App(): React.JSX.Element {
       ;(window as unknown as Record<string, unknown>).__journal = state.editJournal
       ;(window as unknown as Record<string, unknown>).__univerAPI = univerRef.current?.univerAPI
     }
-    setRevision(0)
+    commitMcpRevision(0)
     setPreview(null)
     lazyPreviewRef.current = null
     setPendingEdits(0)
