@@ -66,4 +66,18 @@ describe('handlePdfMcpRequest', () => {
       expectedRevision: 4, operations: [{ op: 'delete_page', page: 0 }], dryRun: true,
     }, { ...state, pageCount: 1, revision: 4 })).toThrow('retain one page')
   })
+
+  it('validates bounded page-file operations without accepting paths or bytes', async () => {
+    await expect(Promise.resolve(handlePdfMcpRequest('pdf.apply_operations', {
+      expectedRevision: 4,
+      operations: [
+        { op: 'replace_pages', pages: [0] },
+        { op: 'split_pages', perPage: 4 },
+        { op: 'merge_pages', perSheet: 2, direction: 'vertical', separator: false },
+      ], dryRun: true,
+    }, { ...state, revision: 4 }))).resolves.toMatchObject({ dryRun: true, changes: { pageFiles: 3 } })
+    expect(() => handlePdfMcpRequest('pdf.apply_operations', {
+      expectedRevision: 4, operations: [{ op: 'replace_pages', pages: [0], path: '/tmp/escape.pdf' }], dryRun: true,
+    }, { ...state, revision: 4 })).toThrow()
+  })
 })

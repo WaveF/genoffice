@@ -1582,6 +1582,24 @@ export default function App() {
           id: newId(),
           input: { kind: 'insertImage', pageIndex: operation.page, image: operation.image, rect: operation.rect, layer: operation.layer, rotate: rotations.get(operation.page) ?? 0 },
         }])
+      } else if (operation.op === 'replace_pages') {
+        const result = await window.pdfApi.replacePages({ path: filePath, pages: operation.pages })
+        if (!result.ok) throw new Error(result.error)
+        if ('canceled' in result) throw new Error('Page replacement was cancelled')
+        await loadDoc(filePath, doc)
+      } else if (operation.op === 'split_pages') {
+        const result = await window.pdfApi.splitPages({
+          path: filePath, perPage: operation.perPage,
+          suggestedName: `${fileName.replace(/\.pdf$/i, '')}-split.pdf`,
+        })
+        if (!result.ok) throw new Error(result.error)
+      } else if (operation.op === 'merge_pages') {
+        const result = await window.pdfApi.mergePages({
+          path: filePath, perSheet: operation.perSheet, direction: operation.direction, separator: operation.separator,
+          suggestedName: `${fileName.replace(/\.pdf$/i, '')}-${operation.perSheet}in1.pdf`,
+        })
+        if (!result.ok) throw new Error(result.error)
+        if ('canceled' in result) throw new Error('Page merge was cancelled')
       } else {
         if (readOnly) throw new Error('PDF is read-only')
         setDeleted((previous) => new Set(previous).add(operation.page))

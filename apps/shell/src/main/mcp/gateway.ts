@@ -476,7 +476,7 @@ export class ShellMcpGateway implements McpBridgeGateway {
       ) throw new CapabilityError('validation_error', 'A bounded PDF operation batch is required')
       const target = await this.requireRendererTarget(documentId, 'pdf')
       if (target.revision !== expectedRevision) throw new CapabilityError('conflict', 'Document changed since it was read', { expectedRevision, actualRevision: target.revision })
-      const destructive = operations.some((operation) => isRecord(operation) && operation.op === 'delete_page')
+      const destructive = operations.some((operation) => isRecord(operation) && ['delete_page', 'replace_pages', 'split_pages', 'merge_pages'].includes(String(operation.op)))
       const result = await this.writeQueue.enqueue(target.documentId, context.signal, async () => {
         if (!dryRun) await this.requirePermissions().authorize({ clientId: context.clientId, toolName: name, risk: destructive ? 'destructive' : 'write', document: target })
         return this.requireRenderer().request(target.webContentsId, 'pdf.apply_operations', { expectedRevision, operations, dryRun }, context.signal)

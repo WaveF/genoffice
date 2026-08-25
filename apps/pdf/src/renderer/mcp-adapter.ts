@@ -5,6 +5,9 @@ export type PdfMcpOperation =
   | { op: 'insert_text'; page: number; x: number; y: number; text: string; fontSize?: number }
   | { op: 'insert_image'; page: number; image: string; rect: [number, number, number, number]; layer: 'belowText' | 'aboveText' }
   | { op: 'delete_page'; page: number }
+  | { op: 'replace_pages'; pages: number[] }
+  | { op: 'split_pages'; perPage: 2 | 4 | 9 }
+  | { op: 'merge_pages'; perSheet: number; direction: 'horizontal' | 'vertical'; separator: boolean }
 
 export function handlePdfMcpRequest(
   action: 'pdf.get_document_context' | 'pdf.read_page_context' | 'pdf.apply_operations',
@@ -27,7 +30,7 @@ export function handlePdfMcpRequest(
     if (!Array.isArray(input.operations) || input.operations.length === 0 || input.operations.length > 50) throw new Error('1 to 50 operations are required')
     const operations = input.operations.map((operation) => parseOperation(operation, state.pageCount))
     if (operations.filter((op) => op.op === 'delete_page').length > 1 || (operations.some((op) => op.op === 'delete_page') && state.pageCount <= 1)) throw new Error('Only one page may be deleted and a PDF must retain one page')
-    const result = { revision: state.revision ?? 0, dryRun, changes: { notes: operations.filter((op) => op.op === 'add_note').length, markups: operations.filter((op) => op.op === 'add_markup').length, forms: operations.filter((op) => op.op === 'set_form_value').length, text: operations.filter((op) => op.op === 'insert_text').length, images: operations.filter((op) => op.op === 'insert_image').length, pages: operations.filter((op) => op.op === 'delete_page').length } }
+    const result = { revision: state.revision ?? 0, dryRun, changes: { notes: operations.filter((op) => op.op === 'add_note').length, markups: operations.filter((op) => op.op === 'add_markup').length, forms: operations.filter((op) => op.op === 'set_form_value').length, text: operations.filter((op) => op.op === 'insert_text').length, images: operations.filter((op) => op.op === 'insert_image').length, pages: operations.filter((op) => op.op === 'delete_page').length, pageFiles: operations.filter((op) => op.op === 'replace_pages' || op.op === 'split_pages' || op.op === 'merge_pages').length } }
     if (dryRun) return result
     if (!applyOperations) throw new Error('PDF apply handler is unavailable')
     return applyOperations(operations).then(() => ({ ...result, dryRun: false, revision: (state.revision ?? 0) + 1 }))
@@ -57,6 +60,21 @@ function parseOperation(value: unknown, pageCount: number): PdfMcpOperation {
     return { op: 'set_form_value', name: operation.name, kind: operation.kind as 'text' | 'radio' | 'choice', value: operation.value }
   }
   const page = operation.page
+  if (operation.op === 'replace_pages') {
+    if (Object.keys(operation).some((key) => key !== 'op' && key !== 'pages')) throw new Error('replace_pages accepts only pages')
+    if (!Array.isArray(operation.pages) || operation.pages.length === 0 || operation.pages.length > 200 || operation.pages.some((page) => !Number.isSafeInteger(page) || page < 0 || page >= pageCount)) throw new Error('replace_pages requires 1 to 200 valid pages')
+    return { op: 'replace_pages', pages: [...new Set(operation.pages as number[])].sort((a, b) => a - b) }
+  }
+  if (operation.op === 'split_pages') {
+    if (Object.keys(operation).some((key) => key !== 'op' && key !== 'perPage')) throw new Error('split_pages accepts only perPage')
+    if (operation.perPage !== 2 && operation.perPage !== 4 && operation.perPage !== 9) throw new Error('split_pages requires perPage 2, 4, or 9')
+    return { op: 'split_pages', perPage: operation.perPage }
+  }
+  if (operation.op === 'merge_pages') {
+    if (Object.keys(operation).some((key) => !['op', 'perSheet', 'direction', 'separator'].includes(key))) throw new Error('merge_pages accepts only layout options')
+    if (!Number.isSafeInteger(operation.perSheet) || (operation.perSheet as number) < 2 || (operation.perSheet as number) > 16 || !['horizontal', 'vertical'].includes(String(operation.direction)) || typeof operation.separator !== 'boolean') throw new Error('merge_pages requires bounded layout options')
+    return { op: 'merge_pages', perSheet: operation.perSheet as number, direction: operation.direction as 'horizontal' | 'vertical', separator: operation.separator }
+  }
   if (!Number.isSafeInteger(page) || (page as number) < 0 || (page as number) >= pageCount) throw new Error('Operation page is outside the document')
   const pageIndex = page as number
   if (operation.op === 'delete_page') return { op: 'delete_page', page: pageIndex }

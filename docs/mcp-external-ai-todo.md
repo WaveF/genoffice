@@ -95,7 +95,7 @@
 | SHT-04 | 为 Sheets 写端到端测试。 | P1 | SHT-02..03 | 已完成 | Codex | `apps/sheets/tests/`、`e2e/sheets-mcp-renderer.spec.ts` | 真实 xlsx 保存、流式保存、公式重算基线已通过；lazy MCP renderer、Shell→adapter 路由及 Electron 原生 IPC 的 context/write/read/revision 回归均已覆盖。 | |
 | PDF-01 | 盘点 PDF AI tools 的 renderer/main 依赖，定义 document-scoped adapter。 | P1 | CAP-01 | 已完成 | Codex | `apps/pdf/src/renderer/mcp-adapter.ts`、`App.tsx` | document-scoped bridge 与风险矩阵已完成。 | |
 | PDF-02 | 实现 PDF 只读 tools：page context、search、annotations、forms、outline。 | P2 | PDF-01, RBR-01 | 已完成 | Codex | PDF adapter | 页面文字、书签、表单摘要、搜索、批注计数与逐项单页批注读取已完成并受限输出。 | |
-| PDF-03 | 实现 PDF 写 tools：text/annotation/form/image/page 操作。 | P2 | PDF-02, SEC-02, SEC-03 | 进行中 | Codex | PDF adapter | note/markup、text、form、PNG image 与单页删除已完成；删除走 destructive 权限确认。替换/拆分/合并页仍待补。 | |
+| PDF-03 | 实现 PDF 写 tools：text/annotation/form/image/page 操作。 | P2 | PDF-02, SEC-02, SEC-03 | 进行中 | Codex | PDF adapter | note/markup、text、form、PNG image、删除页及 replace/split/merge 页面 operation 已接入；文件路径/字节不进入 schema，后三者走 destructive 权限与 Shell 原生选择器/受控输出。待补原生选择器取消与生成输出 E2E。 | |
 | PDF-04 | 为 PDF 写端到端测试。 | P2 | PDF-02..03 | 已完成 | Codex | `apps/pdf/tests/`、`e2e/pdf-mcp-renderer.spec.ts` | 保存、批注删除、页面原子写基线已通过；renderer 销毁、取消、删除页 destructive 权限路由及 Electron 原生 IPC 的 context/annotation write/read 回归均已覆盖。 | |
 
 ## 7. 下线内置 AI
