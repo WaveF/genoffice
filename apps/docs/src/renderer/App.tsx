@@ -857,10 +857,11 @@ export function App() {
     if (!editor) return
     return window.desktop.onMcpRequest((request) => {
       try {
+        const result = handleDocsMcpRequest(editor, request.action, request.input)
         window.desktop.respondMcpRequest({
           requestId: request.requestId,
           ok: true,
-          result: handleDocsMcpRequest(editor, request.action, request.input),
+          result: { ...(result as Record<string, unknown>), revision: mcpRevisionRef.current },
         })
       } catch (error) {
         window.desktop.respondMcpRequest({

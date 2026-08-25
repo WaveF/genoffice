@@ -196,10 +196,11 @@ export default function App() {
     if (!editor) return
     return window.markdownApi.onMcpRequest((request) => {
       try {
+        const result = handleMarkdownMcpRequest(editor, request.action, request.input)
         window.markdownApi.respondMcpRequest({
           requestId: request.requestId,
           ok: true,
-          result: handleMarkdownMcpRequest(editor, request.action, request.input),
+          result: { ...(result as Record<string, unknown>), revision: mcpRevisionRef.current },
         })
       } catch (error) {
         window.markdownApi.respondMcpRequest({

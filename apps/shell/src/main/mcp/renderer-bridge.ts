@@ -112,6 +112,9 @@ export class RendererMcpBridge {
       this.reject(response.requestId, 'validation_error', 'Document renderer response exceeds the MCP size limit')
       return
     }
+    if (isRecord(response.result) && typeof response.result.revision === 'number' && Number.isSafeInteger(response.result.revision) && response.result.revision >= 0) {
+      revisions.set(senderId, response.result.revision)
+    }
     this.pending.delete(response.requestId)
     clearTimeout(request.timer)
     request.resolve(response.result)
