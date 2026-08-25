@@ -59,6 +59,14 @@ test.describe('sheets: imported workbook MCP formulas', () => {
       const sheetId = ((context.result as { sheets?: Array<{ id?: unknown }> } | undefined)?.sheets?.[0]?.id)
       if (typeof sheetId !== 'string') throw new Error('Imported sheet id is unavailable')
 
+      const formatted = await requestSheetsRenderer(launched.app, webContentsId, 'sheets.read_range', {
+        sheetId, range: 'A1:A1',
+      })
+      expect(formatted).toMatchObject({
+        ok: true,
+        result: { cells: [{ address: 'A1', value: 'Hello', format: { bold: true } }] },
+      })
+
       const write = await requestSheetsRenderer(launched.app, webContentsId, 'sheets.apply_operations', {
         expectedRevision: 0,
         transactionId: 'e2e-formula-b1',
