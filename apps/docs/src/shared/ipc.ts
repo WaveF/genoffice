@@ -224,7 +224,7 @@ export interface DesktopApi {
   onMcpRequest(
     handler: (request: {
       requestId: string
-      action: 'docs.get_context' | 'docs.read_blocks'
+      action: 'docs.get_context' | 'docs.read_blocks' | 'docs.insert_content' | 'docs.replace_blocks'
       input: Record<string, unknown>
     }) => void,
   ): () => void

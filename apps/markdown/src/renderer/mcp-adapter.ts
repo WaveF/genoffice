@@ -31,7 +31,11 @@ function blocks(editor: Editor) {
 /** Fixed, model-free Markdown capability adapter used only by the renderer bridge. */
 export function handleMarkdownMcpRequest(
   editor: Editor,
-  action: 'markdown.get_context' | 'markdown.read_blocks',
+  action:
+    | 'markdown.get_context'
+    | 'markdown.read_blocks'
+    | 'markdown.insert_content'
+    | 'markdown.replace_blocks',
   input: Record<string, unknown>,
 ): unknown {
   const all = blocks(editor)
@@ -41,6 +45,20 @@ export function handleMarkdownMcpRequest(
       characterCount: editor.getMarkdown().length,
       preview: all.slice(0, 8),
     }
+  }
+  if (action === 'markdown.insert_content') {
+    const content = input.content
+    if (typeof content !== 'string' || content.length === 0 || content.length > MAX_BLOCK_TEXT)
+      throw new Error('content must be a non-empty string within the size limit')
+    editor.commands.insertContentAt(editor.state.doc.content.size, `\n\n${content}`)
+    return { applied: true, blockCount: blocks(editor).length }
+  }
+  if (action === 'markdown.replace_blocks') {
+    const content = input.content
+    if (typeof content !== 'string' || content.length > 64 * 1024)
+      throw new Error('bounded markdown content is required')
+    editor.commands.setContent(content, { contentType: 'markdown' })
+    return { applied: true, blockCount: blocks(editor).length }
   }
   const { start, limit } = asRange(input)
   return { start, blocks: all.slice(start, start + limit), total: all.length }

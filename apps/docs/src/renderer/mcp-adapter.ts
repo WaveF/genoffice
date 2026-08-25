@@ -31,7 +31,7 @@ function blocks(editor: Editor) {
 /** Fixed, model-free Docs capability adapter used only by the renderer bridge. */
 export function handleDocsMcpRequest(
   editor: Editor,
-  action: 'docs.get_context' | 'docs.read_blocks',
+  action: 'docs.get_context' | 'docs.read_blocks' | 'docs.insert_content' | 'docs.replace_blocks',
   input: Record<string, unknown>,
 ): unknown {
   const all = blocks(editor)
@@ -41,6 +41,28 @@ export function handleDocsMcpRequest(
       characterCount: editor.state.doc.textContent.length,
       preview: all.slice(0, 8),
     }
+  }
+  if (action === 'docs.insert_content') {
+    const content = input.content
+    if (typeof content !== 'string' || content.length === 0 || content.length > MAX_BLOCK_TEXT)
+      throw new Error('content must be a non-empty string within the size limit')
+    editor.commands.insertContentAt(editor.state.doc.content.size, content)
+    return { applied: true, blockCount: blocks(editor).length }
+  }
+  if (action === 'docs.replace_blocks') {
+    const start = input.start
+    const end = input.end
+    const content = input.content
+    if (typeof start !== 'number' || typeof end !== 'number' || !Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || end < start || end >= all.length || typeof content !== 'string' || content.length > MAX_BLOCK_TEXT)
+      throw new Error('start/end and bounded content are required')
+    let from = 0
+    let to = 0
+    editor.state.doc.forEach((node, offset, index) => {
+      if (index === start) from = offset
+      if (index === end) to = offset + node.nodeSize
+    })
+    editor.commands.insertContentAt({ from, to }, content)
+    return { applied: true, blockCount: blocks(editor).length }
   }
   const { start, limit } = asRange(input)
   return { start, blocks: all.slice(start, start + limit), total: all.length }

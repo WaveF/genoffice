@@ -16,8 +16,12 @@ export function rendererMcpRevision(webContentsId: number): number {
 export type RendererMcpAction =
   | 'docs.get_context'
   | 'docs.read_blocks'
+  | 'docs.insert_content'
+  | 'docs.replace_blocks'
   | 'markdown.get_context'
   | 'markdown.read_blocks'
+  | 'markdown.insert_content'
+  | 'markdown.replace_blocks'
 
 interface PendingRequest {
   webContentsId: number

@@ -32,7 +32,11 @@ const api: MarkdownApi = {
       _e: Electron.IpcRendererEvent,
       request: {
         requestId: string
-        action: 'markdown.get_context' | 'markdown.read_blocks'
+        action:
+          | 'markdown.get_context'
+          | 'markdown.read_blocks'
+          | 'markdown.insert_content'
+          | 'markdown.replace_blocks'
         input: Record<string, unknown>
       },
     ) => handler(request)

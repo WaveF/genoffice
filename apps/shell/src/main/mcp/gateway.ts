@@ -166,6 +166,19 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
       inputSchema: GET_DOCUMENT_STATUS.inputSchema,
     },
     {
+      name: `${kind}.insert_content`,
+      description: `Append bounded content to one explicit open ${kind} document.`,
+      inputSchema: {
+        type: 'object', additionalProperties: false, required: ['documentId', 'expectedRevision', 'content'],
+        properties: { documentId: { type: 'string' }, expectedRevision: { type: 'integer', minimum: 0 }, content: { type: 'string', minLength: 1, maxLength: 8192 } },
+      },
+    },
+    {
+      name: `${kind}.replace_blocks`,
+      description: `Replace explicitly addressed content in one open ${kind} document.`,
+      inputSchema: { type: 'object', additionalProperties: false, required: ['documentId', 'expectedRevision', 'content'], properties: { documentId: { type: 'string' }, expectedRevision: { type: 'integer', minimum: 0 }, start: { type: 'integer', minimum: 0 }, end: { type: 'integer', minimum: 0 }, content: { type: 'string', maxLength: 65536 } } },
+    },
+    {
       name: `${kind}.read_blocks`,
       description: `Read a bounded block range from one open ${kind} document.`,
       inputSchema: {
@@ -303,6 +316,21 @@ export class ShellMcpGateway implements McpBridgeGateway {
         context.signal,
       )
       return toolResult(JSON.stringify(result), false, target.revision)
+    }
+    if (
+      name === 'docs.insert_content' || name === 'docs.replace_blocks' ||
+      name === 'markdown.insert_content' || name === 'markdown.replace_blocks'
+    ) {
+      const [kind] = name.split('.') as ['docs' | 'markdown']
+      const { documentId, expectedRevision } = this.requireDocumentRevisionWithContent(argumentsValue)
+      const target = await this.requireRendererTarget(documentId, kind)
+      if (target.revision !== expectedRevision) throw new CapabilityError('conflict', 'Document changed since it was read', { expectedRevision, actualRevision: target.revision })
+      const result = await this.writeQueue.enqueue(target.documentId, context.signal, async () => {
+        await this.requirePermissions().authorize({ clientId: context.clientId, toolName: name, risk: 'write', document: target })
+        return this.requireRenderer().request(target.webContentsId, name as RendererMcpAction, argumentsValue, context.signal)
+      })
+      const updated = await this.requireRendererTarget(documentId, kind)
+      return toolResult(JSON.stringify(result), true, updated.revision)
     }
     if (name === 'slides.apply_ops') {
       const documentId = argumentsValue.documentId
@@ -509,6 +537,14 @@ export class ShellMcpGateway implements McpBridgeGateway {
       ...(typeof start === 'number' ? { start } : {}),
       ...(typeof limit === 'number' ? { limit } : {}),
     }
+  }
+
+  private requireDocumentRevisionWithContent(argumentsValue: Record<string, unknown>): { documentId: string; expectedRevision: number } {
+    const base = this.requireDocumentRevision({ documentId: argumentsValue.documentId, expectedRevision: argumentsValue.expectedRevision })
+    const content = argumentsValue.content
+    if (typeof content !== 'string' || content.length === 0 || content.length > 64 * 1024 || Object.keys(argumentsValue).some((key) => !['documentId', 'expectedRevision', 'start', 'end', 'content'].includes(key)))
+      throw new CapabilityError('validation_error', 'documentId, expectedRevision, and bounded content are required')
+    return base
   }
 
   private async requireSlidesTarget(documentId: string): Promise<DocumentTarget> {

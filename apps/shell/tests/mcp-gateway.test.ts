@@ -140,6 +140,25 @@ describe('ShellMcpGateway', () => {
     ).rejects.toMatchObject({ code: 'validation_error' })
   })
 
+  it('serializes renderer writes behind explicit revision and permission checks', async () => {
+    const docsTarget = { ...target, kind: 'docs' as const }
+    const result = await gatewayWith([docsTarget]).handle(
+      request({
+        name: 'docs.insert_content',
+        input: { documentId: 'doc-123', expectedRevision: 3, content: 'Append this.' },
+      }),
+    )
+    expect(result).toMatchObject({ mutated: true, revision: 3 })
+    await expect(
+      gatewayWith([docsTarget]).handle(
+        request({
+          name: 'docs.insert_content',
+          input: { documentId: 'doc-123', expectedRevision: 2, content: 'Stale.' },
+        }),
+      ),
+    ).rejects.toMatchObject({ code: 'conflict' })
+  })
+
   it('renders a bounded Slides preview through the explicit document/slide route', async () => {
     const result = await gatewayWith().handle(
       request({ name: 'slides.render_preview', input: { documentId: 'doc-123', slide: 's_1' } }),
