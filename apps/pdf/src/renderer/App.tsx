@@ -647,10 +647,25 @@ export default function App() {
   const [rotations, setRotations] = useState<Map<number, number>>(new Map())
   const [deleted, setDeleted] = useState<Set<number>>(new Set())
   const mcpRevisionRef = useRef(0)
+  const mcpSearchIndexRef = useRef<() => Promise<SearchIndex> | null>(() => null)
   const mcpApplyOperationsRef = useRef<(operations: PdfMcpOperation[]) => Promise<void>>(async () => {
     throw new Error('PDF is not ready')
   })
   useEffect(() => window.pdfApi.onMcpRequest((request) => {
+    if (request.action === 'pdf.search') {
+      const query = request.input.query
+      if (typeof query !== 'string' || query.length === 0 || query.length > 256) {
+        window.pdfApi.respondMcpRequest({ requestId: request.requestId, ok: false, error: 'A bounded query is required' })
+        return
+      }
+      const index = mcpSearchIndexRef.current()
+      if (!index) {
+        window.pdfApi.respondMcpRequest({ requestId: request.requestId, ok: false, error: 'PDF is not ready' })
+        return
+      }
+      void index.then((entries) => window.pdfApi.respondMcpRequest({ requestId: request.requestId, ok: true, result: { revision: mcpRevisionRef.current, query, matches: searchInIndex(entries, query).slice(0, 200).map((match) => ({ page: match.pageIndex, rects: match.rects.slice(0, 20) })) } }), (error: unknown) => window.pdfApi.respondMcpRequest({ requestId: request.requestId, ok: false, error: error instanceof Error ? error.message : 'PDF search failed' }))
+      return
+    }
     void Promise.resolve(handlePdfMcpRequest(request.action, request.input, {
         pageCount: doc?.numPages ?? 0, sizes, pageBlocks, outline,
         revision: mcpRevisionRef.current,
@@ -1587,6 +1602,7 @@ export default function App() {
     if (ocrPages.size === 0) return base
     return base.then((idx) => idx.map((entry, i) => ocrPages.get(i)?.entry ?? entry))
   }, [doc, ocrPages])
+  mcpSearchIndexRef.current = getSearchIndex
 
   // Auto-OCR for scanned pages (issue #119): once the base index shows pages with
   // no extractable text, recognize them sequentially in the background, starting

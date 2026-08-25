@@ -238,6 +238,7 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
     description: 'Read bounded text context for one explicit page of an open PDF.',
     inputSchema: { type: 'object', additionalProperties: false, required: ['documentId', 'page'], properties: { documentId: { type: 'string' }, page: { type: 'integer', minimum: 0 } } },
   },
+  { name: 'pdf.search', description: 'Search bounded text matches in an open PDF.', inputSchema: { type: 'object', additionalProperties: false, required: ['documentId', 'query'], properties: { documentId: { type: 'string' }, query: { type: 'string', minLength: 1, maxLength: 256 } } } },
   {
     name: 'pdf.apply_operations',
     description: 'Dry-run or queue bounded non-destructive annotations in an open PDF.',
@@ -428,6 +429,13 @@ export class ShellMcpGateway implements McpBridgeGateway {
       if (typeof documentId !== 'string' || typeof page !== 'number' || !Number.isSafeInteger(page) || page < 0 || Object.keys(argumentsValue).length !== 2) throw new CapabilityError('validation_error', 'documentId and non-negative page are required')
       const target = await this.requireRendererTarget(documentId, 'pdf')
       const result = await this.requireRenderer().request(target.webContentsId, 'pdf.read_page_context', { page }, context.signal)
+      return toolResult(JSON.stringify(result), false, target.revision)
+    }
+    if (name === 'pdf.search') {
+      const { documentId, query } = argumentsValue
+      if (typeof documentId !== 'string' || typeof query !== 'string' || query.length === 0 || Object.keys(argumentsValue).length !== 2) throw new CapabilityError('validation_error', 'documentId and query are required')
+      const target = await this.requireRendererTarget(documentId, 'pdf')
+      const result = await this.requireRenderer().request(target.webContentsId, 'pdf.search', { query }, context.signal)
       return toolResult(JSON.stringify(result), false, target.revision)
     }
     if (name === 'pdf.apply_operations') {
