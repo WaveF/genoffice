@@ -39,6 +39,16 @@ export interface SlidesMcpWriter extends SlidesMcpReader {
   undo(webContentsId: number, expectedRevision: number): { applied: boolean; revision: number }
   redo(webContentsId: number, expectedRevision: number): { applied: boolean; revision: number }
   save(webContentsId: number, expectedRevision: number): Promise<{ saved: boolean; revision: number }>
+  addSlide(
+    webContentsId: number,
+    afterSlide: number | string,
+    expectedRevision: number,
+  ): { applied: boolean; revision: number; [key: string]: unknown }
+  deleteSlide(
+    webContentsId: number,
+    slide: number | string,
+    expectedRevision: number,
+  ): { applied: boolean; revision: number; [key: string]: unknown }
 }
 
 interface ToolDescriptor {
@@ -90,6 +100,22 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
     name: 'slides.get_deck_context',
     description: 'Read the slide IDs and element counts for one open Slides document.',
     inputSchema: GET_DOCUMENT_STATUS.inputSchema,
+  },
+  {
+    name: 'slides.add_slide',
+    description: 'Insert a blank slide after one explicit slide ID or index.',
+    inputSchema: {
+      type: 'object', additionalProperties: false, required: ['documentId', 'expectedRevision', 'afterSlide'],
+      properties: { documentId: { type: 'string' }, expectedRevision: { type: 'integer', minimum: 0 }, afterSlide: { anyOf: [{ type: 'integer', minimum: 0 }, { type: 'string', minLength: 1 }] } },
+    },
+  },
+  {
+    name: 'slides.delete_slide',
+    description: 'Delete one explicit slide ID or index after a one-time confirmation.',
+    inputSchema: {
+      type: 'object', additionalProperties: false, required: ['documentId', 'expectedRevision', 'slide'],
+      properties: { documentId: { type: 'string' }, expectedRevision: { type: 'integer', minimum: 0 }, slide: { anyOf: [{ type: 'integer', minimum: 0 }, { type: 'string', minLength: 1 }] } },
+    },
   },
   {
     name: 'save_document',
@@ -304,6 +330,23 @@ export class ShellMcpGateway implements McpBridgeGateway {
       })
       return toolResult(JSON.stringify(result), false, result.revision)
     }
+    if (name === 'slides.add_slide' || name === 'slides.delete_slide') {
+      const { documentId, expectedRevision } = this.requireDocumentRevisionWithSlide(
+        argumentsValue,
+        name === 'slides.add_slide' ? 'afterSlide' : 'slide',
+      )
+      const target = await this.requireSlidesTarget(documentId)
+      const slides = this.requireSlidesWriter()
+      const slide = argumentsValue[name === 'slides.add_slide' ? 'afterSlide' : 'slide'] as number | string
+      const risk: ToolRisk = name === 'slides.delete_slide' ? 'destructive' : 'write'
+      const result = await this.writeQueue.enqueue(target.documentId, context.signal, async () => {
+        await this.requirePermissions().authorize({ clientId: context.clientId, toolName: name, risk, document: target })
+        return name === 'slides.add_slide'
+          ? slides.addSlide(target.webContentsId, slide, expectedRevision)
+          : slides.deleteSlide(target.webContentsId, slide, expectedRevision)
+      })
+      return toolResult(JSON.stringify(result), result.applied, result.revision)
+    }
     throw new CapabilityError('not_found', `Unknown MCP tool: ${name}`)
   }
 
@@ -345,6 +388,21 @@ export class ShellMcpGateway implements McpBridgeGateway {
     return { documentId, expectedRevision }
   }
 
+  private requireDocumentRevisionWithSlide(
+    argumentsValue: Record<string, unknown>,
+    slideKey: 'afterSlide' | 'slide',
+  ): { documentId: string; expectedRevision: number } {
+    const base = this.requireDocumentRevision({
+      documentId: argumentsValue.documentId,
+      expectedRevision: argumentsValue.expectedRevision,
+    })
+    const slide = argumentsValue[slideKey]
+    if ((typeof slide !== 'string' && (!Number.isInteger(slide) || (slide as number) < 0)) || Object.keys(argumentsValue).length !== 3) {
+      throw new CapabilityError('validation_error', `${slideKey} must be a slide ID or non-negative index`)
+    }
+    return base
+  }
+
   private async requireSlidesTarget(documentId: string): Promise<DocumentTarget> {
     const target = await this.documents.findDocumentTarget(documentId)
     if (!target) throw new CapabilityError('not_found', 'Document is no longer open')
@@ -363,7 +421,9 @@ export class ShellMcpGateway implements McpBridgeGateway {
       typeof (slides as Partial<SlidesMcpWriter>).applyOps !== 'function' ||
       typeof (slides as Partial<SlidesMcpWriter>).undo !== 'function' ||
       typeof (slides as Partial<SlidesMcpWriter>).redo !== 'function' ||
-      typeof (slides as Partial<SlidesMcpWriter>).save !== 'function'
+      typeof (slides as Partial<SlidesMcpWriter>).save !== 'function' ||
+      typeof (slides as Partial<SlidesMcpWriter>).addSlide !== 'function' ||
+      typeof (slides as Partial<SlidesMcpWriter>).deleteSlide !== 'function'
     ) {
       throw new CapabilityError('not_running', 'Slides write support is unavailable')
     }

@@ -210,6 +210,30 @@ export class SlidesMcpAdapter {
     }
   }
 
+  addSlide(
+    webContentsId: number,
+    afterSlide: number | string,
+    expectedRevision: number,
+  ): SlidesMcpApplyResult {
+    return this.applyOps(
+      webContentsId,
+      [{ op: 'addBlankSlide', target: { slide: afterSlide } }],
+      expectedRevision,
+    )
+  }
+
+  deleteSlide(
+    webContentsId: number,
+    slide: number | string,
+    expectedRevision: number,
+  ): SlidesMcpApplyResult {
+    return this.applyOps(
+      webContentsId,
+      [{ op: 'deleteSlide', target: { slide } }],
+      expectedRevision,
+    )
+  }
+
   undo(webContentsId: number, expectedRevision: number): SlidesMcpHistoryResult {
     const session = requireSession(webContentsId)
     ensureExpectedRevision(session, expectedRevision)

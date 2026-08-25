@@ -40,6 +40,8 @@ function gatewayWith(documents: DocumentTarget[] = [target]): ShellMcpGateway {
     undo: (_webContentsId, expectedRevision) => ({ applied: true, revision: expectedRevision + 1 }),
     redo: (_webContentsId, expectedRevision) => ({ applied: true, revision: expectedRevision + 1 }),
     save: async (_webContentsId, expectedRevision) => ({ saved: true, revision: expectedRevision }),
+    addSlide: (_webContentsId, _afterSlide, expectedRevision) => ({ applied: true, revision: expectedRevision + 1 }),
+    deleteSlide: (_webContentsId, _slide, expectedRevision) => ({ applied: true, revision: expectedRevision + 1 }),
   }, {
     authorize: async () => undefined,
   })
@@ -149,6 +151,17 @@ describe('ShellMcpGateway', () => {
       mutated: false,
       revision: 3,
     })
+  })
+
+  it('routes explicit slide insertion and deletion with revisions', async () => {
+    const added = await gatewayWith().handle(
+      request({ name: 'slides.add_slide', input: { documentId: 'doc-123', expectedRevision: 3, afterSlide: 0 } }),
+    )
+    const deleted = await gatewayWith().handle(
+      request({ name: 'slides.delete_slide', input: { documentId: 'doc-123', expectedRevision: 3, slide: 1 } }),
+    )
+    expect(added).toMatchObject({ mutated: true, revision: 4 })
+    expect(deleted).toMatchObject({ mutated: true, revision: 4 })
   })
 
   it('rejects unknown, closed, and malformed document requests', async () => {

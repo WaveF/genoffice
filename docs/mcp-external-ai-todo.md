@@ -68,7 +68,7 @@
 | SLD-03 | 实现 `slides.get_deck_context`。 | P0 | SLD-01 | 进行中 | Codex | `apps/slides/src/main/mcp-adapter.ts`、shell gateway | 已实现页数、页面 IDs、元素摘要、revision 与显式 documentId 路由；待真实 Slides session 集成测试。 | |
 | SLD-04 | 实现 `slides.read_slide`。 | P0 | SLD-01 | 进行中 | Codex | 同上 | 已支持 slideId/索引，过滤敏感字段并限制 512 KiB 输出；待真实 Slides session 集成测试。 | |
 | SLD-05 | 实现 `slides.apply_ops`，支持 `dryRun` 与 `expectedRevision`。 | P0 | SLD-02, CAP-07, SEC-02 | 进行中 | Codex | 同上 | 已接入 MCP gateway、授权、dryRun、expectedRevision 和 canonical atomic transaction；待串行队列及真实 session 集成测试。 | |
-| SLD-06 | 实现 `slides.add_slide`、`slides.delete_slide`。 | P1 | SLD-05, SEC-03 | 未开始 | TBD | 同上 | 插入/删除、undo、redo、保存/重新打开均正确。 | |
+| SLD-06 | 实现 `slides.add_slide`、`slides.delete_slide`。 | P1 | SLD-05, SEC-03 | 进行中 | Codex | Slides adapter + shell gateway | 已实现显式 slide ID/索引路由、revision、队列；删除每次确认，待真实 session 保存/重开测试。 | |
 | SLD-07 | 实现 `slides.render_preview`，返回受限尺寸 PNG 或应用生成的临时资源句柄。 | P1 | SLD-03 | 未开始 | TBD | 同上 | 不暴露任意文件路径；临时资源有 TTL 清理。 | |
 | SLD-08 | 为 Slides MCP 流程写集成测试：读 → dry-run → 写 → undo → redo → save。 | P0 | SLD-03..06 | 进行中 | Codex | `apps/slides/tests/mcp-adapter.test.ts`、shell tests | 已新增真实 session 的 dry-run → 写 → conflict → undo → redo 测试；save、取消、Tab 切换与 renderer 销毁待补。 | |
 
