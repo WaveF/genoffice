@@ -56,7 +56,11 @@ export function handleSheetsMcpRequest(
   const bounds = parseRange(range)
   const requestedCellCount = rangeCellCount(bounds)
   if (requestedCellCount > MAX_READ_CELLS) throw new Error(`range exceeds the ${MAX_READ_CELLS}-cell read limit`)
-  const cells = rangeAddresses(bounds).map((address) => ({ address, ...(sheet.cells[address] ?? { value: null }) }))
+  const cells = rangeAddresses(bounds).map((address) => ({
+    address,
+    ...(sheet.cells[address] ?? { value: null }),
+    ...(sheet.styles?.[address] ? { format: sheet.styles[address] } : {}),
+  }))
   if (action === 'sheets.find') {
     const query = input.query
     if (typeof query !== 'string' || query.length === 0 || query.length > 256) throw new Error('A bounded query is required')

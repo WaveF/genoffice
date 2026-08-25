@@ -4,7 +4,7 @@ import { handleSheetsMcpRequest } from '../src/renderer/mcp-adapter'
 
 const adapter = new InMemoryWorkbookAdapter({
   revision: 7,
-  sheets: [{ id: 'sheet-1', name: 'Data', cells: { A1: { value: 'Name' }, B1: { value: 42 }, A2: { formula: '=B1*2', value: null } } }],
+  sheets: [{ id: 'sheet-1', name: 'Data', cells: { A1: { value: 'Name' }, B1: { value: 42 }, A2: { formula: '=B1*2', value: null } }, styles: { A1: { bold: true, fillColor: '#ffff00' } } }],
 })
 
 describe('handleSheetsMcpRequest', () => {
@@ -21,7 +21,7 @@ describe('handleSheetsMcpRequest', () => {
       sheetId: 'sheet-1',
       range: 'A1:B2',
       cells: [
-        { address: 'A1', value: 'Name' }, { address: 'B1', value: 42 },
+        { address: 'A1', value: 'Name', format: { bold: true, fillColor: '#ffff00' } }, { address: 'B1', value: 42 },
         { address: 'A2', formula: '=B1*2', value: null }, { address: 'B2', value: null },
       ],
     })
