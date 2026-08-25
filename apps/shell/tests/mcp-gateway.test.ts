@@ -29,7 +29,12 @@ function gatewayWith(documents: DocumentTarget[] = [target]): ShellMcpGateway {
   const slides: SlidesMcpReader = {
     getDeckContext: () => ({ revision: 3, slideCount: 1, slides: [{ slideId: 's_1', index: 0 }] }),
     readSlide: (_webContentsId, slide) => ({ revision: 3, slide }),
-    renderSlidePreview: async (_webContentsId, slide) => ({ revision: 3, slide, mimeType: 'image/png', base64: 'iVBORw0KGgo=' }),
+    renderSlidePreview: async (_webContentsId, slide) => ({
+      revision: 3,
+      slide,
+      mimeType: 'image/png',
+      base64: 'iVBORw0KGgo=',
+    }),
   }
   return new ShellMcpGateway(source, {
     ...slides,

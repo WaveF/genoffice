@@ -1027,7 +1027,11 @@ function openExportedPdf(path: string): void {
 let ipcRegistered = false
 const mcpPreviewWaiters = new Map<
   string,
-  { webContentsId: number; resolve: (value: { pngBase64?: string; error?: string }) => void; timer: ReturnType<typeof setTimeout> }
+  {
+    webContentsId: number
+    resolve: (value: { pngBase64?: string; error?: string }) => void
+    timer: ReturnType<typeof setTimeout>
+  }
 >()
 const MCP_PREVIEW_TIMEOUT_MS = 15_000
 const MAX_MCP_PREVIEW_BASE64_CHARS = 384 * 1024
