@@ -6,6 +6,7 @@ import {
   type RendererMcpReader,
   type SlidesMcpReader,
 } from '../src/main/mcp/gateway'
+import type { McpPermissionGate } from '../src/main/mcp/permissions'
 
 const target: DocumentTarget = {
   documentId: 'doc-123',
@@ -17,7 +18,10 @@ const target: DocumentTarget = {
   webContentsId: 42,
 }
 
-function gatewayWith(documents: DocumentTarget[] = [target]): ShellMcpGateway {
+function gatewayWith(
+  documents: DocumentTarget[] = [target],
+  permissions: McpPermissionGate = { authorize: async () => undefined },
+): ShellMcpGateway {
   const source: DocumentTargetSource = {
     listDocumentTargets: async () => documents,
     findDocumentTarget: async (documentId) =>
@@ -52,9 +56,7 @@ function gatewayWith(documents: DocumentTarget[] = [target]): ShellMcpGateway {
     save: async (_webContentsId, expectedRevision) => ({ saved: true, revision: expectedRevision }),
     addSlide: (_webContentsId, _afterSlide, expectedRevision) => ({ applied: true, revision: expectedRevision + 1 }),
     deleteSlide: (_webContentsId, _slide, expectedRevision) => ({ applied: true, revision: expectedRevision + 1 }),
-  }, {
-    authorize: async () => undefined,
-  }, undefined, renderer)
+  }, permissions, undefined, renderer)
 }
 
 function request(params: Record<string, unknown>) {
@@ -230,6 +232,28 @@ describe('ShellMcpGateway', () => {
     )
     expect(result).toMatchObject({ mutated: false, revision: 3 })
     expect(JSON.parse((result as { content: string }).content)).toMatchObject({ action: 'pdf.apply_operations' })
+  })
+
+  it('requires destructive permission when a PDF operation deletes a page', async () => {
+    const authorize = async (request: Parameters<McpPermissionGate['authorize']>[0]) => {
+      requests.push(request)
+    }
+    const requests: Parameters<McpPermissionGate['authorize']>[0][] = []
+    const pdfTarget = { ...target, kind: 'pdf' as const }
+
+    await gatewayWith([pdfTarget], { authorize }).handle(
+      request({ name: 'pdf.apply_operations', input: {
+        documentId: 'doc-123', expectedRevision: 3,
+        operations: [{ op: 'delete_page', page: 0 }],
+      } }),
+    )
+
+    expect(requests).toEqual([expect.objectContaining({
+      clientId: 'test-client',
+      toolName: 'pdf.apply_operations',
+      risk: 'destructive',
+      document: expect.objectContaining({ documentId: 'doc-123' }),
+    })])
   })
 
   it('renders a bounded Slides preview through the explicit document/slide route', async () => {
