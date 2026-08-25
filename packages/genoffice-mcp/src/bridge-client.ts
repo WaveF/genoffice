@@ -10,6 +10,7 @@ export interface BridgeDiscovery {
   transport: 'unix' | 'pipe'
   endpoint: string
   token: string
+  adapterPath?: string
 }
 
 interface BridgeSuccess {
@@ -73,6 +74,9 @@ export async function readBridgeDiscovery(path: string): Promise<BridgeDiscovery
     transport: value.transport,
     endpoint: value.endpoint,
     token: value.token,
+    ...(typeof value.adapterPath === 'string' && value.adapterPath
+      ? { adapterPath: value.adapterPath }
+      : {}),
   }
 }
 

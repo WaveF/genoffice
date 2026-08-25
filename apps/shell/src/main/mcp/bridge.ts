@@ -11,6 +11,8 @@ export interface McpBridgeDiscovery {
   transport: 'unix' | 'pipe'
   endpoint: string
   token: string
+  /** Packaged adapter path when Shell owns one; omitted for source-only runs. */
+  adapterPath?: string
 }
 
 export interface McpBridgeRequest {
@@ -29,6 +31,7 @@ export interface LocalMcpBridgeOptions {
   userDataPath: string
   gateway: McpBridgeGateway
   platform?: NodeJS.Platform
+  adapterPath?: string
 }
 
 interface WireRequest {
@@ -80,6 +83,7 @@ export class LocalMcpBridge {
       transport: this.platform === 'win32' ? 'pipe' : 'unix',
       endpoint: this.endpoint,
       token: this.token,
+      ...(this.options.adapterPath ? { adapterPath: this.options.adapterPath } : {}),
     }
   }
 

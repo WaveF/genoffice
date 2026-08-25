@@ -28,6 +28,7 @@ describe('LocalMcpBridge', () => {
     const userDataPath = await mkdtemp(join(tmpdir(), 'genoffice-mcp-'))
     const bridge = new LocalMcpBridge({
       userDataPath,
+      adapterPath: '/Applications/GenOffice.app/Contents/Resources/mcp/genoffice-mcp.mjs',
       gateway: {
         handle: async (request) => ({ method: request.method, clientId: request.clientId }),
       },
@@ -36,6 +37,9 @@ describe('LocalMcpBridge', () => {
     try {
       const discovery = JSON.parse(await readFile(bridge.discoveryPath, 'utf8')) as Record<string, string>
       expect(discovery.endpoint).toBe(bridge.discovery.endpoint)
+      expect(discovery.adapterPath).toBe(
+        '/Applications/GenOffice.app/Contents/Resources/mcp/genoffice-mcp.mjs',
+      )
       expect((await stat(bridge.discoveryPath)).mode & 0o077).toBe(0)
       const ok = await request(bridge.discovery.endpoint, {
         id: '1',

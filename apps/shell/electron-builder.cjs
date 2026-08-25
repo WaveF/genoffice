@@ -186,6 +186,12 @@ function assertModuleTreesPresent() {
       )
     }
   }
+  const mcpAdapter = join(__dirname, '../../packages/genoffice-mcp/dist/genoffice-mcp.mjs')
+  if (!existsSync(mcpAdapter)) {
+    throw new Error(
+      `electron-builder MCP adapter missing: ${mcpAdapter} (run npm run build -w @genoffice/mcp first)`,
+    )
+  }
 }
 
 /** @type {import('electron-builder').Configuration} */
@@ -228,6 +234,10 @@ const config = {
     {
       from: '../markdown/out',
       to: 'modules/markdown',
+    },
+    {
+      from: '../../packages/genoffice-mcp/dist',
+      to: 'mcp',
     },
     // PDF text editing engines: the bundled main resolves these under
     // Resources/wasm when node_modules is absent (apps/pdf/src/main/wasm-path.ts)

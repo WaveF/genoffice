@@ -17,3 +17,7 @@ MCP client 首次调用 `write` 或 `file` 风险等级的工具时，GenOffice 
 ## DEC-04：内置云 AI 一并下线
 
 内置对话、模型 provider、Genspark 登录、云搜索和云图像生成均属于待移除范围。外部 AI 负责搜索和生成；GenOffice 只保留经过权限和 schema 校验的文档、媒体插入及保存能力。
+
+## DEC-05：adapter 双分发
+
+MCP adapter 同时以独立 npm 包 `@genoffice/mcp` 和 GenOffice 安装包内置资源发布。安装包 discovery 文件可公布内置 adapter 的绝对路径；外部客户端也可按自身环境使用 npm 安装的 `genoffice-mcp` 命令。两种方式连接同一个受认证的本地 bridge。

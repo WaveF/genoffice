@@ -246,6 +246,9 @@ const MARKDOWN_OUT = app.isPackaged
 const SIDECAR_BIN = app.isPackaged
   ? join(process.resourcesPath, 'native', SIDECAR_EXE)
   : join(APPS_ROOT, 'sheets', 'native', 'xlsx-engine', 'target', 'release', SIDECAR_EXE)
+const MCP_ADAPTER_PATH = app.isPackaged
+  ? join(process.resourcesPath, 'mcp', 'genoffice-mcp.mjs')
+  : join(app.getAppPath(), '..', '..', 'packages', 'genoffice-mcp', 'dist', 'genoffice-mcp.mjs')
 
 configureDocsRuntime({
   preloadPath: join(DOCS_OUT, 'preload', 'index.js'),
@@ -4214,6 +4217,7 @@ app.whenReady().then(async () => {
     try {
       mcpBridge = new LocalMcpBridge({
         userDataPath: app.getPath('userData'),
+        ...(existsSync(MCP_ADAPTER_PATH) ? { adapterPath: MCP_ADAPTER_PATH } : {}),
         gateway: new ShellMcpGateway(
           tabManager,
           new SlidesMcpAdapter(saveOpenSlidesDocument),
