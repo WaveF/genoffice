@@ -94,7 +94,7 @@
 | SHT-03 | 实现 Sheets `propose_operations` 的 MCP 等价工具（改名为 `sheets.apply_operations`）。 | P1 | SHT-02, CAP-07, SEC-02 | 进行中 | Codex | Sheets adapter | dry-run、CAS、权限、队列、内存与导入 workbook 路径已接入；需补公式重算/undo 的 MCP 回归。 | |
 | SHT-04 | 为 Sheets 写端到端测试。 | P1 | SHT-02..03 | 未开始 | TBD | `apps/sheets/tests/` | 覆盖真实 xlsx、懒加载、公式、结构修改、保存回写。 | |
 | PDF-01 | 盘点 PDF AI tools 的 renderer/main 依赖，定义 document-scoped adapter。 | P1 | CAP-01 | 进行中 | Codex | `apps/pdf/src/renderer/mcp-adapter.ts`、`App.tsx` | document-scoped bridge 已接入；风险矩阵待补。 | |
-| PDF-02 | 实现 PDF 只读 tools：page context、search、annotations、forms、outline。 | P2 | PDF-01, RBR-01 | 进行中 | Codex | PDF adapter | 页面文字、书签、表单摘要及批注计数已完成；搜索与逐项批注读取待补。 | |
+| PDF-02 | 实现 PDF 只读 tools：page context、search、annotations、forms、outline。 | P2 | PDF-01, RBR-01 | 进行中 | Codex | PDF adapter | 页面文字、书签、表单摘要、批注计数与受限搜索已完成；逐项批注读取待补。 | |
 | PDF-03 | 实现 PDF 写 tools：text/annotation/form/image/page 操作。 | P2 | PDF-02, SEC-02, SEC-03 | 进行中 | Codex | PDF adapter | 可撤销的 note/markup 批处理已完成；text/form/image/page 操作及页操作确认待补。 | |
 | PDF-04 | 为 PDF 写端到端测试。 | P2 | PDF-02..03 | 未开始 | TBD | `apps/pdf/tests/` | 覆盖保存、取消、页面删除确认、renderer 销毁。 | |
 

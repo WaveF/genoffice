@@ -85,6 +85,7 @@ describe('ShellMcpGateway', () => {
         expect.objectContaining({ name: 'markdown.read_blocks' }),
         expect.objectContaining({ name: 'sheets.read_range' }),
         expect.objectContaining({ name: 'pdf.read_page_context' }),
+        expect.objectContaining({ name: 'pdf.search' }),
       ]),
     )
   })
@@ -162,6 +163,17 @@ describe('ShellMcpGateway', () => {
         request({ name: 'pdf.get_document_context', input: { documentId: 'doc-123' } }),
       ),
     ).rejects.toMatchObject({ code: 'validation_error' })
+  })
+
+  it('routes a bounded PDF search through the fixed renderer bridge', async () => {
+    const pdfTarget = { ...target, kind: 'pdf' as const }
+    const result = await gatewayWith([pdfTarget]).handle(
+      request({ name: 'pdf.search', input: { documentId: 'doc-123', query: 'revenue' } }),
+    )
+    expect(result).toMatchObject({ mutated: false, revision: 3 })
+    expect(JSON.parse((result as { content: string }).content)).toMatchObject({
+      action: 'pdf.search', input: { query: 'revenue' },
+    })
   })
 
   it('serializes renderer writes behind explicit revision and permission checks', async () => {
