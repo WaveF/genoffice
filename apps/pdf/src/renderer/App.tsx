@@ -385,14 +385,6 @@ export default function App() {
   /** WPS-style paragraph boxes shown while edit-text mode is on, clustered lazily
       per visible page from the search index (PDF space; cleared on doc reload) */
   const [pageBlocks, setPageBlocks] = useState<Map<number, TextBlock[]>>(new Map())
-  useEffect(() => window.pdfApi.onMcpRequest((request) => {
-    try {
-      const result = handlePdfMcpRequest(request.action, request.input, { pageCount: doc?.numPages ?? 0, sizes, pageBlocks })
-      window.pdfApi.respondMcpRequest({ requestId: request.requestId, ok: true, result })
-    } catch (error) {
-      window.pdfApi.respondMcpRequest({ requestId: request.requestId, ok: false, error: error instanceof Error ? error.message : 'PDF MCP request failed' })
-    }
-  }), [doc, sizes, pageBlocks])
   const [blockHover, setBlockHover] = useState<{ origIdx: number; idx: number } | null>(null)
   /** Border-drag of a clustered block (WPS-style move); client-space endpoints,
       converted to a PDF-space delta on release like the image-edit drag */
@@ -654,6 +646,23 @@ export default function App() {
   const [formEdits, setFormEdits] = useState<Map<string, FormValueInput>>(new Map())
   const [rotations, setRotations] = useState<Map<number, number>>(new Map())
   const [deleted, setDeleted] = useState<Set<number>>(new Set())
+  useEffect(() => window.pdfApi.onMcpRequest((request) => {
+    try {
+      const result = handlePdfMcpRequest(request.action, request.input, {
+        pageCount: doc?.numPages ?? 0, sizes, pageBlocks, outline,
+        forms: [...(formCatalog?.fields.values() ?? [])].map((field) => ({ name: field.name, kind: field.kind, pageIndex: field.pageIndex, value: field.value, checked: field.checked, required: field.required, readOnly: field.readOnly })),
+        annotations: {
+          pendingMarkups: markups.length,
+          pendingNotes: drawings.filter((drawing) => drawing.input.kind === 'note').length,
+          savedMarkups: [...savedMarkups.values()].reduce((total, annotations) => total + annotations.length, 0),
+          savedNotes: [...savedNotes.values()].reduce((total, annotations) => total + annotations.length, 0),
+        },
+      })
+      window.pdfApi.respondMcpRequest({ requestId: request.requestId, ok: true, result })
+    } catch (error) {
+      window.pdfApi.respondMcpRequest({ requestId: request.requestId, ok: false, error: error instanceof Error ? error.message : 'PDF MCP request failed' })
+    }
+  }), [doc, sizes, pageBlocks, outline, formCatalog, markups, drawings, savedMarkups, savedNotes])
   /** Markup bar over the current selection; quads (PDF space, keyed by original page
       index) drive the Word-style toggle state of the buttons */
   const [selPopup, setSelPopup] = useState<{

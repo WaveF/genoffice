@@ -12,6 +12,7 @@ describe('handlePdfMcpRequest', () => {
     expect(handlePdfMcpRequest('pdf.get_document_context', {}, state)).toEqual({
       pageCount: 2,
       pages: [{ index: 0, width: 600, height: 800 }, { index: 1, width: 600, height: 900 }],
+      outline: [], forms: [], annotations: { pendingMarkups: 0, pendingNotes: 0, savedMarkups: 0, savedNotes: 0 },
     })
   })
 
