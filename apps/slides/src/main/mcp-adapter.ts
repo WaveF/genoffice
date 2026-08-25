@@ -1,7 +1,7 @@
 import { webContents } from 'electron'
-import { CapabilityError } from '@genoffice/capabilities'
+import { CapabilityError, type ToolRisk } from '@genoffice/capabilities'
 import { elementDurableId, slideDurableId, type Op, runTxn } from './ops'
-import { validateMcpOps } from './mcp-op-guard'
+import { mcpOpsRisk, validateMcpOps } from './mcp-op-guard'
 import {
   buildAllRenderSlides,
   journalOps,
@@ -93,6 +93,17 @@ function notifyRenderer(webContentsId: number, session: Session): void {
 
 /** Main-process Slides facade used by MCP only; it never accepts renderer IPC envelopes. */
 export class SlidesMcpAdapter {
+  opsRisk(rawOps: unknown): ToolRisk {
+    try {
+      return mcpOpsRisk(rawOps)
+    } catch (error) {
+      throw new CapabilityError(
+        'validation_error',
+        error instanceof Error ? error.message : 'Invalid slides operation payload',
+      )
+    }
+  }
+
   getDeckContext(webContentsId: number): SlidesMcpDeckContext {
     const session = requireSession(webContentsId)
     return jsonSafe(

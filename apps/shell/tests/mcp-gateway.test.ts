@@ -28,6 +28,7 @@ function gatewayWith(documents: DocumentTarget[] = [target]): ShellMcpGateway {
   }
   return new ShellMcpGateway(source, {
     ...slides,
+    opsRisk: () => 'write',
     applyOps: (_webContentsId, _ops, expectedRevision, dryRun) => ({
       applied: !dryRun,
       revision: expectedRevision + (dryRun ? 0 : 1),

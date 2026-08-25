@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { validateMcpOps } from '../src/main/mcp-op-guard'
+import { mcpOpsRisk, validateMcpOps } from '../src/main/mcp-op-guard'
 
 describe('validateMcpOps', () => {
   it('permits registered, JSON-only canonical operations', () => {
@@ -14,5 +14,12 @@ describe('validateMcpOps', () => {
     expect(() => validateMcpOps([{ op: 'setImageFill', source: { mediaPath: '/tmp/a.png' } }])).toThrow(
       'restricted',
     )
+  })
+
+  it('requires destructive confirmation for delete operations', () => {
+    expect(mcpOpsRisk([{ op: 'setFill', target: { slide: 0, el: 'shape-1' }, fill: '#112233' }])).toBe(
+      'write',
+    )
+    expect(mcpOpsRisk([{ op: 'deleteSlide', target: { slide: 0 } }])).toBe('destructive')
   })
 })

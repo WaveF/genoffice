@@ -1,4 +1,5 @@
 import { opNames, type Op } from './ops'
+import type { ToolRisk } from '@genoffice/capabilities'
 
 const MAX_MCP_OPS = 50
 const MAX_MCP_OP_BYTES = 200 * 1024
@@ -14,6 +15,7 @@ const FORBIDDEN_KEYS = new Set([
   'source',
   'slidexml',
 ])
+const DESTRUCTIVE_OPS = new Set(['deleteComment', 'deleteElement', 'deleteSlide'])
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
@@ -62,4 +64,10 @@ export function validateMcpOps(value: unknown): Op[] {
     validateValue(candidate, 0)
     return candidate as Op
   })
+}
+
+/** Deletes remain available for a future explicit tool, but must never inherit a write grant. */
+export function mcpOpsRisk(value: unknown): ToolRisk {
+  const ops = validateMcpOps(value)
+  return ops.some((op) => DESTRUCTIVE_OPS.has(op.op)) ? 'destructive' : 'write'
 }

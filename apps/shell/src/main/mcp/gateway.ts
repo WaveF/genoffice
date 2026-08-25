@@ -3,6 +3,7 @@ import {
   type CapabilityTool,
   type DocumentTarget,
   type ExecutionContext,
+  type ToolRisk,
   type ToolResult,
   toolResult,
 } from '@genoffice/capabilities'
@@ -23,6 +24,7 @@ export interface SlidesMcpReader {
 }
 
 export interface SlidesMcpWriter extends SlidesMcpReader {
+  opsRisk(rawOps: unknown): ToolRisk
   applyOps(
     webContentsId: number,
     rawOps: unknown,
@@ -187,12 +189,13 @@ export class ShellMcpGateway implements McpBridgeGateway {
       }
       const target = await this.requireSlidesTarget(documentId)
       const slides = this.requireSlidesWriter()
+      const risk = slides.opsRisk(rawOps)
       const execute = async () => {
         if (!dryRun)
           await this.requirePermissions().authorize({
             clientId: context.clientId,
             toolName: name,
-            risk: 'write',
+            risk,
             document: target,
           })
         return slides.applyOps(target.webContentsId, rawOps, expectedRevision, dryRun)

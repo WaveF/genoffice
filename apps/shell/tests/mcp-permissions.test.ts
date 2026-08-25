@@ -36,4 +36,14 @@ describe('SessionMcpPermissionGate', () => {
       gate.authorize({ clientId: 'bridge-1', toolName: 'slides.apply_ops', risk: 'write', document }),
     ).rejects.toMatchObject({ code: 'permission_denied' })
   })
+
+  it('always asks again for destructive operations', async () => {
+    showMessageBox.mockClear()
+    showMessageBox.mockResolvedValue({ response: 1 })
+    const gate = new SessionMcpPermissionGate()
+    const request = { clientId: 'bridge-1', toolName: 'slides.apply_ops', risk: 'destructive' as const, document }
+    await gate.authorize(request)
+    await gate.authorize(request)
+    expect(showMessageBox).toHaveBeenCalledTimes(2)
+  })
 })
