@@ -235,16 +235,7 @@ export class ShellMcpGateway implements McpBridgeGateway {
       return toolResult(JSON.stringify(this.requireSlides().getDeckContext(target.webContentsId)), false, target.revision)
     }
     if (name === 'slides.read_slide') {
-      const documentId = argumentsValue.documentId
-      const slide = argumentsValue.slide
-      if (
-        typeof documentId !== 'string' ||
-        documentId.length === 0 ||
-        (typeof slide !== 'string' && (!Number.isInteger(slide) || (slide as number) < 0)) ||
-        Object.keys(argumentsValue).length !== 2
-      ) {
-        throw new CapabilityError('validation_error', 'documentId and a non-negative slide index or slide ID are required')
-      }
+      const { documentId, slide } = this.requireDocumentSlide(argumentsValue)
       const target = await this.requireSlidesTarget(documentId)
       return toolResult(
         JSON.stringify(this.requireSlides().readSlide(target.webContentsId, slide)),
@@ -253,11 +244,7 @@ export class ShellMcpGateway implements McpBridgeGateway {
       )
     }
     if (name === 'slides.render_preview') {
-      const documentId = argumentsValue.documentId
-      const slide = argumentsValue.slide
-      if (typeof documentId !== 'string' || documentId.length === 0 || (typeof slide !== 'string' && (!Number.isInteger(slide) || (slide as number) < 0)) || Object.keys(argumentsValue).length !== 2) {
-        throw new CapabilityError('validation_error', 'documentId and a non-negative slide index or slide ID are required')
-      }
+      const { documentId, slide } = this.requireDocumentSlide(argumentsValue)
       const target = await this.requireSlidesTarget(documentId)
       return toolResult(JSON.stringify(await this.requireSlides().renderSlidePreview(target.webContentsId, slide)), false, target.revision)
     }
@@ -419,6 +406,27 @@ export class ShellMcpGateway implements McpBridgeGateway {
       throw new CapabilityError('validation_error', `${slideKey} must be a slide ID or non-negative index`)
     }
     return base
+  }
+
+  private requireDocumentSlide(argumentsValue: Record<string, unknown>): {
+    documentId: string
+    slide: number | string
+  } {
+    const documentId = argumentsValue.documentId
+    const slide = argumentsValue.slide
+    if (
+      typeof documentId !== 'string' ||
+      documentId.length === 0 ||
+      (typeof slide !== 'string' &&
+        (typeof slide !== 'number' || !Number.isInteger(slide) || slide < 0)) ||
+      Object.keys(argumentsValue).length !== 2
+    ) {
+      throw new CapabilityError(
+        'validation_error',
+        'documentId and a non-negative slide index or slide ID are required',
+      )
+    }
+    return { documentId, slide: slide as number | string }
   }
 
   private async requireSlidesTarget(documentId: string): Promise<DocumentTarget> {

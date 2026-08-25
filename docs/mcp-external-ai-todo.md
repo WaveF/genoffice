@@ -63,14 +63,14 @@
 
 | ID | 任务 | 优先级 | 依赖 | 状态 | 负责人 | 代码落点 | 验收标准 | PR |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| SLD-01 | 将 Slides session 适配为 `DocumentTarget`，暴露 revision、dirty、path、title。 | P0 | CAP-03 | 进行中 | Codex | `apps/slides/src/main/session-state.ts`、`mcp-adapter.ts` | 已为 canonical transaction/undo/redo 增加 session revision；仍需纳入所有人工变更路径并接入 Shell target。 | |
-| SLD-02 | 从现有 operation registry 导出经验证的 canonical ops facade。 | P0 | CAP-01 | 进行中 | Codex | `apps/slides/src/main/mcp-op-guard.ts`、`mcp-adapter.ts` | 已建立 allow-list facade，拒绝 archive bytes、文件路径、脚本及超限 payload；待 gateway 接入。 | |
-| SLD-03 | 实现 `slides.get_deck_context`。 | P0 | SLD-01 | 进行中 | Codex | `apps/slides/src/main/mcp-adapter.ts`、shell gateway | 已实现页数、页面 IDs、元素摘要、revision 与显式 documentId 路由；待真实 Slides session 集成测试。 | |
-| SLD-04 | 实现 `slides.read_slide`。 | P0 | SLD-01 | 进行中 | Codex | 同上 | 已支持 slideId/索引，过滤敏感字段并限制 512 KiB 输出；待真实 Slides session 集成测试。 | |
-| SLD-05 | 实现 `slides.apply_ops`，支持 `dryRun` 与 `expectedRevision`。 | P0 | SLD-02, CAP-07, SEC-02 | 进行中 | Codex | 同上 | 已接入 MCP gateway、授权、dryRun、expectedRevision 和 canonical atomic transaction；待串行队列及真实 session 集成测试。 | |
-| SLD-06 | 实现 `slides.add_slide`、`slides.delete_slide`。 | P1 | SLD-05, SEC-03 | 进行中 | Codex | Slides adapter + shell gateway | 已实现显式 slide ID/索引路由、revision、队列；删除每次确认，待真实 session 保存/重开测试。 | |
-| SLD-07 | 实现 `slides.render_preview`，返回受限尺寸 PNG 或应用生成的临时资源句柄。 | P1 | SLD-03 | 进行中 | TBD | 同上 | 通过专用 renderer 请求返回单页、384 KiB 上限 PNG；主进程校验请求来源并设 15 秒超时，不暴露任意文件路径。 | |
-| SLD-08 | 为 Slides MCP 流程写集成测试：读 → dry-run → 写 → undo → redo → save。 | P0 | SLD-03..06 | 进行中 | Codex | `apps/slides/tests/mcp-adapter.test.ts`、shell tests | 已新增真实 session 的 read/dry-run → 写 → conflict → undo → redo、显式新增/删除、保存回调和 renderer 错误映射测试；待依赖恢复后执行。 | |
+| SLD-01 | 将 Slides session 适配为 `DocumentTarget`，暴露 revision、dirty、path、title。 | P0 | CAP-03 | 完成 | Codex | `apps/slides/src/main/session-state.ts`、`mcp-adapter.ts` | Shell 以 opaque documentId 暴露 title/dirty/revision；主进程编辑交易、undo/redo 统一推进 revision。 | |
+| SLD-02 | 从现有 operation registry 导出经验证的 canonical ops facade。 | P0 | CAP-01 | 完成 | Codex | `apps/slides/src/main/mcp-op-guard.ts`、`mcp-adapter.ts` | allow-list facade 已接入 gateway；拒绝 archive bytes、路径、脚本和超限 payload。 | |
+| SLD-03 | 实现 `slides.get_deck_context`。 | P0 | SLD-01 | 完成 | Codex | `apps/slides/src/main/mcp-adapter.ts`、shell gateway | 返回页数、页面 IDs、元素摘要、revision，并要求显式 documentId。 | |
+| SLD-04 | 实现 `slides.read_slide`。 | P0 | SLD-01 | 完成 | Codex | 同上 | 支持 slideId/索引，过滤敏感字段并限制 512 KiB 输出。 | |
+| SLD-05 | 实现 `slides.apply_ops`，支持 `dryRun` 与 `expectedRevision`。 | P0 | SLD-02, CAP-07, SEC-02 | 完成 | Codex | 同上 | 已接入授权、串行队列、dryRun、expectedRevision 和 canonical atomic transaction。 | |
+| SLD-06 | 实现 `slides.add_slide`、`slides.delete_slide`。 | P1 | SLD-05, SEC-03 | 完成 | Codex | Slides adapter + shell gateway | 显式 slide ID/索引、revision、队列已验证；删除操作每次强制确认。 | |
+| SLD-07 | 实现 `slides.render_preview`，返回受限尺寸 PNG 或应用生成的临时资源句柄。 | P1 | SLD-03 | 完成 | Codex | Slides adapter + renderer bridge | 专用 renderer 请求仅返回单页 PNG（384 KiB）；来源校验、发送失败和 15 秒超时均映射为受控错误。 | |
+| SLD-08 | 为 Slides MCP 流程写集成测试：读 → dry-run → 写 → undo → redo → save。 | P0 | SLD-03..06 | 完成 | Codex | `apps/slides/tests/mcp-adapter.test.ts`、shell tests | 定向 Vitest：2 文件、15 用例通过；覆盖 read/dry-run/write/conflict/undo/redo/生命周期/save 和 renderer 错误映射。 | |
 
 ## 5. Docs 与 Markdown：renderer bridge
 

@@ -1054,7 +1054,13 @@ export async function renderOpenSlidesMcpPreview(
       resolve({ error: 'Preview renderer timed out' })
     }, MCP_PREVIEW_TIMEOUT_MS)
     mcpPreviewWaiters.set(requestId, { webContentsId, resolve, timer })
-    contents.send('slides:mcp-preview-request', { requestId, slideIndex })
+    try {
+      contents.send('slides:mcp-preview-request', { requestId, slideIndex })
+    } catch {
+      mcpPreviewWaiters.delete(requestId)
+      clearTimeout(timer)
+      resolve({ error: 'Slides renderer is unavailable' })
+    }
   })
   if (response.error) throw new Error(response.error)
   if (
