@@ -28,6 +28,7 @@ export type RendererMcpAction =
   | 'sheets.aggregate'
   | 'sheets.trace_formula'
   | 'sheets.apply_operations'
+  | 'sheets.undo'
   | 'pdf.get_document_context'
   | 'pdf.read_page_context'
   | 'pdf.search'

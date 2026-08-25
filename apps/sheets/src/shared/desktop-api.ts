@@ -2302,7 +2302,7 @@ export interface RecoveryPromptPayload {
 }
 
 export interface DesktopApi {
-  onMcpRequest(handler: (request: { requestId: string; action: 'sheets.get_workbook_context' | 'sheets.read_range' | 'sheets.find' | 'sheets.aggregate' | 'sheets.trace_formula' | 'sheets.apply_operations'; input: Record<string, unknown> }) => void): () => void
+  onMcpRequest(handler: (request: { requestId: string; action: 'sheets.get_workbook_context' | 'sheets.read_range' | 'sheets.find' | 'sheets.aggregate' | 'sheets.trace_formula' | 'sheets.apply_operations' | 'sheets.undo'; input: Record<string, unknown> }) => void): () => void
   respondMcpRequest(response: { requestId: string; ok: boolean; result?: unknown; error?: string }): void
   reportMcpRevision(revision: number): void
   /** current UI language (persisted by the shell in app-settings.json) */

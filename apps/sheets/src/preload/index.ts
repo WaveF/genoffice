@@ -47,7 +47,7 @@ import {
 
 const desktopApi: DesktopApi = {
   onMcpRequest(handler) {
-    const listener = (_event: Electron.IpcRendererEvent, request: { requestId: string; action: 'sheets.get_workbook_context' | 'sheets.read_range' | 'sheets.find' | 'sheets.aggregate' | 'sheets.trace_formula' | 'sheets.apply_operations'; input: Record<string, unknown> }) => handler(request)
+    const listener = (_event: Electron.IpcRendererEvent, request: { requestId: string; action: 'sheets.get_workbook_context' | 'sheets.read_range' | 'sheets.find' | 'sheets.aggregate' | 'sheets.trace_formula' | 'sheets.apply_operations' | 'sheets.undo'; input: Record<string, unknown> }) => handler(request)
     ipcRenderer.on('mcp:renderer-request', listener)
     return () => ipcRenderer.removeListener('mcp:renderer-request', listener)
   },

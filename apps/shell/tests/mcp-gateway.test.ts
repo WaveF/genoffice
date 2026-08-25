@@ -222,6 +222,18 @@ describe('ShellMcpGateway', () => {
     })
   })
 
+  it('routes a revision-checked Sheets undo through write permission', async () => {
+    const sheetsTarget = { ...target, kind: 'sheets' as const }
+    const requests: unknown[] = []
+    const result = await gatewayWith([sheetsTarget], {
+      authorize: async (permission) => { requests.push(permission) },
+    }).handle(request({ name: 'sheets.undo', input: { documentId: 'doc-123', expectedRevision: 3 } }))
+
+    expect(result).toMatchObject({ mutated: true, revision: 3 })
+    expect(JSON.parse((result as { content: string }).content)).toMatchObject({ action: 'sheets.undo', input: { expectedRevision: 3 } })
+    expect(requests).toEqual([expect.objectContaining({ toolName: 'sheets.undo', risk: 'write' })])
+  })
+
   it('routes dry-run PDF annotations through the revision-checked renderer route', async () => {
     const pdfTarget = { ...target, kind: 'pdf' as const }
     const result = await gatewayWith([pdfTarget]).handle(

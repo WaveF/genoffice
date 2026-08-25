@@ -419,8 +419,13 @@ export function App(): React.JSX.Element {
   const mcpLazyReadRef = useRef<(action: SheetsMcpReadAction, input: Record<string, unknown>) => unknown | Promise<unknown>>(() => {
     throw new Error('Workbook is not ready')
   })
+  const mcpUndoRef = useRef<(input: Record<string, unknown>) => Promise<unknown>>(async () => {
+    throw new Error('Workbook is not ready')
+  })
   useEffect(() => window.desktopApi.onMcpRequest((request) => {
-    const result = lazyWorkbookRef.current
+    const result = request.action === 'sheets.undo'
+      ? mcpUndoRef.current(request.input)
+      : lazyWorkbookRef.current
       ? request.action === 'sheets.apply_operations'
         ? mcpLazyOperationsRef.current(request.input)
         : mcpLazyReadRef.current(request.action, request.input)
@@ -2935,6 +2940,33 @@ export function App(): React.JSX.Element {
       readCells: (sheetId, addresses) => readCellsImpl(readerContext, addresses, sheetId),
       readFormats: (sheetId, addresses) => readFormatsImpl(readerContext, addresses, sheetId),
     }, action, input)
+  }
+
+  mcpUndoRef.current = async (input) => {
+    const expectedRevision = input.expectedRevision
+    if (!Number.isSafeInteger(expectedRevision) || (expectedRevision as number) !== mcpRevisionRef.current.current) {
+      throw new Error('Workbook changed since it was read')
+    }
+    const before = mcpRevisionRef.current.current
+    if (lazyWorkbookRef.current) {
+      if (!univerHist.canUndo) throw new Error('No workbook change is available to undo')
+      const api = univerRef.current?.univerAPI
+      if (!api) throw new Error('Workbook is not ready')
+      await api.undo()
+      const revision = mcpRevisionRef.current.current === before
+        ? mcpRevisionRef.current.advance()
+        : mcpRevisionRef.current.current
+      setRevision(revision)
+      window.desktopApi.reportMcpRevision(revision)
+      return { applied: true, revision }
+    }
+    if (!adapterRef.current.canUndo) throw new Error('No workbook change is available to undo')
+    const receipt = adapterRef.current.undo()
+    loadSnapshotIntoUniver(univerRef.current, adapterRef.current.getSnapshot(), 'new-workbook', 'Untitled')
+    queueDemoVisualInstallForActiveSheet()
+    commitMcpRevision(receipt.revision)
+    setPreview(null)
+    return { applied: true, revision: receipt.revision }
   }
 
   async function handleLazyApply(state: LazyWorkbookState): Promise<ApplyOutcome> {

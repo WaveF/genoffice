@@ -234,6 +234,7 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
       },
     },
   },
+  { name: 'sheets.undo', description: 'Undo the latest compatible workbook change.', inputSchema: DOCUMENT_REVISION_INPUT_SCHEMA },
   {
     name: 'pdf.read_page_context',
     description: 'Read bounded text context for one explicit page of an open PDF.',
@@ -431,6 +432,18 @@ export class ShellMcpGateway implements McpBridgeGateway {
       })
       const updated = await this.requireRendererTarget(documentId, 'sheets')
       return toolResult(JSON.stringify(result), !dryRun, updated.revision)
+    }
+    if (name === 'sheets.undo') {
+      const { documentId, expectedRevision } = argumentsValue
+      if (typeof documentId !== 'string' || !Number.isSafeInteger(expectedRevision) || (expectedRevision as number) < 0 || Object.keys(argumentsValue).length !== 2) throw new CapabilityError('validation_error', 'documentId and expectedRevision are required')
+      const target = await this.requireRendererTarget(documentId, 'sheets')
+      if (target.revision !== expectedRevision) throw new CapabilityError('conflict', 'Workbook changed since it was read', { expectedRevision, actualRevision: target.revision })
+      const result = await this.writeQueue.enqueue(target.documentId, context.signal, async () => {
+        await this.requirePermissions().authorize({ clientId: context.clientId, toolName: name, risk: 'write', document: target })
+        return this.requireRenderer().request(target.webContentsId, 'sheets.undo', { expectedRevision }, context.signal)
+      })
+      const updated = await this.requireRendererTarget(documentId, 'sheets')
+      return toolResult(JSON.stringify(result), true, updated.revision)
     }
     if (name === 'pdf.read_page_context') {
       const documentId = argumentsValue.documentId
