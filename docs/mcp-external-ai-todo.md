@@ -89,13 +89,13 @@
 
 | ID | 任务 | 优先级 | 依赖 | 状态 | 负责人 | 代码落点 | 验收标准 | PR |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| SHT-01 | 盘点并拆分 Sheets 的 workbook readers 与 operation apply 依赖，形成 session-scoped adapter 设计。 | P1 | CAP-01 | 未开始 | TBD | `apps/sheets/src/renderer/ai/`、`src/main/` | 明确哪些能力移到 main，哪些经 renderer bridge 调用。 | |
-| SHT-02 | 实现 Sheets 只读 tools：context、range、formats、find、aggregate、formula trace。 | P1 | SHT-01, RBR-01 | 未开始 | TBD | Sheets adapter | 保留 2,000 cells 与 lazy-load 限制；大范围读取不会耗尽内存。 | |
-| SHT-03 | 实现 Sheets `propose_operations` 的 MCP 等价工具（改名为 `sheets.apply_operations`）。 | P1 | SHT-02, CAP-07, SEC-02 | 未开始 | TBD | Sheets adapter | 支持 dry-run、版本冲突、异步公式重算和 undo。 | |
+| SHT-01 | 盘点并拆分 Sheets 的 workbook readers 与 operation apply 依赖，形成 session-scoped adapter 设计。 | P1 | CAP-01 | 进行中 | Codex | `apps/sheets/src/renderer/mcp-adapter.ts`、`App.tsx` | 固定 renderer bridge 已接入；仍需补充设计说明。 | |
+| SHT-02 | 实现 Sheets 只读 tools：context、range、formats、find、aggregate、formula trace。 | P1 | SHT-01, RBR-01 | 进行中 | Codex | Sheets adapter | context 与 2,000 cells 上限的显式 range 已完成；formats/find/aggregate/formula trace 待补。 | |
+| SHT-03 | 实现 Sheets `propose_operations` 的 MCP 等价工具（改名为 `sheets.apply_operations`）。 | P1 | SHT-02, CAP-07, SEC-02 | 进行中 | Codex | Sheets adapter | dry-run、CAS、权限、队列、内存与导入 workbook 路径已接入；需补公式重算/undo 的 MCP 回归。 | |
 | SHT-04 | 为 Sheets 写端到端测试。 | P1 | SHT-02..03 | 未开始 | TBD | `apps/sheets/tests/` | 覆盖真实 xlsx、懒加载、公式、结构修改、保存回写。 | |
-| PDF-01 | 盘点 PDF AI tools 的 renderer/main 依赖，定义 document-scoped adapter。 | P1 | CAP-01 | 未开始 | TBD | `apps/pdf/src/renderer/ai/`、`src/main/` | 列出 text/annotation/form/image/page 操作和风险等级。 | |
-| PDF-02 | 实现 PDF 只读 tools：page context、search、annotations、forms、outline。 | P2 | PDF-01, RBR-01 | 未开始 | TBD | PDF adapter | 不读取未授权文件；大 PDF 输出分页/限额。 | |
-| PDF-03 | 实现 PDF 写 tools：text/annotation/form/image/page 操作。 | P2 | PDF-02, SEC-02, SEC-03 | 未开始 | TBD | PDF adapter | 每项可撤销或在保存前保留内存修改；破坏性页面操作强制确认。 | |
+| PDF-01 | 盘点 PDF AI tools 的 renderer/main 依赖，定义 document-scoped adapter。 | P1 | CAP-01 | 进行中 | Codex | `apps/pdf/src/renderer/mcp-adapter.ts`、`App.tsx` | document-scoped bridge 已接入；风险矩阵待补。 | |
+| PDF-02 | 实现 PDF 只读 tools：page context、search、annotations、forms、outline。 | P2 | PDF-01, RBR-01 | 进行中 | Codex | PDF adapter | 页面文字、书签、表单摘要及批注计数已完成；搜索与逐项批注读取待补。 | |
+| PDF-03 | 实现 PDF 写 tools：text/annotation/form/image/page 操作。 | P2 | PDF-02, SEC-02, SEC-03 | 进行中 | Codex | PDF adapter | 可撤销的 note/markup 批处理已完成；text/form/image/page 操作及页操作确认待补。 | |
 | PDF-04 | 为 PDF 写端到端测试。 | P2 | PDF-02..03 | 未开始 | TBD | `apps/pdf/tests/` | 覆盖保存、取消、页面删除确认、renderer 销毁。 | |
 
 ## 7. 下线内置 AI
