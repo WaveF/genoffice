@@ -22,7 +22,6 @@
 | --- | --- | --- |
 | 只读 | context、page text、search、outline/forms/annotation summary | 输出分页、文本/命中数上限 |
 | 可撤销写入 | note、highlight/underline/strikeout、text/form/image 编辑 | `expectedRevision`、权限、队列、内存编辑与 undo |
-| 破坏性写入 | 删除/替换/拆分/合并页面 | 仅 dry-run 后带显式 confirmation token 的二次调用 |
+| 破坏性写入 | 删除/替换/拆分/合并页面 | 仅 dry-run 后，经 Shell destructive-risk 权限确认的二次调用 |
 
 PDF 搜索最多返回 200 个命中、每个命中最多 20 个矩形。所有 write 都应在保存前保留 renderer 内存状态；保存与取消是独立的文件风险流程。
-
