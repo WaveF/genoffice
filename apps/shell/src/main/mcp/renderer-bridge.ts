@@ -22,6 +22,10 @@ export type RendererMcpAction =
   | 'markdown.read_blocks'
   | 'markdown.insert_content'
   | 'markdown.replace_blocks'
+  | 'sheets.get_workbook_context'
+  | 'sheets.read_range'
+  | 'pdf.get_document_context'
+  | 'pdf.read_page_context'
 
 interface PendingRequest {
   webContentsId: number
