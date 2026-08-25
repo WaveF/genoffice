@@ -1572,10 +1572,15 @@ export default function App() {
           ...(operation.value === undefined ? {} : { value: operation.value }),
           ...(operation.checked === undefined ? {} : { checked: operation.checked }),
         }))
-      } else {
+      } else if (operation.op === 'insert_text') {
         setTextInserts((previous) => [...previous, {
           id: newId(),
           input: { pageIndex: operation.page, origin: [operation.x, operation.y], text: operation.text, fontSize: operation.fontSize ?? 12, color: [0, 0, 0] },
+        }])
+      } else {
+        setImageEdits((previous) => [...previous, {
+          id: newId(),
+          input: { kind: 'insertImage', pageIndex: operation.page, image: operation.image, rect: operation.rect, layer: operation.layer, rotate: rotations.get(operation.page) ?? 0 },
         }])
       }
     }

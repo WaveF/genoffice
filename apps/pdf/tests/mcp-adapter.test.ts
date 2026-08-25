@@ -51,4 +51,10 @@ describe('handlePdfMcpRequest', () => {
       expectedRevision: 4, operations: [{ op: 'insert_text', page: 0, x: 20, y: 30, text: 'Hello', fontSize: 12 }], dryRun: true,
     }, { ...state, revision: 4 }))).resolves.toMatchObject({ dryRun: true, changes: { text: 1 } })
   })
+
+  it('accepts a bounded PNG image insertion in the same revision-checked batch', async () => {
+    await expect(Promise.resolve(handlePdfMcpRequest('pdf.apply_operations', {
+      expectedRevision: 4, operations: [{ op: 'insert_image', page: 0, image: 'iVBORw0KGgo=', rect: [10, 10, 100, 100], layer: 'aboveText' }], dryRun: true,
+    }, { ...state, revision: 4 }))).resolves.toMatchObject({ dryRun: true, changes: { images: 1 } })
+  })
 })

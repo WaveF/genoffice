@@ -3,6 +3,7 @@ export type PdfMcpOperation =
   | { op: 'add_markup'; page: number; type: 'highlight' | 'underline' | 'strikeout'; quads: number[][] }
   | { op: 'set_form_value'; name: string; kind: 'text' | 'checkbox' | 'radio' | 'choice'; value?: string; checked?: boolean }
   | { op: 'insert_text'; page: number; x: number; y: number; text: string; fontSize?: number }
+  | { op: 'insert_image'; page: number; image: string; rect: [number, number, number, number]; layer: 'belowText' | 'aboveText' }
 
 export function handlePdfMcpRequest(
   action: 'pdf.get_document_context' | 'pdf.read_page_context' | 'pdf.apply_operations',
@@ -24,7 +25,7 @@ export function handlePdfMcpRequest(
     if (!Number.isSafeInteger(expectedRevision) || expectedRevision !== (state.revision ?? 0)) throw new Error('Document changed since it was read')
     if (!Array.isArray(input.operations) || input.operations.length === 0 || input.operations.length > 50) throw new Error('1 to 50 operations are required')
     const operations = input.operations.map((operation) => parseOperation(operation, state.pageCount))
-    const result = { revision: state.revision ?? 0, dryRun, changes: { notes: operations.filter((op) => op.op === 'add_note').length, markups: operations.filter((op) => op.op === 'add_markup').length, forms: operations.filter((op) => op.op === 'set_form_value').length, text: operations.filter((op) => op.op === 'insert_text').length } }
+    const result = { revision: state.revision ?? 0, dryRun, changes: { notes: operations.filter((op) => op.op === 'add_note').length, markups: operations.filter((op) => op.op === 'add_markup').length, forms: operations.filter((op) => op.op === 'set_form_value').length, text: operations.filter((op) => op.op === 'insert_text').length, images: operations.filter((op) => op.op === 'insert_image').length } }
     if (dryRun) return result
     if (!applyOperations) throw new Error('PDF apply handler is unavailable')
     return applyOperations(operations).then(() => ({ ...result, dryRun: false, revision: (state.revision ?? 0) + 1 }))
@@ -59,6 +60,10 @@ function parseOperation(value: unknown, pageCount: number): PdfMcpOperation {
   if (operation.op === 'insert_text') {
     if (!Number.isFinite(operation.x) || !Number.isFinite(operation.y) || typeof operation.text !== 'string' || operation.text.length === 0 || operation.text.length > 4096 || (operation.fontSize !== undefined && (!Number.isFinite(operation.fontSize) || (operation.fontSize as number) < 4 || (operation.fontSize as number) > 144))) throw new Error('insert_text requires bounded coordinates, text, and fontSize')
     return { op: 'insert_text', page: pageIndex, x: operation.x as number, y: operation.y as number, text: operation.text, ...(operation.fontSize === undefined ? {} : { fontSize: operation.fontSize as number }) }
+  }
+  if (operation.op === 'insert_image') {
+    if (typeof operation.image !== 'string' || operation.image.length === 0 || operation.image.length > 524_288 || !/^[A-Za-z0-9+/]+={0,2}$/.test(operation.image) || !Array.isArray(operation.rect) || operation.rect.length !== 4 || operation.rect.some((point) => !Number.isFinite(point)) || !['belowText', 'aboveText'].includes(String(operation.layer))) throw new Error('insert_image requires bounded PNG base64, rect, and layer')
+    return { op: 'insert_image', page: pageIndex, image: operation.image, rect: operation.rect as [number, number, number, number], layer: operation.layer as 'belowText' | 'aboveText' }
   }
   if (operation.op === 'add_note') {
     if (!Number.isFinite(operation.x) || !Number.isFinite(operation.y) || typeof operation.contents !== 'string' || operation.contents.length === 0 || operation.contents.length > 4096) throw new Error('add_note requires bounded coordinates and contents')
