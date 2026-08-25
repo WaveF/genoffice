@@ -25,3 +25,5 @@
 | 破坏性写入 | 删除/替换/拆分/合并页面 | 仅 dry-run 后，经 Shell destructive-risk 权限确认的二次调用 |
 
 PDF 搜索最多返回 200 个命中、每个命中最多 20 个矩形。所有 write 都应在保存前保留 renderer 内存状态；保存与取消是独立的文件风险流程。
+
+页面文件操作不得把路径或 PDF 字节加入 MCP schema：替换页由 Shell 原生选择器取得源文件，用户可取消；拆分/多合一由 Shell 在受控默认目录生成并打开输出。MCP 请求仅能指定当前 `documentId` 内的页码及受限布局参数，且三类操作均为 destructive-risk。
