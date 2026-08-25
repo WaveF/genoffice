@@ -31,6 +31,7 @@ export type RendererMcpAction =
   | 'pdf.get_document_context'
   | 'pdf.read_page_context'
   | 'pdf.search'
+  | 'pdf.read_annotations'
   | 'pdf.apply_operations'
 
 interface PendingRequest {

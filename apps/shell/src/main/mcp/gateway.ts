@@ -240,6 +240,7 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
     inputSchema: { type: 'object', additionalProperties: false, required: ['documentId', 'page'], properties: { documentId: { type: 'string' }, page: { type: 'integer', minimum: 0 } } },
   },
   { name: 'pdf.search', description: 'Search bounded text matches in an open PDF.', inputSchema: { type: 'object', additionalProperties: false, required: ['documentId', 'query'], properties: { documentId: { type: 'string' }, query: { type: 'string', minLength: 1, maxLength: 256 } } } },
+  { name: 'pdf.read_annotations', description: 'Read bounded saved and pending annotations on one PDF page.', inputSchema: { type: 'object', additionalProperties: false, required: ['documentId', 'page'], properties: { documentId: { type: 'string' }, page: { type: 'integer', minimum: 0 } } } },
   {
     name: 'pdf.apply_operations',
     description: 'Dry-run or queue bounded non-destructive annotations in an open PDF.',
@@ -444,6 +445,13 @@ export class ShellMcpGateway implements McpBridgeGateway {
       if (typeof documentId !== 'string' || typeof query !== 'string' || query.length === 0 || Object.keys(argumentsValue).length !== 2) throw new CapabilityError('validation_error', 'documentId and query are required')
       const target = await this.requireRendererTarget(documentId, 'pdf')
       const result = await this.requireRenderer().request(target.webContentsId, 'pdf.search', { query }, context.signal)
+      return toolResult(JSON.stringify(result), false, target.revision)
+    }
+    if (name === 'pdf.read_annotations') {
+      const { documentId, page } = argumentsValue
+      if (typeof documentId !== 'string' || !Number.isSafeInteger(page) || (page as number) < 0 || Object.keys(argumentsValue).length !== 2) throw new CapabilityError('validation_error', 'documentId and page are required')
+      const target = await this.requireRendererTarget(documentId, 'pdf')
+      const result = await this.requireRenderer().request(target.webContentsId, 'pdf.read_annotations', { page }, context.signal)
       return toolResult(JSON.stringify(result), false, target.revision)
     }
     if (name === 'pdf.apply_operations') {

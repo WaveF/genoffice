@@ -652,6 +652,26 @@ export default function App() {
     throw new Error('PDF is not ready')
   })
   useEffect(() => window.pdfApi.onMcpRequest((request) => {
+    if (request.action === 'pdf.read_annotations') {
+      const page = request.input.page
+      if (!Number.isSafeInteger(page) || (page as number) < 0 || (page as number) >= (doc?.numPages ?? 0)) {
+        window.pdfApi.respondMcpRequest({ requestId: request.requestId, ok: false, error: 'A valid page index is required' })
+        return
+      }
+      const pageIndex = page as number
+      const removed = new Set(annotDeletes.map((entry) => entry.annot.objNum))
+      const saved = [...(savedMarkups.get(pageIndex) ?? []), ...(savedNotes.get(pageIndex) ?? [])]
+        .filter((annotation) => !removed.has(annotation.objNum)).slice(0, 200)
+      const pending = [
+        ...markups.filter((annotation) => annotation.pageIndex === pageIndex).map((annotation) => ({ kind: 'markup', type: annotation.type, quads: annotation.quads, pending: true })),
+        ...drawings.filter((drawing) => drawing.input.kind === 'note' && drawing.input.pageIndex === pageIndex).map((drawing) => {
+          const note = drawing.input as NoteInput
+          return { kind: 'note', contents: note.contents.slice(0, 4096), at: note.at, pending: true }
+        }),
+      ].slice(0, 200)
+      window.pdfApi.respondMcpRequest({ requestId: request.requestId, ok: true, result: { revision: mcpRevisionRef.current, page: pageIndex, annotations: [...saved, ...pending].slice(0, 200) } })
+      return
+    }
     if (request.action === 'pdf.search') {
       const query = request.input.query
       if (typeof query !== 'string' || query.length === 0 || query.length > 256) {
