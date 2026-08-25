@@ -70,7 +70,7 @@
 | SLD-05 | 实现 `slides.apply_ops`，支持 `dryRun` 与 `expectedRevision`。 | P0 | SLD-02, CAP-07, SEC-02 | 进行中 | Codex | 同上 | 已接入 MCP gateway、授权、dryRun、expectedRevision 和 canonical atomic transaction；待串行队列及真实 session 集成测试。 | |
 | SLD-06 | 实现 `slides.add_slide`、`slides.delete_slide`。 | P1 | SLD-05, SEC-03 | 未开始 | TBD | 同上 | 插入/删除、undo、redo、保存/重新打开均正确。 | |
 | SLD-07 | 实现 `slides.render_preview`，返回受限尺寸 PNG 或应用生成的临时资源句柄。 | P1 | SLD-03 | 未开始 | TBD | 同上 | 不暴露任意文件路径；临时资源有 TTL 清理。 | |
-| SLD-08 | 为 Slides MCP 流程写集成测试：读 → dry-run → 写 → undo → redo → save。 | P0 | SLD-03..06 | 未开始 | TBD | `apps/slides/tests/`、shell tests | 测试使用真实 session，覆盖冲突、取消、Tab 切换与 renderer 销毁。 | |
+| SLD-08 | 为 Slides MCP 流程写集成测试：读 → dry-run → 写 → undo → redo → save。 | P0 | SLD-03..06 | 进行中 | Codex | `apps/slides/tests/mcp-adapter.test.ts`、shell tests | 已新增真实 session 的 dry-run → 写 → conflict → undo → redo 测试；save、取消、Tab 切换与 renderer 销毁待补。 | |
 
 ## 5. Docs 与 Markdown：renderer bridge
 

@@ -31,6 +31,7 @@ export default defineConfig({
         '../../packages/pptx-render/src/preset-geometry.ts',
       ),
       '@genoffice/pptx-render': resolve(here, '../../packages/pptx-render/src/index.ts'),
+      '@genoffice/capabilities': resolve(here, '../../packages/genoffice-capabilities/src/index.ts'),
       '@genoffice/docx-engine/metafile': resolve(
         here,
         '../../packages/docx-engine/src/metafile.ts',
