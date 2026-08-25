@@ -36,4 +36,13 @@ describe('handlePdfMcpRequest', () => {
     await expect(handlePdfMcpRequest('pdf.apply_operations', input, revisioned, apply)).resolves.toMatchObject({ revision: 5, dryRun: false })
     expect(apply).toHaveBeenCalledWith(input.operations)
   })
+
+  it('accepts bounded form field values in the same revision-checked batch', async () => {
+    const result = handlePdfMcpRequest('pdf.apply_operations', {
+      expectedRevision: 4,
+      operations: [{ op: 'set_form_value', name: 'Customer', kind: 'text', value: 'Ada' }],
+      dryRun: true,
+    }, { ...state, revision: 4 })
+    await expect(Promise.resolve(result)).resolves.toMatchObject({ dryRun: true, changes: { forms: 1 } })
+  })
 })

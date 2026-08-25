@@ -1557,11 +1557,21 @@ export default function App() {
           id,
           input: { kind: 'note', pageIndex: operation.page, color: DRAW_COLORS[0]!.rgb, at: [operation.x, operation.y], contents: operation.contents, author: 'MCP client', createdMs: Date.now(), localId: id },
         }])
-      } else {
+      } else if (operation.op === 'add_markup') {
         setMarkups((previous) => [...previous, {
           id: `mcp-${newId()}`, pageIndex: operation.page, type: operation.type,
           color: operation.type === 'highlight' ? MARKUP_COLORS.highlight : MARKUP_COLORS[operation.type], quads: operation.quads,
         }])
+      } else {
+        const field = formCatalog?.fields.get(operation.name)
+        if (!field || field.readOnly || field.kind !== operation.kind) {
+          throw new Error('Form field is missing, read-only, or has a different kind')
+        }
+        setFormEdits((previous) => new Map(previous).set(operation.name, {
+          name: operation.name, kind: operation.kind,
+          ...(operation.value === undefined ? {} : { value: operation.value }),
+          ...(operation.checked === undefined ? {} : { checked: operation.checked }),
+        }))
       }
     }
     mcpRevisionRef.current += 1

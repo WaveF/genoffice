@@ -1,6 +1,7 @@
 export type PdfMcpOperation =
   | { op: 'add_note'; page: number; x: number; y: number; contents: string }
   | { op: 'add_markup'; page: number; type: 'highlight' | 'underline' | 'strikeout'; quads: number[][] }
+  | { op: 'set_form_value'; name: string; kind: 'text' | 'checkbox' | 'radio' | 'choice'; value?: string; checked?: boolean }
 
 export function handlePdfMcpRequest(
   action: 'pdf.get_document_context' | 'pdf.read_page_context' | 'pdf.apply_operations',
@@ -22,7 +23,7 @@ export function handlePdfMcpRequest(
     if (!Number.isSafeInteger(expectedRevision) || expectedRevision !== (state.revision ?? 0)) throw new Error('Document changed since it was read')
     if (!Array.isArray(input.operations) || input.operations.length === 0 || input.operations.length > 50) throw new Error('1 to 50 operations are required')
     const operations = input.operations.map((operation) => parseOperation(operation, state.pageCount))
-    const result = { revision: state.revision ?? 0, dryRun, changes: { notes: operations.filter((op) => op.op === 'add_note').length, markups: operations.filter((op) => op.op === 'add_markup').length } }
+    const result = { revision: state.revision ?? 0, dryRun, changes: { notes: operations.filter((op) => op.op === 'add_note').length, markups: operations.filter((op) => op.op === 'add_markup').length, forms: operations.filter((op) => op.op === 'set_form_value').length } }
     if (dryRun) return result
     if (!applyOperations) throw new Error('PDF apply handler is unavailable')
     return applyOperations(operations).then(() => ({ ...result, dryRun: false, revision: (state.revision ?? 0) + 1 }))
@@ -42,6 +43,15 @@ export function handlePdfMcpRequest(
 function parseOperation(value: unknown, pageCount: number): PdfMcpOperation {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Each PDF operation must be an object')
   const operation = value as Record<string, unknown>
+  if (operation.op === 'set_form_value') {
+    if (typeof operation.name !== 'string' || operation.name.length === 0 || !['text', 'checkbox', 'radio', 'choice'].includes(String(operation.kind))) throw new Error('set_form_value requires a field name and supported kind')
+    if (operation.kind === 'checkbox') {
+      if (typeof operation.checked !== 'boolean') throw new Error('checkbox requires checked')
+      return { op: 'set_form_value', name: operation.name, kind: 'checkbox', checked: operation.checked }
+    }
+    if (typeof operation.value !== 'string' || operation.value.length > 4096) throw new Error('form value must be a bounded string')
+    return { op: 'set_form_value', name: operation.name, kind: operation.kind as 'text' | 'radio' | 'choice', value: operation.value }
+  }
   const page = operation.page
   if (!Number.isSafeInteger(page) || (page as number) < 0 || (page as number) >= pageCount) throw new Error('Operation page is outside the document')
   const pageIndex = page as number
