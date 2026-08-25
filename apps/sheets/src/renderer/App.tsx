@@ -147,10 +147,10 @@ import {
 } from '../domain/chart-visual'
 import { InMemoryWorkbookAdapter } from '../domain/in-memory-workbook'
 import {
-  handleSheetsMcpReadRequest,
   handleSheetsMcpRequest,
   type SheetsMcpReadAction,
 } from './mcp-adapter'
+import { handleLazySheetsMcpReadRequest } from './mcp-lazy-reader'
 import { cfRuleUnsaveableReason, iconSetSaveable } from '../gateway/xlsx-cf'
 import { installLazyFindBridge } from './lazy-find'
 import {
@@ -2900,42 +2900,19 @@ export function App(): React.JSX.Element {
   }
 
   mcpLazyReadRef.current = async (action, input) => {
-    const state = lazyWorkbookRef.current
-    const workbook = univerRef.current?.univerAPI.getActiveWorkbook()
-    if (!state || !workbook) throw new Error('Workbook is not ready')
-    const sheetId = typeof input.sheetId === 'string' ? input.sheetId : undefined
-    const requestedRange =
-      action === 'sheets.trace_formula'
-        ? typeof input.address === 'string' ? input.address : undefined
-        : typeof input.range === 'string' ? input.range : undefined
-    if (sheetId && requestedRange && !state.flags.preloadComplete) {
-      const worksheet = workbook.getSheetBySheetId(sheetId)
-      const isFileSheet = state.file.sheets.some((sheet) => sheet.id === sheetId)
-      if (worksheet && isFileSheet) {
-        let loaded = false
-        try {
-          loaded = await ensureLazyRangeLoaded(
-            univerRef.current as UniverRuntime,
-            lazyWorkbookRef,
-            worksheet,
-            parseRange(requestedRange),
-            () => undefined,
-          )
-        } catch {
-          throw new Error('Requested workbook range could not be loaded')
-        }
-        if (!loaded) throw new Error('Requested workbook range is not available yet')
-      }
-    }
     const readerContext: WorkbookReadContext = { univerRef, lazyWorkbookRef, adapterRef }
-    return handleSheetsMcpReadRequest({
-      revision: _revision,
-      sheets: state.file.sheets.map((sheet) => ({
-        id: sheet.id,
-        name: sheet.name,
-        rowCount: sheet.rowCount,
-        columnCount: sheet.columnCount,
-      })),
+    return handleLazySheetsMcpReadRequest({
+      getState: () => {
+        const state = lazyWorkbookRef.current
+        return state ? { preloadComplete: state.flags.preloadComplete, sheets: state.file.sheets } : null
+      },
+      getWorksheet: (sheetId) => univerRef.current?.univerAPI.getActiveWorkbook()?.getSheetBySheetId(sheetId) ?? null,
+      getRevision: () => _revision,
+      ensureRangeLoaded: (worksheet, range) => {
+        const runtime = univerRef.current
+        if (!runtime) return Promise.resolve(false)
+        return ensureLazyRangeLoaded(runtime, lazyWorkbookRef, worksheet, range, () => undefined)
+      },
       readCells: (sheetId, addresses) => readCellsImpl(readerContext, addresses, sheetId),
       readFormats: (sheetId, addresses) => readFormatsImpl(readerContext, addresses, sheetId),
     }, action, input)
