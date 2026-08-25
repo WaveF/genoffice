@@ -96,7 +96,7 @@
 | PDF-01 | 盘点 PDF AI tools 的 renderer/main 依赖，定义 document-scoped adapter。 | P1 | CAP-01 | 已完成 | Codex | `apps/pdf/src/renderer/mcp-adapter.ts`、`App.tsx` | document-scoped bridge 与风险矩阵已完成。 | |
 | PDF-02 | 实现 PDF 只读 tools：page context、search、annotations、forms、outline。 | P2 | PDF-01, RBR-01 | 已完成 | Codex | PDF adapter | 页面文字、书签、表单摘要、搜索、批注计数与逐项单页批注读取已完成并受限输出。 | |
 | PDF-03 | 实现 PDF 写 tools：text/annotation/form/image/page 操作。 | P2 | PDF-02, SEC-02, SEC-03 | 进行中 | Codex | PDF adapter | note/markup、text、form、PNG image 与单页删除已完成；删除走 destructive 权限确认。替换/拆分/合并页仍待补。 | |
-| PDF-04 | 为 PDF 写端到端测试。 | P2 | PDF-02..03 | 进行中 | Codex | `apps/pdf/tests/` | 保存、批注删除、页面原子写基线已通过；renderer 销毁与删除页 destructive 权限路由已有回归。待增加直接 MCP 真实 renderer 路由与取消回归。 | |
+| PDF-04 | 为 PDF 写端到端测试。 | P2 | PDF-02..03 | 进行中 | Codex | `apps/pdf/tests/` | 保存、批注删除、页面原子写基线已通过；renderer 销毁、取消与删除页 destructive 权限路由已有回归。待增加直接 MCP 真实 renderer 路由。 | |
 
 ## 7. 下线内置 AI
 

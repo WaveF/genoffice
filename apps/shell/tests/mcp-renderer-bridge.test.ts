@@ -30,12 +30,14 @@ describe('RendererMcpBridge', () => {
     await expect(pending).resolves.toEqual({ ok: true })
   })
 
-  it('cancels an in-flight renderer request', async () => {
+  it('cancels an in-flight PDF renderer request and ignores its late response', async () => {
     const bridge = new RendererMcpBridge()
     const controller = new AbortController()
-    const pending = bridge.request(7, 'docs.get_context', {}, controller.signal)
+    const pending = bridge.request(7, 'pdf.search', { query: 'budget' }, controller.signal)
+    const { requestId } = send.mock.calls[0]![1] as { requestId: string }
     controller.abort()
     await expect(pending).rejects.toMatchObject({ code: 'cancelled' })
+    handlers.get('mcp:renderer-response')!({ sender: { id: 7 } }, { requestId, ok: true, result: { stale: true } })
   })
 
   it('rejects a request when the document renderer was already destroyed', async () => {
