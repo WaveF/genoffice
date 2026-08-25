@@ -27,6 +27,13 @@ describe('handleSheetsMcpRequest', () => {
     })
   })
 
+  it('finds bounded case-insensitive matches only in the requested range', () => {
+    expect(handleSheetsMcpRequest(adapter, 'sheets.find', { sheetId: 'sheet-1', range: 'A1:B2', query: 'name' })).toMatchObject({
+      revision: 7,
+      matches: [{ address: 'A1', value: 'Name' }],
+    })
+  })
+
   it('rejects oversized or malformed range requests', () => {
     expect(() => handleSheetsMcpRequest(adapter, 'sheets.read_range', { sheetId: 'sheet-1', range: 'A1:A2001' })).toThrow('2000')
     expect(() => handleSheetsMcpRequest(adapter, 'sheets.read_range', { sheetId: 'sheet-1' })).toThrow('sheetId and range')
