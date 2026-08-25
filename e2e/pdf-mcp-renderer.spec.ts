@@ -83,6 +83,25 @@ test.describe('pdf: MCP renderer IPC', () => {
         ok: true,
         result: { revision: 1, page: 0, annotations: [expect.objectContaining({ kind: 'note', contents: 'MCP review', pending: true })] },
       })
+
+      await launched.app.evaluate(({ dialog }) => {
+        dialog.showOpenDialog = (async () => ({ canceled: true, filePaths: [] })) as typeof dialog.showOpenDialog
+      })
+      const canceledReplace = await requestPdfRenderer(launched.app, webContentsId, 'pdf.apply_operations', {
+        expectedRevision: 1, operations: [{ op: 'replace_pages', pages: [0] }],
+      })
+      expect(canceledReplace).toMatchObject({ ok: false, error: 'Page replacement was cancelled' })
+
+      const split = await requestPdfRenderer(launched.app, webContentsId, 'pdf.apply_operations', {
+        expectedRevision: 1, operations: [{ op: 'split_pages', perPage: 2 }],
+      })
+      expect(split).toMatchObject({ ok: true, result: { dryRun: false, revision: 2, changes: { pageFiles: 1 } } })
+
+      const merge = await requestPdfRenderer(launched.app, webContentsId, 'pdf.apply_operations', {
+        expectedRevision: 2,
+        operations: [{ op: 'merge_pages', perSheet: 2, direction: 'vertical', separator: false }],
+      })
+      expect(merge).toMatchObject({ ok: true, result: { dryRun: false, revision: 3, changes: { pageFiles: 1 } } })
     } finally {
       await closeAndSaveVideo(launched, 'pdf-mcp-renderer')
     }
