@@ -408,8 +408,14 @@ export function App(): React.JSX.Element {
   const mcpApplyPlanRef = useRef<(plan: ChangePlan) => Promise<void>>(async () => {
     throw new Error('Workbook is not ready')
   })
+  const mcpLazyOperationsRef = useRef<(input: Record<string, unknown>) => Promise<unknown>>(async () => {
+    throw new Error('Workbook is not ready')
+  })
   useEffect(() => window.desktopApi.onMcpRequest((request) => {
-    void Promise.resolve(handleSheetsMcpRequest(adapterRef.current, request.action, request.input, mcpApplyPlanRef.current))
+    const result = request.action === 'sheets.apply_operations' && lazyWorkbookRef.current
+      ? mcpLazyOperationsRef.current(request.input)
+      : handleSheetsMcpRequest(adapterRef.current, request.action, request.input, mcpApplyPlanRef.current)
+    void Promise.resolve(result)
       .then((result) => window.desktopApi.respondMcpRequest({ requestId: request.requestId, ok: true, result }))
       .catch((error: unknown) => window.desktopApi.respondMcpRequest({ requestId: request.requestId, ok: false, error: error instanceof Error ? error.message : 'Sheets MCP request failed' }))
   }), [])
@@ -2847,6 +2853,41 @@ export function App(): React.JSX.Element {
     if (!outcome.ok) throw new Error(outcome.reason ?? 'Workbook changes were not applied')
     const revision = adapterRef.current.getSnapshot().revision
     window.desktopApi.reportMcpRevision(revision)
+  }
+
+  mcpLazyOperationsRef.current = async (input) => {
+    const { expectedRevision, summary, operations, dryRun = false } = input
+    if (!Number.isSafeInteger(expectedRevision) || (expectedRevision as number) !== _revision) {
+      throw new Error('Workbook changed since it was read')
+    }
+    if (typeof summary !== 'string' || !Array.isArray(operations) || typeof dryRun !== 'boolean') {
+      throw new Error('A complete Sheets operation batch is required')
+    }
+    const proposed = proposeOperationsImpl(planContext(), operations as readonly WorkbookOperation[], summary, false)
+    if (!proposed.ok) throw new Error(proposed.error)
+    const result = {
+      revision: _revision,
+      dryRun,
+      transactionId: proposed.plan.transactionId,
+      changes: {
+        cells: proposed.plan.cellChanges.length,
+        formats: proposed.plan.formatChanges.length,
+        sheets: proposed.plan.sheetRenames.length,
+        structural: proposed.plan.structuralChanges.length,
+      },
+      warnings: proposed.plan.warnings,
+    }
+    if (dryRun) {
+      setPreview(null)
+      lazyPreviewRef.current = null
+      return result
+    }
+    const outcome = await autoApplySafePlan(proposed.plan)
+    if (!outcome.ok) throw new Error(outcome.reason ?? 'Workbook changes were not applied')
+    const revision = _revision + 1
+    setRevision(revision)
+    window.desktopApi.reportMcpRevision(revision)
+    return { ...result, dryRun: false, revision }
   }
 
   async function handleLazyApply(state: LazyWorkbookState): Promise<ApplyOutcome> {
