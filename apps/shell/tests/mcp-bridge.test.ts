@@ -44,7 +44,12 @@ describe('LocalMcpBridge', () => {
         method: 'tools/list',
         params: {},
       })
-      expect(ok).toEqual({ id: '1', ok: true, result: { method: 'tools/list', clientId: 'test-client' } })
+      expect(ok).toEqual({
+        id: '1',
+        ok: true,
+        result: { method: 'tools/list', clientId: expect.any(String) },
+      })
+      expect((ok.result as { clientId: string }).clientId).not.toBe('test-client')
       const denied = await request(bridge.discovery.endpoint, {
         id: '2',
         token: 'not-the-token',

@@ -188,6 +188,7 @@ import { normalizeRecentQuery, pageRecentPaths, statExistingPaths } from './rece
 import { TabManager } from './tab-manager'
 import { LocalMcpBridge } from './mcp/bridge'
 import { ShellMcpGateway } from './mcp/gateway'
+import { SessionMcpPermissionGate } from './mcp/permissions'
 import { SlidesMcpAdapter } from '../../../slides/src/main/mcp-adapter'
 import { applyUpdateChannel, initAutoUpdater } from './updater'
 import { isUpdateChannel, type UpdateChannel } from '../shared/update-api'
@@ -4211,7 +4212,11 @@ app.whenReady().then(async () => {
     try {
       mcpBridge = new LocalMcpBridge({
         userDataPath: app.getPath('userData'),
-        gateway: new ShellMcpGateway(tabManager, new SlidesMcpAdapter()),
+        gateway: new ShellMcpGateway(
+          tabManager,
+          new SlidesMcpAdapter(),
+          new SessionMcpPermissionGate(),
+        ),
       })
       await mcpBridge.start()
     } catch (error) {

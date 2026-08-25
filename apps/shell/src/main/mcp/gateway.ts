@@ -7,6 +7,7 @@ import {
   toolResult,
 } from '@genoffice/capabilities'
 import type { McpBridgeGateway, McpBridgeRequest } from './bridge'
+import type { McpPermissionGate } from './permissions'
 
 /** Small interface keeps the gateway unit-testable without an Electron runtime. */
 export interface DocumentTargetSource {
@@ -18,6 +19,15 @@ export interface DocumentTargetSource {
 export interface SlidesMcpReader {
   getDeckContext(webContentsId: number): unknown
   readSlide(webContentsId: number, slideRef: number | string): unknown
+}
+
+export interface SlidesMcpWriter extends SlidesMcpReader {
+  applyOps(
+    webContentsId: number,
+    rawOps: unknown,
+    expectedRevision: number,
+    dryRun?: boolean,
+  ): { applied: boolean; revision: number; [key: string]: unknown }
 }
 
 interface ToolDescriptor {
@@ -73,6 +83,21 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
       },
     },
   },
+  {
+    name: 'slides.apply_ops',
+    description: 'Validate or atomically apply canonical edits to an open Slides document.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['documentId', 'expectedRevision', 'ops'],
+      properties: {
+        documentId: { type: 'string', minLength: 1, maxLength: 128 },
+        expectedRevision: { type: 'integer', minimum: 0 },
+        ops: { type: 'array', minItems: 1, maxItems: 50 },
+        dryRun: { type: 'boolean' },
+      },
+    },
+  },
 ].map(({ name, description, inputSchema }) => ({ name, description, inputSchema }))
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -88,6 +113,7 @@ export class ShellMcpGateway implements McpBridgeGateway {
   constructor(
     private readonly documents: DocumentTargetSource,
     private readonly slides?: SlidesMcpReader,
+    private readonly permissions?: McpPermissionGate,
   ) {}
 
   async handle(request: McpBridgeRequest): Promise<unknown> {
@@ -139,6 +165,32 @@ export class ShellMcpGateway implements McpBridgeGateway {
         target.revision,
       )
     }
+    if (name === 'slides.apply_ops') {
+      const documentId = argumentsValue.documentId
+      const expectedRevision = argumentsValue.expectedRevision
+      const rawOps = argumentsValue.ops
+      const dryRun = argumentsValue.dryRun ?? false
+      if (
+        typeof documentId !== 'string' ||
+        documentId.length === 0 ||
+        !Number.isSafeInteger(expectedRevision) ||
+        !Array.isArray(rawOps) ||
+        typeof dryRun !== 'boolean' ||
+        Object.keys(argumentsValue).some((key) => !['documentId', 'expectedRevision', 'ops', 'dryRun'].includes(key))
+      ) {
+        throw new CapabilityError('validation_error', 'documentId, expectedRevision, ops, and optional dryRun are required')
+      }
+      const target = await this.requireSlidesTarget(documentId)
+      const slides = this.requireSlidesWriter()
+      if (!dryRun) await this.requirePermissions().authorize({
+        clientId: context.clientId,
+        toolName: name,
+        risk: 'write',
+        document: target,
+      })
+      const result = slides.applyOps(target.webContentsId, rawOps, expectedRevision, dryRun)
+      return toolResult(JSON.stringify(result), result.applied, result.revision)
+    }
     throw new CapabilityError('not_found', `Unknown MCP tool: ${name}`)
   }
 
@@ -171,5 +223,18 @@ export class ShellMcpGateway implements McpBridgeGateway {
   private requireSlides(): SlidesMcpReader {
     if (!this.slides) throw new CapabilityError('not_running', 'Slides MCP support is unavailable')
     return this.slides
+  }
+
+  private requireSlidesWriter(): SlidesMcpWriter {
+    const slides = this.requireSlides()
+    if (typeof (slides as Partial<SlidesMcpWriter>).applyOps !== 'function') {
+      throw new CapabilityError('not_running', 'Slides write support is unavailable')
+    }
+    return slides as SlidesMcpWriter
+  }
+
+  private requirePermissions(): McpPermissionGate {
+    if (!this.permissions) throw new CapabilityError('permission_denied', 'MCP write permission is unavailable')
+    return this.permissions
   }
 }

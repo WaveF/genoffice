@@ -52,8 +52,8 @@
 
 | ID | 任务 | 优先级 | 依赖 | 状态 | 负责人 | 代码落点 | 验收标准 | PR |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| SEC-01 | 定义工具风险元数据：`read`、`write`、`file`、`destructive`。 | P0 | CAP-01 | 未开始 | TBD | `packages/genoffice-capabilities/` | 每个公开 tool 声明风险等级；未声明的 tool 不得注册。 | |
-| SEC-02 | 实现应用内 MCP 授权对话框与“本次会话允许”存储。 | P0 | INF-04, SEC-01 | 未开始 | TBD | `apps/shell/src/main/mcp/permissions.ts` | 首次 write/file/destructive 调用须获得用户授权；拒绝后不执行。 | |
+| SEC-01 | 定义工具风险元数据：`read`、`write`、`file`、`destructive`。 | P0 | CAP-01 | 进行中 | Codex | capabilities + shell gateway | 已为已公开 read/write tools 声明风险；仍需改为强制注册 metadata。 | |
+| SEC-02 | 实现应用内 MCP 授权对话框与“本次会话允许”存储。 | P0 | INF-04, SEC-01 | 进行中 | Codex | `apps/shell/src/main/mcp/permissions.ts` | 已实现 connection-scoped 首次 write 授权；file/destructive tool 尚未公开。 | |
 | SEC-03 | 为删除、关闭未保存文档、覆盖文件、超过阈值的批量写入增加强制二次确认。 | P0 | SEC-02 | 未开始 | TBD | gateway + adapter metadata | 每次危险调用都出现准确的文档名和变更摘要。 | |
 | SEC-04 | 实现审计日志（client、tool、documentId、输入摘要、结果、revision、时间）。 | P1 | INF-04 | 未开始 | TBD | `apps/shell/src/main/mcp/audit.ts` | 日志不包含正文、base64、token、API key；rotation/大小上限有测试。 | |
 | SEC-05 | 统一限制参数深度、payload 大小、base64 大小、数组长度和单次批量 op 数量。 | P0 | CAP-01 | 进行中 | Codex | adapter/bridge schema guard | 已限制 stdio/bridge 单行 1 MiB；待补充结构、base64 与 op 限制。 | |
@@ -67,7 +67,7 @@
 | SLD-02 | 从现有 operation registry 导出经验证的 canonical ops facade。 | P0 | CAP-01 | 进行中 | Codex | `apps/slides/src/main/mcp-op-guard.ts`、`mcp-adapter.ts` | 已建立 allow-list facade，拒绝 archive bytes、文件路径、脚本及超限 payload；待 gateway 接入。 | |
 | SLD-03 | 实现 `slides.get_deck_context`。 | P0 | SLD-01 | 进行中 | Codex | `apps/slides/src/main/mcp-adapter.ts`、shell gateway | 已实现页数、页面 IDs、元素摘要、revision 与显式 documentId 路由；待真实 Slides session 集成测试。 | |
 | SLD-04 | 实现 `slides.read_slide`。 | P0 | SLD-01 | 进行中 | Codex | 同上 | 已支持 slideId/索引，过滤敏感字段并限制 512 KiB 输出；待真实 Slides session 集成测试。 | |
-| SLD-05 | 实现 `slides.apply_ops`，支持 `dryRun` 与 `expectedRevision`。 | P0 | SLD-02, CAP-07, SEC-02 | 未开始 | TBD | 同上 | dryRun 不改变 session；失败时原子回滚；成功后仅产生一个 UI undo step。 | |
+| SLD-05 | 实现 `slides.apply_ops`，支持 `dryRun` 与 `expectedRevision`。 | P0 | SLD-02, CAP-07, SEC-02 | 进行中 | Codex | 同上 | 已接入 MCP gateway、授权、dryRun、expectedRevision 和 canonical atomic transaction；待串行队列及真实 session 集成测试。 | |
 | SLD-06 | 实现 `slides.add_slide`、`slides.delete_slide`。 | P1 | SLD-05, SEC-03 | 未开始 | TBD | 同上 | 插入/删除、undo、redo、保存/重新打开均正确。 | |
 | SLD-07 | 实现 `slides.render_preview`，返回受限尺寸 PNG 或应用生成的临时资源句柄。 | P1 | SLD-03 | 未开始 | TBD | 同上 | 不暴露任意文件路径；临时资源有 TTL 清理。 | |
 | SLD-08 | 为 Slides MCP 流程写集成测试：读 → dry-run → 写 → undo → redo → save。 | P0 | SLD-03..06 | 未开始 | TBD | `apps/slides/tests/`、shell tests | 测试使用真实 session，覆盖冲突、取消、Tab 切换与 renderer 销毁。 | |
@@ -116,7 +116,7 @@
 | ID | 任务 | 优先级 | 依赖 | 状态 | 负责人 | 验收标准 | PR |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | QLT-01 | 为 MCP adapter 建立协议级测试（握手、tools/list、tools/call、错误、取消）。 | P0 | INF-01..05 | 进行中 | Codex | 已新增 adapter/bridge Vitest 用例；待依赖恢复后纳入 CI 执行。 | |
-| QLT-02 | 为 gateway 建立安全回归测试。 | P0 | SEC-01..05 | 未开始 | TBD | 覆盖无 token、恶意 payload、越权文档、危险操作拒绝、路径攻击。 | |
+| QLT-02 | 为 gateway 建立安全回归测试。 | P0 | SEC-01..05 | 进行中 | Codex | 已覆盖 bridge 伪造 clientId 隔离、写授权缓存/拒绝、越权文档和参数校验；待 payload/危险操作覆盖。 | |
 | QLT-03 | 新增 Shell + Slides 端到端 MCP smoke test，并接入 CI。 | P0 | SLD-08 | 未开始 | TBD | 启动 Shell、启动 adapter、调用 tools、验证 `.pptx` 修改与 undo。 | |
 | QLT-04 | 为 Docs/Markdown/Sheets/PDF 逐步增加相同 smoke test。 | P1 | 各 App MCP 测试 | 未开始 | TBD | 每个已声明支持的文档类型都有 CI 覆盖。 | |
 | QLT-05 | 在 CI 中运行 `npm run typecheck`、受影响 workspace tests、`npm run lint`、`npm run format:check`。 | P0 | INF-01 | 未开始 | TBD | MCP PR 的 required checks 可阻止未通过合并。 | |

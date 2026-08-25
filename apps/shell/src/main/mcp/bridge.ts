@@ -134,6 +134,9 @@ export class LocalMcpBridge {
 
   private attach(socket: Socket): void {
     this.sockets.add(socket)
+    // Permission grants are connection-scoped. Never let the adapter choose
+    // this identity: a client-controlled name could reuse another client's grant.
+    const connectionId = randomUUID()
     socket.setEncoding('utf8')
     let buffer = ''
     const controllers = new Set<AbortController>()
@@ -147,7 +150,7 @@ export class LocalMcpBridge {
       while (newline >= 0) {
         const line = buffer.slice(0, newline)
         buffer = buffer.slice(newline + 1)
-        void this.handleLine(socket, line, controllers)
+        void this.handleLine(socket, line, controllers, connectionId)
         newline = buffer.indexOf('\n')
       }
     })
@@ -165,6 +168,7 @@ export class LocalMcpBridge {
     socket: Socket,
     line: string,
     controllers: Set<AbortController>,
+    connectionId: string,
   ): Promise<void> {
     let request: WireRequest
     try {
@@ -185,7 +189,7 @@ export class LocalMcpBridge {
     controllers.add(controller)
     try {
       const result = await this.options.gateway.handle({
-        clientId: request.clientId,
+        clientId: connectionId,
         requestId: request.id,
         method: request.method,
         params: request.params,

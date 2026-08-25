@@ -26,7 +26,15 @@ function gatewayWith(documents: DocumentTarget[] = [target]): ShellMcpGateway {
     getDeckContext: () => ({ revision: 3, slideCount: 1, slides: [{ slideId: 's_1', index: 0 }] }),
     readSlide: (_webContentsId, slide) => ({ revision: 3, slide }),
   }
-  return new ShellMcpGateway(source, slides)
+  return new ShellMcpGateway(source, {
+    ...slides,
+    applyOps: (_webContentsId, _ops, expectedRevision, dryRun) => ({
+      applied: !dryRun,
+      revision: expectedRevision + (dryRun ? 0 : 1),
+    }),
+  }, {
+    authorize: async () => undefined,
+  })
 }
 
 function request(params: Record<string, unknown>) {
@@ -65,6 +73,24 @@ describe('ShellMcpGateway', () => {
     )
     expect(context).toMatchObject({ revision: 3, mutated: false })
     expect(JSON.parse((slide as { content: string }).content)).toEqual({ revision: 3, slide: 's_1' })
+  })
+
+  it('requires an expected revision and returns the post-write revision for Slides operations', async () => {
+    const result = await gatewayWith().handle(
+      request({
+        name: 'slides.apply_ops',
+        arguments: {
+          documentId: 'doc-123',
+          expectedRevision: 3,
+          ops: [{ op: 'setFill' }],
+        },
+      }),
+    )
+    expect(result).toEqual({
+      content: JSON.stringify({ applied: true, revision: 4 }),
+      mutated: true,
+      revision: 4,
+    })
   })
 
   it('rejects unknown, closed, and malformed document requests', async () => {
