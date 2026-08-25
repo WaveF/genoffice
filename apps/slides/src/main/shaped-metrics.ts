@@ -12,8 +12,8 @@
 import { existsSync, readFileSync } from 'node:fs'
 // Deep-path import (the package exports only expose an ESM wrapper with a top-level await,
 // which the CJS main process cannot bundle)
-import createHarfBuzz from '../../../../node_modules/harfbuzzjs/dist/harfbuzz.js'
-import hbWasmPath from '../../../../node_modules/harfbuzzjs/dist/harfbuzz.wasm?asset'
+import createHarfBuzz from '../../node_modules/harfbuzzjs/dist/harfbuzz.js'
+import hbWasmPath from '../../node_modules/harfbuzzjs/dist/harfbuzz.wasm?asset'
 
 type Script = 'arabic' | 'hebrew' | 'thai' | 'devanagari'
 
