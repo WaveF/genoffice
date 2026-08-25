@@ -7,7 +7,7 @@ const MAX_READ_CELLS = 2_000
 /** Read-only MCP facade over the already-authoritative workbook adapter. */
 export function handleSheetsMcpRequest(
   adapter: InMemoryWorkbookAdapter,
-  action: 'sheets.get_workbook_context' | 'sheets.read_range' | 'sheets.find' | 'sheets.apply_operations',
+  action: 'sheets.get_workbook_context' | 'sheets.read_range' | 'sheets.find' | 'sheets.aggregate' | 'sheets.apply_operations',
   input: Record<string, unknown>,
   applyPlan?: (plan: ChangePlan) => Promise<void>,
 ): unknown | Promise<unknown> {
@@ -53,6 +53,13 @@ export function handleSheetsMcpRequest(
     if (typeof query !== 'string' || query.length === 0 || query.length > 256) throw new Error('A bounded query is required')
     const needle = query.toLocaleLowerCase()
     return { revision: snapshot.revision, sheetId, range, matches: cells.filter((cell) => String(cell.formula ?? cell.value ?? '').toLocaleLowerCase().includes(needle)).slice(0, 200) }
+  }
+  if (action === 'sheets.aggregate') {
+    const operation = input.operation
+    if (operation !== 'sum' && operation !== 'count' && operation !== 'average') throw new Error('operation must be sum, count, or average')
+    const numbers = cells.map((cell) => cell.value).filter((value): value is number => typeof value === 'number')
+    const value = operation === 'count' ? numbers.length : operation === 'sum' ? numbers.reduce((total, number) => total + number, 0) : numbers.length === 0 ? null : numbers.reduce((total, number) => total + number, 0) / numbers.length
+    return { revision: snapshot.revision, sheetId, range, operation, value, numericCellCount: numbers.length }
   }
   return {
     revision: snapshot.revision,

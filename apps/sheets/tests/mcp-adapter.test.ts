@@ -34,6 +34,10 @@ describe('handleSheetsMcpRequest', () => {
     })
   })
 
+  it('aggregates numeric values only in the requested range', () => {
+    expect(handleSheetsMcpRequest(adapter, 'sheets.aggregate', { sheetId: 'sheet-1', range: 'A1:B2', operation: 'sum' })).toMatchObject({ value: 42, numericCellCount: 1 })
+  })
+
   it('rejects oversized or malformed range requests', () => {
     expect(() => handleSheetsMcpRequest(adapter, 'sheets.read_range', { sheetId: 'sheet-1', range: 'A1:A2001' })).toThrow('2000')
     expect(() => handleSheetsMcpRequest(adapter, 'sheets.read_range', { sheetId: 'sheet-1' })).toThrow('sheetId and range')
