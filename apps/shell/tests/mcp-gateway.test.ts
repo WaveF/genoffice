@@ -39,6 +39,7 @@ function gatewayWith(documents: DocumentTarget[] = [target]): ShellMcpGateway {
     }),
     undo: (_webContentsId, expectedRevision) => ({ applied: true, revision: expectedRevision + 1 }),
     redo: (_webContentsId, expectedRevision) => ({ applied: true, revision: expectedRevision + 1 }),
+    save: async (_webContentsId, expectedRevision) => ({ saved: true, revision: expectedRevision }),
   }, {
     authorize: async () => undefined,
   })
@@ -137,6 +138,17 @@ describe('ShellMcpGateway', () => {
         request({ name: 'activate_document', input: { documentId: 'doc-123', expectedRevision: 2 } }),
       ),
     ).rejects.toMatchObject({ code: 'conflict' })
+  })
+
+  it('saves Slides through the file-risk capability path without exposing a local path', async () => {
+    const result = await gatewayWith().handle(
+      request({ name: 'save_document', input: { documentId: 'doc-123', expectedRevision: 3 } }),
+    )
+    expect(result).toEqual({
+      content: JSON.stringify({ saved: true, revision: 3 }),
+      mutated: false,
+      revision: 3,
+    })
   })
 
   it('rejects unknown, closed, and malformed document requests', async () => {

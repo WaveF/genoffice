@@ -102,6 +102,12 @@ function notifyRenderer(webContentsId: number, session: Session): void {
 
 /** Main-process Slides facade used by MCP only; it never accepts renderer IPC envelopes. */
 export class SlidesMcpAdapter {
+  constructor(
+    private readonly saveOpenDocument?: (
+      webContentsId: number,
+    ) => Promise<{ ok: true; path: string } | { ok: false; error: string }>,
+  ) {}
+
   opsRisk(rawOps: unknown): ToolRisk {
     try {
       return mcpOpsRisk(rawOps)
@@ -236,5 +242,16 @@ export class SlidesMcpAdapter {
     scheduleDeckBroadcast(session)
     notifyRenderer(webContentsId, session)
     return { applied: true, revision: session.revision ?? 0 }
+  }
+
+  async save(webContentsId: number, expectedRevision: number): Promise<{ saved: boolean; revision: number }> {
+    const session = requireSession(webContentsId)
+    ensureExpectedRevision(session, expectedRevision)
+    if (!this.saveOpenDocument) {
+      throw new CapabilityError('not_running', 'Slides save support is unavailable')
+    }
+    const result = await this.saveOpenDocument(webContentsId)
+    if (!result.ok) throw new CapabilityError('internal_error', `Slides save failed: ${result.error}`)
+    return { saved: true, revision: session.revision ?? 0 }
   }
 }

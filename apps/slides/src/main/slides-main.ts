@@ -576,6 +576,33 @@ export function slidesRevision(webContentsId: number): number {
   return sessions.get(webContentsId)?.revision ?? 0
 }
 
+/** Save one open session through the same recovery/dirty-state path used by the UI. */
+export async function saveOpenSlidesDocument(
+  webContentsId: number,
+): Promise<{ ok: true; path: string } | { ok: false; error: string }> {
+  const session = sessions.get(webContentsId)
+  if (!session) return { ok: false, error: 'no file open' }
+  if (!session.path) {
+    const draftsDir = getDraftsDir()
+    if (!existsSync(draftsDir)) mkdirSync(draftsDir, { recursive: true })
+    session.path = pickDraftPath(draftsDir, tm('untitledDeck'))
+    await pushRecent(session.path)
+    const contents = webContents.fromId(webContentsId)
+    if (contents) slidesOpenedHook?.(contents, session.path)
+  }
+  try {
+    await savePptxToFile(session.opened, session.path)
+    autosaveBackoff.delete(session.path)
+    void rm(autosavePathFor(session.path), { force: true }).catch(() => {})
+    dropUntitledRecovery(webContentsId)
+    commitSaved(session.opened)
+    session.metaDirty = false
+    return { ok: true, path: session.path }
+  } catch (error) {
+    return { ok: false, error: String(error) }
+  }
+}
+
 /**
  * Close guard for the slides renderer: true means proceed with closing.
  * Clean -> true; with changes -> Save/Don't Save/Cancel. Choosing Save asks the renderer to run
@@ -3946,35 +3973,11 @@ export function registerSlidesIpc(): void {
   })
 
   ipcMain.handle('slides:save', async (e) => {
+    const result = await saveOpenSlidesDocument(e.sender.id)
     const session = sessions.get(e.sender.id)
-    if (!session) return { ok: false, error: 'no file open' }
-    // Untitled (new blank file): the first save lands silently in the drafts folder (Save As keeps its dialog)
-    if (!session.path) {
-      const draftsDir = getDraftsDir()
-      if (!existsSync(draftsDir)) mkdirSync(draftsDir, { recursive: true })
-      session.path = pickDraftPath(draftsDir, tm('untitledDeck'))
-      await pushRecent(session.path)
-      slidesOpenedHook?.(e.sender, session.path)
-    }
-    try {
-      await savePptxToFile(session.opened, session.path)
-      autosaveBackoff.delete(session.path)
-      void rm(autosavePathFor(session.path), { force: true }).catch(() => {})
-      dropUntitledRecovery(e.sender.id)
-      // Bake the saved patches back into the in-memory model (clears dirty, syncs
-      // anchor.originalXml with disk) — a full reopen would re-read and unzip the
-      // whole package, doubling save latency on large decks. Element ids survive,
-      // but the renderer still expects the render tree in the response.
-      commitSaved(session.opened)
-      session.metaDirty = false
-      return {
-        ok: true,
-        path: session.path,
-        slides: buildAllRenderSlides(session.opened, session.fitWidthPx),
-      }
-    } catch (err) {
-      return { ok: false, error: String(err) }
-    }
+    return result.ok && session
+      ? { ...result, slides: buildAllRenderSlides(session.opened, session.fitWidthPx) }
+      : result
   })
 
   ipcMain.handle('slides:save-as', async (e, defaultName: string) => {

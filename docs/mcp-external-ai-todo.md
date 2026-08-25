@@ -45,7 +45,7 @@
 | CAP-03 | 为所有文档引入单调递增 `revision`；人工或 MCP 写入都会更新 revision。 | P0 | CAP-02 | 未开始 | TBD | 各 app session/state adapter | 相同 revision 的并发写入仅允许一个成功，另一个返回 `conflict`。 | |
 | CAP-04 | 在 `TabManager` 中实现 documentId → WebContents/adapter 的显式路由。 | P0 | CAP-02 | 已完成 | Codex | `apps/shell/src/main/tab-manager.ts` | 通过 documentId 精确查询后台 Tab 的 target，不以 active Tab 作为隐式目标。 | |
 | CAP-05 | 实现全局只读 tools：`list_open_documents`、`get_document_status`。 | P0 | CAP-04 | 已完成 | Codex | shell gateway | 已实现显式 documentId 状态查询、未知/关闭文档错误和参数校验单测。 | |
-| CAP-06 | 实现全局写 tools：`activate_document`、`save_document`、`undo`、`redo`。 | P0 | CAP-03 | 进行中 | Codex | shell gateway + Slides adapter | 已支持 `activate_document` 与 Slides `undo`/`redo` 的 documentId + expectedRevision、授权与队列；save 及其余类型待实现。 | |
+| CAP-06 | 实现全局写 tools：`activate_document`、`save_document`、`undo`、`redo`。 | P0 | CAP-03 | 进行中 | Codex | shell gateway + Slides adapter | 已支持 `activate_document`、Slides `undo`/`redo` 与受控 `save_document`；均使用 documentId + expectedRevision、授权与队列，其余类型待实现。 | |
 | CAP-07 | 建立每个 documentId 的串行写队列与请求取消策略。 | P0 | CAP-03 | 进行中 | Codex | `apps/shell/src/main/mcp/write-queue.ts` | 已对 MCP Slides 写入按 documentId 串行化；断开前未开始的请求返回 cancelled，待真实 adapter 集成测试。 | |
 
 ## 3. 权限、确认、审计与输入限制

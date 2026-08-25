@@ -36,6 +36,7 @@ export interface SlidesMcpWriter extends SlidesMcpReader {
     | Promise<{ applied: boolean; revision: number; [key: string]: unknown }>
   undo(webContentsId: number, expectedRevision: number): { applied: boolean; revision: number }
   redo(webContentsId: number, expectedRevision: number): { applied: boolean; revision: number }
+  save(webContentsId: number, expectedRevision: number): Promise<{ saved: boolean; revision: number }>
 }
 
 interface ToolDescriptor {
@@ -87,6 +88,11 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
     name: 'slides.get_deck_context',
     description: 'Read the slide IDs and element counts for one open Slides document.',
     inputSchema: GET_DOCUMENT_STATUS.inputSchema,
+  },
+  {
+    name: 'save_document',
+    description: 'Save one explicitly identified open Slides document to its application-controlled path.',
+    inputSchema: DOCUMENT_REVISION_INPUT_SCHEMA,
   },
   {
     name: 'activate_document',
@@ -272,6 +278,21 @@ export class ShellMcpGateway implements McpBridgeGateway {
       if (!activated) throw new CapabilityError('not_found', 'Document is no longer open')
       return toolResult(JSON.stringify(activated), false, activated.revision)
     }
+    if (name === 'save_document') {
+      const { documentId, expectedRevision } = this.requireDocumentRevision(argumentsValue)
+      const target = await this.requireSlidesTarget(documentId)
+      const slides = this.requireSlidesWriter()
+      const result = await this.writeQueue.enqueue(target.documentId, context.signal, async () => {
+        await this.requirePermissions().authorize({
+          clientId: context.clientId,
+          toolName: name,
+          risk: 'file',
+          document: target,
+        })
+        return slides.save(target.webContentsId, expectedRevision)
+      })
+      return toolResult(JSON.stringify(result), false, result.revision)
+    }
     throw new CapabilityError('not_found', `Unknown MCP tool: ${name}`)
   }
 
@@ -330,7 +351,8 @@ export class ShellMcpGateway implements McpBridgeGateway {
     if (
       typeof (slides as Partial<SlidesMcpWriter>).applyOps !== 'function' ||
       typeof (slides as Partial<SlidesMcpWriter>).undo !== 'function' ||
-      typeof (slides as Partial<SlidesMcpWriter>).redo !== 'function'
+      typeof (slides as Partial<SlidesMcpWriter>).redo !== 'function' ||
+      typeof (slides as Partial<SlidesMcpWriter>).save !== 'function'
     ) {
       throw new CapabilityError('not_running', 'Slides write support is unavailable')
     }
