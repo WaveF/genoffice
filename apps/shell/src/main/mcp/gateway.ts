@@ -24,6 +24,7 @@ export interface DocumentTargetSource {
 export interface SlidesMcpReader {
   getDeckContext(webContentsId: number): unknown
   readSlide(webContentsId: number, slideRef: number | string): unknown
+  renderSlidePreview(webContentsId: number, slideRef: number | string): Promise<unknown>
 }
 
 export interface SlidesMcpWriter extends SlidesMcpReader {
@@ -141,6 +142,14 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
     },
   },
   {
+    name: 'slides.render_preview',
+    description: 'Render one open slide as a bounded PNG preview for inspection.',
+    inputSchema: {
+      type: 'object', additionalProperties: false, required: ['documentId', 'slide'],
+      properties: { documentId: { type: 'string', minLength: 1, maxLength: 128 }, slide: { anyOf: [{ type: 'integer', minimum: 0 }, { type: 'string', minLength: 1 }] } },
+    },
+  },
+  {
     name: 'slides.apply_ops',
     description: 'Validate or atomically apply canonical edits to an open Slides document.',
     inputSchema: {
@@ -242,6 +251,15 @@ export class ShellMcpGateway implements McpBridgeGateway {
         false,
         target.revision,
       )
+    }
+    if (name === 'slides.render_preview') {
+      const documentId = argumentsValue.documentId
+      const slide = argumentsValue.slide
+      if (typeof documentId !== 'string' || documentId.length === 0 || (typeof slide !== 'string' && (!Number.isInteger(slide) || (slide as number) < 0)) || Object.keys(argumentsValue).length !== 2) {
+        throw new CapabilityError('validation_error', 'documentId and a non-negative slide index or slide ID are required')
+      }
+      const target = await this.requireSlidesTarget(documentId)
+      return toolResult(JSON.stringify(await this.requireSlides().renderSlidePreview(target.webContentsId, slide)), false, target.revision)
     }
     if (name === 'slides.apply_ops') {
       const documentId = argumentsValue.documentId

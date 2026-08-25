@@ -139,6 +139,7 @@ import {
   installSlidesMenu,
   replaceSlidesRecentFile,
   requestSlidesClose,
+  renderOpenSlidesMcpPreview,
   saveOpenSlidesDocument,
   setSlidesCloseTabHook,
   setSlidesExtraFileMenuItems,
@@ -4220,7 +4221,7 @@ app.whenReady().then(async () => {
         ...(existsSync(MCP_ADAPTER_PATH) ? { adapterPath: MCP_ADAPTER_PATH } : {}),
         gateway: new ShellMcpGateway(
           tabManager,
-          new SlidesMcpAdapter(saveOpenSlidesDocument),
+          new SlidesMcpAdapter(saveOpenSlidesDocument, renderOpenSlidesMcpPreview),
           new SessionMcpPermissionGate(),
           new FileMcpAuditLogger(app.getPath('userData')),
         ),

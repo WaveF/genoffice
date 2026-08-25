@@ -1531,6 +1531,16 @@ export interface SlidesApi {
   onOpened: (handler: (result: OpenResult) => void) => () => void
   /** The file was renamed externally (shell Home list rename) — pushes the new path, the renderer updates the title bar */
   onRenamed: (handler: (newPath: string) => void) => () => void
+  /** Internal MCP preview bridge. Renderer only receives a single slide render request. */
+  onMcpPreviewRequest: (
+    handler: (request: { requestId: string; slideIndex: number }) => void,
+  ) => () => void
+  /** Return the bounded PNG payload for a prior MCP preview request. */
+  respondMcpPreview: (response: {
+    requestId: string
+    pngBase64?: string
+    error?: string
+  }) => void
   getAiSettings: () => Promise<AiSettings>
   setAiSettings: (settings: AiSettings) => Promise<void>
   aiStream: (request: AiStreamRequest) => Promise<void>

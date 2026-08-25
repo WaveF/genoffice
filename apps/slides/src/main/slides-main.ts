@@ -1025,10 +1025,61 @@ function openExportedPdf(path: string): void {
 }
 
 let ipcRegistered = false
+const mcpPreviewWaiters = new Map<
+  string,
+  { webContentsId: number; resolve: (value: { pngBase64?: string; error?: string }) => void; timer: ReturnType<typeof setTimeout> }
+>()
+const MCP_PREVIEW_TIMEOUT_MS = 15_000
+const MAX_MCP_PREVIEW_BASE64_CHARS = 384 * 1024
+
+/** Ask the attached renderer to draw one in-memory slide for the MCP read surface. */
+export async function renderOpenSlidesMcpPreview(
+  webContentsId: number,
+  slideIndex: number,
+): Promise<{ pngBase64: string }> {
+  const session = sessions.get(webContentsId)
+  const contents = webContents.fromId(webContentsId)
+  if (!session || !contents || contents.isDestroyed()) throw new Error('Slides renderer is unavailable')
+  if (!Number.isInteger(slideIndex) || slideIndex < 0 || slideIndex >= session.opened.deck.slides.length) {
+    throw new Error('Slide is no longer available')
+  }
+  const requestId = randomUUID()
+  const response = await new Promise<{ pngBase64?: string; error?: string }>((resolve) => {
+    const timer = setTimeout(() => {
+      mcpPreviewWaiters.delete(requestId)
+      resolve({ error: 'Preview renderer timed out' })
+    }, MCP_PREVIEW_TIMEOUT_MS)
+    mcpPreviewWaiters.set(requestId, { webContentsId, resolve, timer })
+    contents.send('slides:mcp-preview-request', { requestId, slideIndex })
+  })
+  if (response.error) throw new Error(response.error)
+  if (
+    !response.pngBase64 ||
+    response.pngBase64.length > MAX_MCP_PREVIEW_BASE64_CHARS ||
+    !/^[A-Za-z0-9+/]*={0,2}$/.test(response.pngBase64)
+  ) {
+    throw new Error('Preview renderer returned an invalid image')
+  }
+  return { pngBase64: response.pngBase64 }
+}
 
 export function registerSlidesIpc(): void {
   if (ipcRegistered) return
   ipcRegistered = true
+
+  ipcMain.on('slides:mcp-preview-response', (event, response: unknown) => {
+    if (!response || typeof response !== 'object' || Array.isArray(response)) return
+    const { requestId, pngBase64, error } = response as Record<string, unknown>
+    if (typeof requestId !== 'string') return
+    const waiter = mcpPreviewWaiters.get(requestId)
+    if (!waiter || waiter.webContentsId !== event.sender.id) return
+    mcpPreviewWaiters.delete(requestId)
+    clearTimeout(waiter.timer)
+    waiter.resolve({
+      ...(typeof pngBase64 === 'string' ? { pngBase64 } : {}),
+      ...(typeof error === 'string' ? { error } : {}),
+    })
+  })
 
   // AI-generated slide pages land in app-owned temp directories; sweep
   // expired ones at startup (never at land time — markers can be redeemed

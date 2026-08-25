@@ -39,6 +39,7 @@ import { MasterView } from './MasterView'
 import { TextEditOverlay, firstFontFamily, liveAlign, liveBulletChar } from './TextEditOverlay'
 import { CropOverlay } from './CropOverlay'
 import { createImageLoader } from './image-loader'
+import { renderSlidesToPngBase64 } from './export-render'
 import { syncPrivateFonts } from './doc-fonts'
 import { toPickerHex } from './color-input'
 import { InkOverlay } from './InkOverlay'
@@ -368,6 +369,10 @@ export function App() {
   )
   const bootHandledRef = useRef(false)
   const [images, setImages] = useState<Map<string, HTMLImageElement>>(new Map())
+  const slidesForMcpPreview = useRef(slides)
+  const imagesForMcpPreview = useRef(images)
+  slidesForMcpPreview.current = slides
+  imagesForMcpPreview.current = images
   const imageLoaderRef = useRef<ReturnType<typeof createImageLoader> | null>(null)
   const [hasClipboard, setHasClipboard] = useState(false)
   const [transition, setTransition] = useState<TransitionKind>('none')
@@ -803,6 +808,35 @@ export function App() {
         // The broadcast also fires for undo back to a clean state — ask the
         // session instead of assuming the change dirtied it
         void window.slidesApi.isDirty?.().then((d) => setDirty(!!d))
+      }),
+    [],
+  )
+
+  // MCP preview requests are deliberately one-way and constrained: the renderer can only
+  // return a PNG for its current in-memory page, never arbitrary renderer data or filesystem paths.
+  useEffect(
+    () =>
+      window.slidesApi.onMcpPreviewRequest?.(({ requestId, slideIndex }) => {
+        void (async () => {
+          try {
+            const target = slidesForMcpPreview.current[slideIndex]
+            if (!target) throw new Error('Slide is no longer available')
+            const [pngBase64] = await renderSlidesToPngBase64(
+              [target],
+              imagesForMcpPreview.current,
+              0.5,
+            )
+            if (!pngBase64 || pngBase64.length > 384 * 1024) {
+              throw new Error('Rendered preview exceeds the MCP size limit')
+            }
+            window.slidesApi.respondMcpPreview({ requestId, pngBase64 })
+          } catch (error) {
+            window.slidesApi.respondMcpPreview({
+              requestId,
+              error: error instanceof Error ? error.message : 'Preview rendering failed',
+            })
+          }
+        })()
       }),
     [],
   )

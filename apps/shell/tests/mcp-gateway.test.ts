@@ -29,6 +29,7 @@ function gatewayWith(documents: DocumentTarget[] = [target]): ShellMcpGateway {
   const slides: SlidesMcpReader = {
     getDeckContext: () => ({ revision: 3, slideCount: 1, slides: [{ slideId: 's_1', index: 0 }] }),
     readSlide: (_webContentsId, slide) => ({ revision: 3, slide }),
+    renderSlidePreview: async (_webContentsId, slide) => ({ revision: 3, slide, mimeType: 'image/png', base64: 'iVBORw0KGgo=' }),
   }
   return new ShellMcpGateway(source, {
     ...slides,
@@ -70,6 +71,7 @@ describe('ShellMcpGateway', () => {
       expect.arrayContaining([
         expect.objectContaining({ name: 'list_open_documents' }),
         expect.objectContaining({ name: 'slides.apply_ops' }),
+        expect.objectContaining({ name: 'slides.render_preview' }),
       ]),
     )
   })
@@ -99,6 +101,17 @@ describe('ShellMcpGateway', () => {
     )
     expect(context).toMatchObject({ revision: 3, mutated: false })
     expect(JSON.parse((slide as { content: string }).content)).toEqual({ revision: 3, slide: 's_1' })
+  })
+
+  it('renders a bounded Slides preview through the explicit document/slide route', async () => {
+    const result = await gatewayWith().handle(
+      request({ name: 'slides.render_preview', input: { documentId: 'doc-123', slide: 's_1' } }),
+    )
+    expect(result).toMatchObject({ mutated: false, revision: 3 })
+    expect(JSON.parse((result as { content: string }).content)).toMatchObject({
+      mimeType: 'image/png',
+      base64: 'iVBORw0KGgo=',
+    })
   })
 
   it('requires an expected revision and returns the post-write revision for Slides operations', async () => {

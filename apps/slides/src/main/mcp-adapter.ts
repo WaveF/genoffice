@@ -43,6 +43,13 @@ export interface SlidesMcpHistoryResult {
   revision: number
 }
 
+export interface SlidesMcpPreview {
+  revision: number
+  slideId: string
+  mimeType: 'image/png'
+  base64: string
+}
+
 const MAX_READ_RESULT_BYTES = 512 * 1024
 const SENSITIVE_OUTPUT_FIELDS = new Set(['archive', 'bytes', 'data', 'mediapath', 'path', 'source'])
 
@@ -106,6 +113,10 @@ export class SlidesMcpAdapter {
     private readonly saveOpenDocument?: (
       webContentsId: number,
     ) => Promise<{ ok: true; path: string } | { ok: false; error: string }>,
+    private readonly renderPreview?: (
+      webContentsId: number,
+      slideIndex: number,
+    ) => Promise<{ pngBase64: string }>,
   ) {}
 
   opsRisk(rawOps: unknown): ToolRisk {
@@ -150,6 +161,24 @@ export class SlidesMcpAdapter {
       { revision: session.revision ?? 0, slideId: slideDurableId(slide), index, elements },
       'Slide response',
     ) as SlidesMcpSlide
+  }
+
+  async renderSlidePreview(webContentsId: number, slideRef: number | string): Promise<SlidesMcpPreview> {
+    const session = requireSession(webContentsId)
+    if (!this.renderPreview) throw new CapabilityError('not_running', 'Slides preview support is unavailable')
+    const index =
+      typeof slideRef === 'number'
+        ? slideRef
+        : session.opened.deck.slides.findIndex((slide) => slideDurableId(slide) === slideRef)
+    const slide = session.opened.deck.slides[index]
+    if (!slide) throw new CapabilityError('not_found', 'Slide is not present in this document')
+    try {
+      const { pngBase64 } = await this.renderPreview(webContentsId, index)
+      if (pngBase64.length > 384 * 1024) throw new Error('Preview exceeds the MCP response size limit')
+      return { revision: session.revision ?? 0, slideId: slideDurableId(slide), mimeType: 'image/png', base64: pngBase64 }
+    } catch (error) {
+      throw new CapabilityError('renderer_unavailable', error instanceof Error ? error.message : 'Preview renderer is unavailable')
+    }
   }
 
   applyOps(

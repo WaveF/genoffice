@@ -335,6 +335,13 @@ const api: SlidesApi = {
     ipcRenderer.on('slides:renamed', listener)
     return () => ipcRenderer.removeListener('slides:renamed', listener)
   },
+  onMcpPreviewRequest: (handler) => {
+    const listener = (_e: IpcRendererEvent, request: { requestId: string; slideIndex: number }) =>
+      handler(request)
+    ipcRenderer.on('slides:mcp-preview-request', listener)
+    return () => ipcRenderer.removeListener('slides:mcp-preview-request', listener)
+  },
+  respondMcpPreview: (response) => ipcRenderer.send('slides:mcp-preview-response', response),
   getAiSettings: () => ipcRenderer.invoke('ai:get-settings'),
   setAiSettings: (settings: AiSettings) => ipcRenderer.invoke('ai:set-settings', settings),
   aiStream: (request: AiStreamRequest) => ipcRenderer.invoke('ai:stream', request),

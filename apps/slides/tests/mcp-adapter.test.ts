@@ -19,7 +19,7 @@ describe('SlidesMcpAdapter', () => {
 
   beforeEach(async () => {
     send.mockClear()
-    adapter = new SlidesMcpAdapter()
+    adapter = new SlidesMcpAdapter(undefined, async () => ({ pngBase64: 'iVBORw0KGgo=' }))
     session = {
       path: '',
       opened: await openPptx(await createBlankPptx()),
@@ -53,5 +53,14 @@ describe('SlidesMcpAdapter', () => {
     expect(session.opened.deck.size).toEqual(before)
     expect(adapter.redo(WEB_CONTENTS_ID, 2)).toEqual({ applied: true, revision: 3 })
     expect(session.opened.deck.size).toEqual({ cx: before.cx + 1000, cy: before.cy + 1000 })
+  })
+
+  it('renders a slide preview through the injected renderer-only callback', async () => {
+    const preview = await adapter.renderSlidePreview(WEB_CONTENTS_ID, 0)
+    expect(preview).toMatchObject({
+      revision: 0,
+      mimeType: 'image/png',
+      base64: 'iVBORw0KGgo=',
+    })
   })
 })
