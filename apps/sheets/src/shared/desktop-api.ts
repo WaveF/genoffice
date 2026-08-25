@@ -2302,6 +2302,9 @@ export interface RecoveryPromptPayload {
 }
 
 export interface DesktopApi {
+  onMcpRequest(handler: (request: { requestId: string; action: 'sheets.get_workbook_context' | 'sheets.read_range'; input: Record<string, unknown> }) => void): () => void
+  respondMcpRequest(response: { requestId: string; ok: boolean; result?: unknown; error?: string }): void
+  reportMcpRevision(revision: number): void
   /** current UI language (persisted by the shell in app-settings.json) */
   getLanguage(): Promise<'zh' | 'en' | 'ja' | 'ko' | 'fr' | 'de' | 'es' | 'th' | 'id' | 'ru' | 'ar'>
   /** language switched from the shell home page */

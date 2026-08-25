@@ -146,6 +146,7 @@ import {
   type CellBounds,
 } from '../domain/chart-visual'
 import { InMemoryWorkbookAdapter } from '../domain/in-memory-workbook'
+import { handleSheetsMcpRequest } from './mcp-adapter'
 import { cfRuleUnsaveableReason, iconSetSaveable } from '../gateway/xlsx-cf'
 import { installLazyFindBridge } from './lazy-find'
 import {
@@ -404,6 +405,10 @@ let pendingCopySource: string | undefined
 
 export function App(): React.JSX.Element {
   const adapterRef = useRef(new InMemoryWorkbookAdapter(initialSnapshot))
+  useEffect(() => window.desktopApi.onMcpRequest((request) => {
+    try { const result = handleSheetsMcpRequest(adapterRef.current, request.action, request.input); window.desktopApi.respondMcpRequest({ requestId: request.requestId, ok: true, result }) }
+    catch (error) { window.desktopApi.respondMcpRequest({ requestId: request.requestId, ok: false, error: error instanceof Error ? error.message : 'Sheets MCP request failed' }) }
+  }), [])
   const univerRef = useRef<UniverRuntime | null>(null)
   const lazyWorkbookRef = useRef<LazyWorkbookState | null>(null)
   /// Univer undo/redo stack occupancy (subscribed at mount): drives the QAT button gray states

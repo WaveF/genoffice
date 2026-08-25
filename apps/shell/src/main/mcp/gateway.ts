@@ -193,6 +193,14 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
       },
     },
   ]),
+  ...([
+    ['sheets', 'get_workbook_context'],
+    ['pdf', 'get_document_context'],
+  ] as const).map(([kind, operation]) => ({
+    name: `${kind}.${operation}`,
+    description: `Read a compact context summary from one open ${kind} document.`,
+    inputSchema: GET_DOCUMENT_STATUS.inputSchema,
+  })),
   {
     name: 'slides.apply_ops',
     description: 'Validate or atomically apply canonical edits to an open Slides document.',
@@ -315,6 +323,13 @@ export class ShellMcpGateway implements McpBridgeGateway {
         input,
         context.signal,
       )
+      return toolResult(JSON.stringify(result), false, target.revision)
+    }
+    if (name === 'sheets.get_workbook_context' || name === 'pdf.get_document_context') {
+      const [kind] = name.split('.') as ['sheets' | 'pdf']
+      const documentId = this.requireOnlyDocumentId(argumentsValue)
+      const target = await this.requireRendererTarget(documentId, kind)
+      const result = await this.requireRenderer().request(target.webContentsId, name as RendererMcpAction, {}, context.signal)
       return toolResult(JSON.stringify(result), false, target.revision)
     }
     if (
@@ -556,7 +571,7 @@ export class ShellMcpGateway implements McpBridgeGateway {
 
   private async requireRendererTarget(
     documentId: string,
-    kind: 'docs' | 'markdown',
+    kind: 'docs' | 'markdown' | 'sheets' | 'pdf',
   ): Promise<DocumentTarget> {
     const target = await this.documents.findDocumentTarget(documentId)
     if (!target) throw new CapabilityError('not_found', 'Document is no longer open')
