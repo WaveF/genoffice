@@ -61,4 +61,15 @@ describe('handleSheetsMcpRequest', () => {
       revision: 8, dryRun: false,
     })
   })
+
+  it('commits formula operations transactionally and preserves adapter undo history', async () => {
+    const workbook = new InMemoryWorkbookAdapter({ revision: 0, sheets: [{ id: 's1', name: 'Sheet1', cells: { A1: { value: 2 } } }] })
+    await expect(handleSheetsMcpRequest(workbook, 'sheets.apply_operations', {
+      expectedRevision: 0, transactionId: 'formula-1', summary: 'Calculate',
+      operations: [{ op: 'set_formula', sheetId: 's1', address: 'B1', formula: '=A1*2' }],
+    }, async (plan) => { workbook.apply(plan) })).resolves.toMatchObject({ revision: 1, changes: { cells: 1 } })
+    expect(workbook.getSnapshot().sheets[0]?.cells.B1).toEqual({ value: null, formula: '=A1*2' })
+    expect(workbook.undo().revision).toBe(2)
+    expect(workbook.getSnapshot().sheets[0]?.cells.B1).toBeUndefined()
+  })
 })
