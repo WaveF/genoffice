@@ -89,11 +89,11 @@
 
 | ID | 任务 | 优先级 | 依赖 | 状态 | 负责人 | 代码落点 | 验收标准 | PR |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| SHT-01 | 盘点并拆分 Sheets 的 workbook readers 与 operation apply 依赖，形成 session-scoped adapter 设计。 | P1 | CAP-01 | 进行中 | Codex | `apps/sheets/src/renderer/mcp-adapter.ts`、`App.tsx` | 固定 renderer bridge 已接入；仍需补充设计说明。 | |
+| SHT-01 | 盘点并拆分 Sheets 的 workbook readers 与 operation apply 依赖，形成 session-scoped adapter 设计。 | P1 | CAP-01 | 已完成 | Codex | `apps/sheets/src/renderer/mcp-adapter.ts`、`App.tsx` | 固定 renderer bridge 与 adapter 设计说明已完成。 | |
 | SHT-02 | 实现 Sheets 只读 tools：context、range、formats、find、aggregate、formula trace。 | P1 | SHT-01, RBR-01 | 进行中 | Codex | Sheets adapter | context、2,000 cells 上限的显式 range（含 formats）、find、sum/count/average 与 formula trace 已完成；需补导入 workbook 的格式读取回归。 | |
 | SHT-03 | 实现 Sheets `propose_operations` 的 MCP 等价工具（改名为 `sheets.apply_operations`）。 | P1 | SHT-02, CAP-07, SEC-02 | 进行中 | Codex | Sheets adapter | dry-run、CAS、权限、队列、内存与导入 workbook 路径已接入；需补公式重算/undo 的 MCP 回归。 | |
 | SHT-04 | 为 Sheets 写端到端测试。 | P1 | SHT-02..03 | 未开始 | TBD | `apps/sheets/tests/` | 覆盖真实 xlsx、懒加载、公式、结构修改、保存回写。 | |
-| PDF-01 | 盘点 PDF AI tools 的 renderer/main 依赖，定义 document-scoped adapter。 | P1 | CAP-01 | 进行中 | Codex | `apps/pdf/src/renderer/mcp-adapter.ts`、`App.tsx` | document-scoped bridge 已接入；风险矩阵待补。 | |
+| PDF-01 | 盘点 PDF AI tools 的 renderer/main 依赖，定义 document-scoped adapter。 | P1 | CAP-01 | 已完成 | Codex | `apps/pdf/src/renderer/mcp-adapter.ts`、`App.tsx` | document-scoped bridge 与风险矩阵已完成。 | |
 | PDF-02 | 实现 PDF 只读 tools：page context、search、annotations、forms、outline。 | P2 | PDF-01, RBR-01 | 进行中 | Codex | PDF adapter | 页面文字、书签、表单摘要、批注计数与受限搜索已完成；逐项批注读取待补。 | |
 | PDF-03 | 实现 PDF 写 tools：text/annotation/form/image/page 操作。 | P2 | PDF-02, SEC-02, SEC-03 | 进行中 | Codex | PDF adapter | 可撤销的 note/markup 批处理已完成；text/form/image/page 操作及页操作确认待补。 | |
 | PDF-04 | 为 PDF 写端到端测试。 | P2 | PDF-02..03 | 未开始 | TBD | `apps/pdf/tests/` | 覆盖保存、取消、页面删除确认、renderer 销毁。 | |
