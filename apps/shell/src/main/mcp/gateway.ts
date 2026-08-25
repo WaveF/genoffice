@@ -11,6 +11,7 @@ import type { McpBridgeGateway, McpBridgeRequest } from './bridge'
 import type { McpPermissionGate } from './permissions'
 import { DocumentWriteQueue } from './write-queue'
 import type { McpAuditLogger } from './audit'
+import { assertSafeMcpInput } from './input-guard'
 
 /** Small interface keeps the gateway unit-testable without an Electron runtime. */
 export interface DocumentTargetSource {
@@ -180,6 +181,7 @@ export class ShellMcpGateway implements McpBridgeGateway {
     if (!isRecord(argumentsValue)) {
       throw new CapabilityError('validation_error', 'Tool arguments must be an object')
     }
+    assertSafeMcpInput(argumentsValue)
     const context = executionContext(request)
     if (name === LIST_OPEN_DOCUMENTS.name) {
       this.assertEmptyArguments(argumentsValue)
