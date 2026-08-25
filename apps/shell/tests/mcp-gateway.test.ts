@@ -49,6 +49,22 @@ function request(params: Record<string, unknown>) {
 }
 
 describe('ShellMcpGateway', () => {
+  it('returns the bridge-level tools/list array expected by the stdio adapter', async () => {
+    const result = await gatewayWith().handle({
+      clientId: 'test-client',
+      requestId: 'list-request',
+      method: 'tools/list',
+      params: {},
+      signal: new AbortController().signal,
+    })
+    expect(result).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'list_open_documents' }),
+        expect.objectContaining({ name: 'slides.apply_ops' }),
+      ]),
+    )
+  })
+
   it('lists opaque public document summaries without local paths', async () => {
     const result = await gatewayWith().handle(request({ name: 'list_open_documents' }))
     expect(result).toEqual({

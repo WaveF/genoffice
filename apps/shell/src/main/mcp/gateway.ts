@@ -124,7 +124,7 @@ export class ShellMcpGateway implements McpBridgeGateway {
   ) {}
 
   async handle(request: McpBridgeRequest): Promise<unknown> {
-    if (request.method === 'tools/list') return { tools: TOOL_DESCRIPTORS }
+    if (request.method === 'tools/list') return TOOL_DESCRIPTORS
     return this.callTool(request)
   }
 
