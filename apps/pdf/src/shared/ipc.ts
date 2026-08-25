@@ -669,6 +669,9 @@ export interface ImageSearchResponse {
 
 /** API exposed by preload to the renderer (window.pdfApi) */
 export interface PdfApi {
+  onMcpRequest(handler: (request: { requestId: string; action: 'pdf.get_document_context' | 'pdf.read_page_context'; input: Record<string, unknown> }) => void): () => void
+  respondMcpRequest(response: { requestId: string; ok: boolean; result?: unknown; error?: string }): void
+  reportMcpRevision(revision: number): void
   /** Take the pdf path pending for this view (queued at tab creation); null if none */
   consumePending(): Promise<string | null>
   /** Read pdf bytes. Only paths granted to this view are allowed */

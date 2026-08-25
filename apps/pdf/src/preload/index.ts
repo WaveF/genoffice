@@ -5,6 +5,13 @@ import { AI_CHANNELS, PDF_CHANNELS } from '../shared/ipc'
 import type { PdfApi, UiTheme } from '../shared/ipc'
 
 const api: PdfApi = {
+  onMcpRequest: (handler) => {
+    const listener = (_event: Electron.IpcRendererEvent, request: { requestId: string; action: 'pdf.get_document_context' | 'pdf.read_page_context'; input: Record<string, unknown> }) => handler(request)
+    ipcRenderer.on('mcp:renderer-request', listener)
+    return () => ipcRenderer.removeListener('mcp:renderer-request', listener)
+  },
+  respondMcpRequest: (response) => ipcRenderer.send('mcp:renderer-response', response),
+  reportMcpRevision: (revision) => ipcRenderer.send('mcp:renderer-revision', revision),
   consumePending: () => ipcRenderer.invoke(PDF_CHANNELS.consumePending),
   readFile: (path) => ipcRenderer.invoke(PDF_CHANNELS.readFile, path),
   save: (request) => ipcRenderer.invoke(PDF_CHANNELS.save, request),
