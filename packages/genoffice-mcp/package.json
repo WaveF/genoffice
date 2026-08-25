@@ -1,10 +1,13 @@
 {
-  "name": "@genoffice/capabilities",
+  "name": "@genoffice/mcp",
   "version": "0.1.0",
   "license": "Apache-2.0",
   "private": true,
   "type": "module",
-  "description": "Model-independent, validated document capability contracts shared by GenOffice MCP adapters",
+  "description": "Stdio MCP adapter for a running local GenOffice instance",
+  "bin": {
+    "genoffice-mcp": "./src/cli.ts"
+  },
   "exports": {
     ".": "./src/index.ts"
   },
@@ -12,6 +15,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@genoffice/capabilities": "*"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",

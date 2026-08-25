@@ -28,11 +28,11 @@
 
 | ID | 任务 | 优先级 | 依赖 | 状态 | 负责人 | 代码落点 | 验收标准 | PR |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| INF-01 | 新建 `packages/genoffice-mcp` workspace，提供可执行 stdio MCP adapter。 | P0 | DEC-01 | 未开始 | TBD | `packages/genoffice-mcp/`、根 `package.json` | 可由 MCP 客户端启动；stdout 仅输出协议消息，日志走 stderr。 | |
-| INF-02 | 新建 `apps/shell/src/main/mcp/`，定义 gateway 生命周期、请求路由和错误模型。 | P0 | INF-01 | 未开始 | TBD | `apps/shell/src/main/mcp/` | Shell 启动后可接受 adapter 连接；退出时清理资源。 | |
-| INF-03 | 实现跨平台本地桥接：macOS/Linux Unix socket、Windows named pipe。 | P0 | INF-02 | 未开始 | TBD | `apps/shell/src/main/mcp/transport.ts` | 不监听 TCP 公网/loopback 端口；跨平台单测覆盖路径/pipe 命名。 | |
-| INF-04 | 实现启动时随机 token、受限发现文件和 client 握手。 | P0 | INF-03 | 未开始 | TBD | `apps/shell/src/main/mcp/auth.ts` | 无 token、过期 token、错误 token 均不能调用任何 tool；发现文件权限为当前用户可读。 | |
-| INF-05 | 定义稳定的 MCP 错误码与错误 payload。 | P0 | INF-02 | 未开始 | TBD | `packages/genoffice-capabilities/` 或 gateway | 至少覆盖 `not_running`、`unauthorized`、`not_found`、`conflict`、`permission_denied`、`renderer_unavailable`、`validation_error`。 | |
+| INF-01 | 新建 `packages/genoffice-mcp` workspace，提供可执行 stdio MCP adapter。 | P0 | DEC-01 | 进行中 | Codex | `packages/genoffice-mcp/`、根 `package.json` | 已实现 stdio JSON-RPC/MCP tools 子集；待完成打包与真实 Shell 接入。 | |
+| INF-02 | 新建 `apps/shell/src/main/mcp/`，定义 gateway 生命周期、请求路由和错误模型。 | P0 | INF-01 | 进行中 | Codex | `apps/shell/src/main/mcp/` | 已实现 private bridge；待接入 Shell 生命周期与 tool gateway。 | |
+| INF-03 | 实现跨平台本地桥接：macOS/Linux Unix socket、Windows named pipe。 | P0 | INF-02 | 进行中 | Codex | `apps/shell/src/main/mcp/bridge.ts` | 已实现 Unix socket/named pipe 路径；待三平台测试。 | |
+| INF-04 | 实现启动时随机 token、受限发现文件和 client 握手。 | P0 | INF-03 | 进行中 | Codex | `apps/shell/src/main/mcp/bridge.ts` | 已实现随机 token 与 0600 discovery；待 Shell 生命周期接入及失效测试。 | |
+| INF-05 | 定义稳定的 MCP 错误码与错误 payload。 | P0 | INF-02 | 进行中 | Codex | `packages/genoffice-capabilities/`、gateway | 已定义错误码与 bridge 映射；待 gateway 所有工具采用。 | |
 | INF-06 | 将 Shell 的 MCP gateway 注册到应用启动与退出生命周期。 | P0 | INF-02 | 未开始 | TBD | `apps/shell/src/main/index.ts` | Shell 退出、崩溃后重启、第二实例启动时不会留下可用的旧连接。 | |
 | INF-07 | 更新 electron-vite / electron-builder 配置，确保 adapter 在开发与三端打包产物可执行。 | P0 | INF-01 | 未开始 | TBD | `apps/shell/electron-builder.cjs`、构建脚本 | macOS/Windows/Linux 打包检查可找到 adapter，且不依赖 monorepo 相对路径。 | |
 
@@ -56,7 +56,7 @@
 | SEC-02 | 实现应用内 MCP 授权对话框与“本次会话允许”存储。 | P0 | INF-04, SEC-01 | 未开始 | TBD | `apps/shell/src/main/mcp/permissions.ts` | 首次 write/file/destructive 调用须获得用户授权；拒绝后不执行。 | |
 | SEC-03 | 为删除、关闭未保存文档、覆盖文件、超过阈值的批量写入增加强制二次确认。 | P0 | SEC-02 | 未开始 | TBD | gateway + adapter metadata | 每次危险调用都出现准确的文档名和变更摘要。 | |
 | SEC-04 | 实现审计日志（client、tool、documentId、输入摘要、结果、revision、时间）。 | P1 | INF-04 | 未开始 | TBD | `apps/shell/src/main/mcp/audit.ts` | 日志不包含正文、base64、token、API key；rotation/大小上限有测试。 | |
-| SEC-05 | 统一限制参数深度、payload 大小、base64 大小、数组长度和单次批量 op 数量。 | P0 | CAP-01 | 未开始 | TBD | gateway schema guard | 超限请求在到达 renderer 前拒绝，返回 validation_error。 | |
+| SEC-05 | 统一限制参数深度、payload 大小、base64 大小、数组长度和单次批量 op 数量。 | P0 | CAP-01 | 进行中 | Codex | adapter/bridge schema guard | 已限制 stdio/bridge 单行 1 MiB；待补充结构、base64 与 op 限制。 | |
 | SEC-06 | 完成 MCP threat model，并更新 `SECURITY.md`。 | P1 | SEC-01..05 | 未开始 | TBD | `SECURITY.md` | 覆盖本机 token、恶意 MCP client、文档 prompt injection、renderer 崩溃、文件路径与审计。 | |
 
 ## 4. Slides MVP
@@ -115,7 +115,7 @@
 
 | ID | 任务 | 优先级 | 依赖 | 状态 | 负责人 | 验收标准 | PR |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| QLT-01 | 为 MCP adapter 建立协议级测试（握手、tools/list、tools/call、错误、取消）。 | P0 | INF-01..05 | 未开始 | TBD | 使用模拟 bridge 和真实 stdio 流；测试不依赖网络。 | |
+| QLT-01 | 为 MCP adapter 建立协议级测试（握手、tools/list、tools/call、错误、取消）。 | P0 | INF-01..05 | 进行中 | Codex | 已新增 adapter/bridge Vitest 用例；待依赖恢复后纳入 CI 执行。 | |
 | QLT-02 | 为 gateway 建立安全回归测试。 | P0 | SEC-01..05 | 未开始 | TBD | 覆盖无 token、恶意 payload、越权文档、危险操作拒绝、路径攻击。 | |
 | QLT-03 | 新增 Shell + Slides 端到端 MCP smoke test，并接入 CI。 | P0 | SLD-08 | 未开始 | TBD | 启动 Shell、启动 adapter、调用 tools、验证 `.pptx` 修改与 undo。 | |
 | QLT-04 | 为 Docs/Markdown/Sheets/PDF 逐步增加相同 smoke test。 | P1 | 各 App MCP 测试 | 未开始 | TBD | 每个已声明支持的文档类型都有 CI 覆盖。 | |

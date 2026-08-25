@@ -1,7 +1,10 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "types": ["node"]
+    "types": ["node"],
+    "paths": {
+      "@genoffice/capabilities": ["../genoffice-capabilities/src/index.ts"]
+    }
   },
   "include": ["src", "tests", "vitest.config.ts"]
 }
