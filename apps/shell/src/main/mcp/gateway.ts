@@ -10,6 +10,7 @@ import {
 import type { McpBridgeGateway, McpBridgeRequest } from './bridge'
 import type { McpPermissionGate } from './permissions'
 import { DocumentWriteQueue } from './write-queue'
+import type { McpAuditLogger } from './audit'
 
 /** Small interface keeps the gateway unit-testable without an Electron runtime. */
 export interface DocumentTargetSource {
@@ -155,11 +156,19 @@ export class ShellMcpGateway implements McpBridgeGateway {
     private readonly documents: DocumentTargetSource,
     private readonly slides?: SlidesMcpReader,
     private readonly permissions?: McpPermissionGate,
+    private readonly audit?: McpAuditLogger,
   ) {}
 
   async handle(request: McpBridgeRequest): Promise<unknown> {
     if (request.method === 'tools/list') return TOOL_DESCRIPTORS
-    return this.callTool(request)
+    try {
+      const result = await this.callTool(request)
+      await this.auditResult(request, result, 'success')
+      return result
+    } catch (error) {
+      await this.auditResult(request, undefined, 'error', error)
+      throw error
+    }
   }
 
   private async callTool(request: McpBridgeRequest): Promise<ToolResult> {
@@ -362,5 +371,29 @@ export class ShellMcpGateway implements McpBridgeGateway {
   private requirePermissions(): McpPermissionGate {
     if (!this.permissions) throw new CapabilityError('permission_denied', 'MCP write permission is unavailable')
     return this.permissions
+  }
+
+  private async auditResult(
+    request: McpBridgeRequest,
+    result: ToolResult | undefined,
+    outcome: 'success' | 'error',
+    error?: unknown,
+  ): Promise<void> {
+    if (!this.audit || typeof request.params.name !== 'string') return
+    const input = isRecord(request.params.input) ? request.params.input : undefined
+    try {
+      await this.audit.record({
+        at: new Date().toISOString(),
+        clientId: request.clientId,
+        toolName: request.params.name,
+        ...(typeof input?.documentId === 'string' ? { documentId: input.documentId } : {}),
+        outcome,
+        ...(result ? { mutated: result.mutated } : {}),
+        ...(result?.revision === undefined ? {} : { revision: result.revision }),
+        ...(error instanceof CapabilityError ? { errorCode: error.code } : {}),
+      })
+    } catch {
+      // Audit I/O must never turn a completed or rejected tool call into a different result.
+    }
   }
 }

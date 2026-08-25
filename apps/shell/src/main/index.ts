@@ -190,6 +190,7 @@ import { TabManager } from './tab-manager'
 import { LocalMcpBridge } from './mcp/bridge'
 import { ShellMcpGateway } from './mcp/gateway'
 import { SessionMcpPermissionGate } from './mcp/permissions'
+import { FileMcpAuditLogger } from './mcp/audit'
 import { SlidesMcpAdapter } from '../../../slides/src/main/mcp-adapter'
 import { applyUpdateChannel, initAutoUpdater } from './updater'
 import { isUpdateChannel, type UpdateChannel } from '../shared/update-api'
@@ -4217,6 +4218,7 @@ app.whenReady().then(async () => {
           tabManager,
           new SlidesMcpAdapter(saveOpenSlidesDocument),
           new SessionMcpPermissionGate(),
+          new FileMcpAuditLogger(app.getPath('userData')),
         ),
       })
       await mcpBridge.start()
