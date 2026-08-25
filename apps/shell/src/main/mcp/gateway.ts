@@ -214,6 +214,10 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
     },
   },
   {
+    name: 'sheets.find', description: 'Find bounded text matches in one explicit workbook range.',
+    inputSchema: { type: 'object', additionalProperties: false, required: ['documentId', 'sheetId', 'range', 'query'], properties: { documentId: { type: 'string' }, sheetId: { type: 'string' }, range: { type: 'string' }, query: { type: 'string', minLength: 1, maxLength: 256 } } },
+  },
+  {
     name: 'sheets.apply_operations',
     description: 'Dry-run or atomically apply a validated operation batch to an open workbook.',
     inputSchema: {
@@ -385,6 +389,13 @@ export class ShellMcpGateway implements McpBridgeGateway {
       ) throw new CapabilityError('validation_error', 'documentId, sheetId, and range are required')
       const target = await this.requireRendererTarget(documentId, 'sheets')
       const result = await this.requireRenderer().request(target.webContentsId, 'sheets.read_range', { sheetId, range }, context.signal)
+      return toolResult(JSON.stringify(result), false, target.revision)
+    }
+    if (name === 'sheets.find') {
+      const { documentId, sheetId, range, query } = argumentsValue
+      if (typeof documentId !== 'string' || typeof sheetId !== 'string' || typeof range !== 'string' || typeof query !== 'string' || Object.keys(argumentsValue).length !== 4) throw new CapabilityError('validation_error', 'documentId, sheetId, range, and query are required')
+      const target = await this.requireRendererTarget(documentId, 'sheets')
+      const result = await this.requireRenderer().request(target.webContentsId, 'sheets.find', { sheetId, range, query }, context.signal)
       return toolResult(JSON.stringify(result), false, target.revision)
     }
     if (name === 'sheets.apply_operations') {

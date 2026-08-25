@@ -24,6 +24,7 @@ export type RendererMcpAction =
   | 'markdown.replace_blocks'
   | 'sheets.get_workbook_context'
   | 'sheets.read_range'
+  | 'sheets.find'
   | 'sheets.apply_operations'
   | 'pdf.get_document_context'
   | 'pdf.read_page_context'

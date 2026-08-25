@@ -7,7 +7,7 @@ const MAX_READ_CELLS = 2_000
 /** Read-only MCP facade over the already-authoritative workbook adapter. */
 export function handleSheetsMcpRequest(
   adapter: InMemoryWorkbookAdapter,
-  action: 'sheets.get_workbook_context' | 'sheets.read_range' | 'sheets.apply_operations',
+  action: 'sheets.get_workbook_context' | 'sheets.read_range' | 'sheets.find' | 'sheets.apply_operations',
   input: Record<string, unknown>,
   applyPlan?: (plan: ChangePlan) => Promise<void>,
 ): unknown | Promise<unknown> {
@@ -47,10 +47,17 @@ export function handleSheetsMcpRequest(
   const bounds = parseRange(range)
   const requestedCellCount = rangeCellCount(bounds)
   if (requestedCellCount > MAX_READ_CELLS) throw new Error(`range exceeds the ${MAX_READ_CELLS}-cell read limit`)
+  const cells = rangeAddresses(bounds).map((address) => ({ address, ...(sheet.cells[address] ?? { value: null }) }))
+  if (action === 'sheets.find') {
+    const query = input.query
+    if (typeof query !== 'string' || query.length === 0 || query.length > 256) throw new Error('A bounded query is required')
+    const needle = query.toLocaleLowerCase()
+    return { revision: snapshot.revision, sheetId, range, matches: cells.filter((cell) => String(cell.formula ?? cell.value ?? '').toLocaleLowerCase().includes(needle)).slice(0, 200) }
+  }
   return {
     revision: snapshot.revision,
     sheetId,
     range,
-    cells: rangeAddresses(bounds).map((address) => ({ address, ...(sheet.cells[address] ?? { value: null }) })),
+    cells,
   }
 }
