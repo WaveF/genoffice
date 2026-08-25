@@ -60,17 +60,17 @@ describe('ShellMcpGateway', () => {
 
   it('gets a document status by explicit documentId', async () => {
     const result = await gatewayWith().handle(
-      request({ name: 'get_document_status', arguments: { documentId: 'doc-123' } }),
+      request({ name: 'get_document_status', input: { documentId: 'doc-123' } }),
     )
     expect(result).toEqual({ content: JSON.stringify(target), mutated: false, revision: 3 })
   })
 
   it('routes Slides reads through an explicit documentId, not the active tab', async () => {
     const context = await gatewayWith().handle(
-      request({ name: 'slides.get_deck_context', arguments: { documentId: 'doc-123' } }),
+      request({ name: 'slides.get_deck_context', input: { documentId: 'doc-123' } }),
     )
     const slide = await gatewayWith().handle(
-      request({ name: 'slides.read_slide', arguments: { documentId: 'doc-123', slide: 's_1' } }),
+      request({ name: 'slides.read_slide', input: { documentId: 'doc-123', slide: 's_1' } }),
     )
     expect(context).toMatchObject({ revision: 3, mutated: false })
     expect(JSON.parse((slide as { content: string }).content)).toEqual({ revision: 3, slide: 's_1' })
@@ -80,7 +80,7 @@ describe('ShellMcpGateway', () => {
     const result = await gatewayWith().handle(
       request({
         name: 'slides.apply_ops',
-        arguments: {
+        input: {
           documentId: 'doc-123',
           expectedRevision: 3,
           ops: [{ op: 'setFill' }],
@@ -100,11 +100,11 @@ describe('ShellMcpGateway', () => {
     } satisfies Partial<CapabilityError>)
     await expect(
       gatewayWith().handle(
-        request({ name: 'get_document_status', arguments: { documentId: 'doc-closed' } }),
+        request({ name: 'get_document_status', input: { documentId: 'doc-closed' } }),
       ),
     ).rejects.toMatchObject({ code: 'not_found' } satisfies Partial<CapabilityError>)
     await expect(
-      gatewayWith().handle(request({ name: 'list_open_documents', arguments: { extra: true } })),
+      gatewayWith().handle(request({ name: 'list_open_documents', input: { extra: true } })),
     ).rejects.toMatchObject({ code: 'validation_error' } satisfies Partial<CapabilityError>)
   })
 })

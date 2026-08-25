@@ -130,7 +130,7 @@ export class ShellMcpGateway implements McpBridgeGateway {
 
   private async callTool(request: McpBridgeRequest): Promise<ToolResult> {
     const name = request.params.name
-    const argumentsValue = request.params.arguments ?? {}
+    const argumentsValue = request.params.input ?? {}
     if (typeof name !== 'string') {
       throw new CapabilityError('validation_error', 'Tool name must be a string')
     }
