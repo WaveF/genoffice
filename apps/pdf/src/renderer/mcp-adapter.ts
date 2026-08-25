@@ -2,6 +2,7 @@ export type PdfMcpOperation =
   | { op: 'add_note'; page: number; x: number; y: number; contents: string }
   | { op: 'add_markup'; page: number; type: 'highlight' | 'underline' | 'strikeout'; quads: number[][] }
   | { op: 'set_form_value'; name: string; kind: 'text' | 'checkbox' | 'radio' | 'choice'; value?: string; checked?: boolean }
+  | { op: 'insert_text'; page: number; x: number; y: number; text: string; fontSize?: number }
 
 export function handlePdfMcpRequest(
   action: 'pdf.get_document_context' | 'pdf.read_page_context' | 'pdf.apply_operations',
@@ -23,7 +24,7 @@ export function handlePdfMcpRequest(
     if (!Number.isSafeInteger(expectedRevision) || expectedRevision !== (state.revision ?? 0)) throw new Error('Document changed since it was read')
     if (!Array.isArray(input.operations) || input.operations.length === 0 || input.operations.length > 50) throw new Error('1 to 50 operations are required')
     const operations = input.operations.map((operation) => parseOperation(operation, state.pageCount))
-    const result = { revision: state.revision ?? 0, dryRun, changes: { notes: operations.filter((op) => op.op === 'add_note').length, markups: operations.filter((op) => op.op === 'add_markup').length, forms: operations.filter((op) => op.op === 'set_form_value').length } }
+    const result = { revision: state.revision ?? 0, dryRun, changes: { notes: operations.filter((op) => op.op === 'add_note').length, markups: operations.filter((op) => op.op === 'add_markup').length, forms: operations.filter((op) => op.op === 'set_form_value').length, text: operations.filter((op) => op.op === 'insert_text').length } }
     if (dryRun) return result
     if (!applyOperations) throw new Error('PDF apply handler is unavailable')
     return applyOperations(operations).then(() => ({ ...result, dryRun: false, revision: (state.revision ?? 0) + 1 }))
@@ -55,6 +56,10 @@ function parseOperation(value: unknown, pageCount: number): PdfMcpOperation {
   const page = operation.page
   if (!Number.isSafeInteger(page) || (page as number) < 0 || (page as number) >= pageCount) throw new Error('Operation page is outside the document')
   const pageIndex = page as number
+  if (operation.op === 'insert_text') {
+    if (!Number.isFinite(operation.x) || !Number.isFinite(operation.y) || typeof operation.text !== 'string' || operation.text.length === 0 || operation.text.length > 4096 || (operation.fontSize !== undefined && (!Number.isFinite(operation.fontSize) || (operation.fontSize as number) < 4 || (operation.fontSize as number) > 144))) throw new Error('insert_text requires bounded coordinates, text, and fontSize')
+    return { op: 'insert_text', page: pageIndex, x: operation.x as number, y: operation.y as number, text: operation.text, ...(operation.fontSize === undefined ? {} : { fontSize: operation.fontSize as number }) }
+  }
   if (operation.op === 'add_note') {
     if (!Number.isFinite(operation.x) || !Number.isFinite(operation.y) || typeof operation.contents !== 'string' || operation.contents.length === 0 || operation.contents.length > 4096) throw new Error('add_note requires bounded coordinates and contents')
     return { op: 'add_note', page: pageIndex, x: operation.x as number, y: operation.y as number, contents: operation.contents }

@@ -1562,7 +1562,7 @@ export default function App() {
           id: `mcp-${newId()}`, pageIndex: operation.page, type: operation.type,
           color: operation.type === 'highlight' ? MARKUP_COLORS.highlight : MARKUP_COLORS[operation.type], quads: operation.quads,
         }])
-      } else {
+      } else if (operation.op === 'set_form_value') {
         const field = formCatalog?.fields.get(operation.name)
         if (!field || field.readOnly || field.kind !== operation.kind) {
           throw new Error('Form field is missing, read-only, or has a different kind')
@@ -1572,6 +1572,11 @@ export default function App() {
           ...(operation.value === undefined ? {} : { value: operation.value }),
           ...(operation.checked === undefined ? {} : { checked: operation.checked }),
         }))
+      } else {
+        setTextInserts((previous) => [...previous, {
+          id: newId(),
+          input: { pageIndex: operation.page, origin: [operation.x, operation.y], text: operation.text, fontSize: operation.fontSize ?? 12, color: [0, 0, 0] },
+        }])
       }
     }
     mcpRevisionRef.current += 1
