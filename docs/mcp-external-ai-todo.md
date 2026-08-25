@@ -46,7 +46,7 @@
 | CAP-04 | 在 `TabManager` 中实现 documentId → WebContents/adapter 的显式路由。 | P0 | CAP-02 | 已完成 | Codex | `apps/shell/src/main/tab-manager.ts` | 通过 documentId 精确查询后台 Tab 的 target，不以 active Tab 作为隐式目标。 | |
 | CAP-05 | 实现全局只读 tools：`list_open_documents`、`get_document_status`。 | P0 | CAP-04 | 已完成 | Codex | shell gateway | 已实现显式 documentId 状态查询、未知/关闭文档错误和参数校验单测。 | |
 | CAP-06 | 实现全局写 tools：`activate_document`、`save_document`、`undo`、`redo`。 | P0 | CAP-03 | 未开始 | TBD | shell gateway + app adapters | 所有写工具需要 expectedRevision；保存后返回 path/revision；已有 UI undo/redo 语义不变。 | |
-| CAP-07 | 建立每个 documentId 的串行写队列与请求取消策略。 | P0 | CAP-03 | 未开始 | TBD | shell gateway | 同文档写请求按顺序执行；客户端断开时未开始请求被取消，执行中的操作安全收尾。 | |
+| CAP-07 | 建立每个 documentId 的串行写队列与请求取消策略。 | P0 | CAP-03 | 进行中 | Codex | `apps/shell/src/main/mcp/write-queue.ts` | 已对 MCP Slides 写入按 documentId 串行化；断开前未开始的请求返回 cancelled，待真实 adapter 集成测试。 | |
 
 ## 3. 权限、确认、审计与输入限制
 

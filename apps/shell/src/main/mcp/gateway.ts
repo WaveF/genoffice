@@ -8,6 +8,7 @@ import {
 } from '@genoffice/capabilities'
 import type { McpBridgeGateway, McpBridgeRequest } from './bridge'
 import type { McpPermissionGate } from './permissions'
+import { DocumentWriteQueue } from './write-queue'
 
 /** Small interface keeps the gateway unit-testable without an Electron runtime. */
 export interface DocumentTargetSource {
@@ -27,7 +28,9 @@ export interface SlidesMcpWriter extends SlidesMcpReader {
     rawOps: unknown,
     expectedRevision: number,
     dryRun?: boolean,
-  ): { applied: boolean; revision: number; [key: string]: unknown }
+  ):
+    | { applied: boolean; revision: number; [key: string]: unknown }
+    | Promise<{ applied: boolean; revision: number; [key: string]: unknown }>
 }
 
 interface ToolDescriptor {
@@ -110,6 +113,8 @@ function executionContext(request: McpBridgeRequest): ExecutionContext {
 
 /** Main-process router for the initial, capability-scoped MCP tool surface. */
 export class ShellMcpGateway implements McpBridgeGateway {
+  private readonly writeQueue = new DocumentWriteQueue()
+
   constructor(
     private readonly documents: DocumentTargetSource,
     private readonly slides?: SlidesMcpReader,
@@ -182,13 +187,19 @@ export class ShellMcpGateway implements McpBridgeGateway {
       }
       const target = await this.requireSlidesTarget(documentId)
       const slides = this.requireSlidesWriter()
-      if (!dryRun) await this.requirePermissions().authorize({
-        clientId: context.clientId,
-        toolName: name,
-        risk: 'write',
-        document: target,
-      })
-      const result = slides.applyOps(target.webContentsId, rawOps, expectedRevision, dryRun)
+      const execute = async () => {
+        if (!dryRun)
+          await this.requirePermissions().authorize({
+            clientId: context.clientId,
+            toolName: name,
+            risk: 'write',
+            document: target,
+          })
+        return slides.applyOps(target.webContentsId, rawOps, expectedRevision, dryRun)
+      }
+      const result = dryRun
+        ? await execute()
+        : await this.writeQueue.enqueue(target.documentId, context.signal, execute)
       return toolResult(JSON.stringify(result), result.applied, result.revision)
     }
     throw new CapabilityError('not_found', `Unknown MCP tool: ${name}`)
