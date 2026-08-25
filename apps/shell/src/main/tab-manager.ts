@@ -177,6 +177,17 @@ export class TabManager {
     return tab ? this.toDocumentTarget(tab) : null
   }
 
+  /** Activate only the tab identified by an opaque document ID. */
+  async activateDocument(documentId: string): Promise<DocumentTarget | null> {
+    const tab = this.tabs.find(
+      (candidate): candidate is TabRecord & { view: WebContentsView; documentId: string } =>
+        candidate.documentId === documentId && candidate.view !== null && candidate.kind !== 'home',
+    )
+    if (!tab) return null
+    this.activateTab(tab.id)
+    return this.toDocumentTarget(tab)
+  }
+
   private async toDocumentTarget(
     tab: TabRecord & { view: WebContentsView; documentId: string },
   ): Promise<DocumentTarget> {

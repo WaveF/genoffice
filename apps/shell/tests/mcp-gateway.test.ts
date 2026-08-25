@@ -21,6 +21,10 @@ function gatewayWith(documents: DocumentTarget[] = [target]): ShellMcpGateway {
     listDocumentTargets: async () => documents,
     findDocumentTarget: async (documentId) =>
       documents.find((candidate) => candidate.documentId === documentId) ?? null,
+    activateDocument: async (documentId) => {
+      const found = documents.find((candidate) => candidate.documentId === documentId) ?? null
+      return found ? { ...found, active: true } : null
+    },
   }
   const slides: SlidesMcpReader = {
     getDeckContext: () => ({ revision: 3, slideCount: 1, slides: [{ slideId: 's_1', index: 0 }] }),
@@ -121,6 +125,18 @@ describe('ShellMcpGateway', () => {
       mutated: true,
       revision: 4,
     })
+  })
+
+  it('activates an explicit document only when its revision matches', async () => {
+    const result = await gatewayWith().handle(
+      request({ name: 'activate_document', input: { documentId: 'doc-123', expectedRevision: 3 } }),
+    )
+    expect(result).toMatchObject({ mutated: false, revision: 3 })
+    await expect(
+      gatewayWith().handle(
+        request({ name: 'activate_document', input: { documentId: 'doc-123', expectedRevision: 2 } }),
+      ),
+    ).rejects.toMatchObject({ code: 'conflict' })
   })
 
   it('rejects unknown, closed, and malformed document requests', async () => {

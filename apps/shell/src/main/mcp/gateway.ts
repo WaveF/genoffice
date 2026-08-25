@@ -15,6 +15,7 @@ import { DocumentWriteQueue } from './write-queue'
 export interface DocumentTargetSource {
   listDocumentTargets(): Promise<DocumentTarget[]>
   findDocumentTarget(documentId: string): Promise<DocumentTarget | null>
+  activateDocument(documentId: string): Promise<DocumentTarget | null>
 }
 
 /** Read-only portion of the Slides facade, injected to avoid an Electron dependency in gateway tests. */
@@ -86,6 +87,11 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
     name: 'slides.get_deck_context',
     description: 'Read the slide IDs and element counts for one open Slides document.',
     inputSchema: GET_DOCUMENT_STATUS.inputSchema,
+  },
+  {
+    name: 'activate_document',
+    description: 'Bring one explicitly identified open GenOffice document to the foreground.',
+    inputSchema: DOCUMENT_REVISION_INPUT_SCHEMA,
   },
   {
     name: 'slides.read_slide',
@@ -245,6 +251,26 @@ export class ShellMcpGateway implements McpBridgeGateway {
           : slides.redo(target.webContentsId, expectedRevision)
       })
       return toolResult(JSON.stringify(result), result.applied, result.revision)
+    }
+    if (name === 'activate_document') {
+      const { documentId, expectedRevision } = this.requireDocumentRevision(argumentsValue)
+      const target = await this.documents.findDocumentTarget(documentId)
+      if (!target) throw new CapabilityError('not_found', 'Document is no longer open')
+      if (target.revision !== expectedRevision) {
+        throw new CapabilityError('conflict', 'Document changed since it was read', {
+          expectedRevision,
+          actualRevision: target.revision,
+        })
+      }
+      await this.requirePermissions().authorize({
+        clientId: context.clientId,
+        toolName: name,
+        risk: 'write',
+        document: target,
+      })
+      const activated = await this.documents.activateDocument(documentId)
+      if (!activated) throw new CapabilityError('not_found', 'Document is no longer open')
+      return toolResult(JSON.stringify(activated), false, activated.revision)
     }
     throw new CapabilityError('not_found', `Unknown MCP tool: ${name}`)
   }

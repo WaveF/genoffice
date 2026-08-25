@@ -232,6 +232,17 @@ describe('opening tabs', () => {
     await manager.closeTab(docsTabId)
     await expect(manager.findDocumentTarget(documents[0].documentId)).resolves.toBeNull()
   })
+
+  it('activates only the tab addressed by its opaque document ID', async () => {
+    manager.openDocsTab()
+    manager.openSlidesTab()
+    const documents = await manager.listDocumentTargets()
+    const docs = documents.find((document) => document.kind === 'docs')!
+
+    const activated = await manager.activateDocument(docs.documentId)
+    expect(activated).toMatchObject({ documentId: docs.documentId, active: true })
+    expect(manager.list().find((tab) => tab.kind === 'docs')?.active).toBe(true)
+  })
 })
 
 describe('activation', () => {
