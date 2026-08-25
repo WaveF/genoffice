@@ -202,6 +202,23 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
     inputSchema: GET_DOCUMENT_STATUS.inputSchema,
   })),
   {
+    name: 'sheets.read_range',
+    description: 'Read one explicit bounded cell range from an open workbook.',
+    inputSchema: {
+      type: 'object', additionalProperties: false, required: ['documentId', 'sheetId', 'range'],
+      properties: {
+        documentId: { type: 'string', minLength: 1, maxLength: 128 },
+        sheetId: { type: 'string', minLength: 1, maxLength: 128 },
+        range: { type: 'string', minLength: 1, maxLength: 64 },
+      },
+    },
+  },
+  {
+    name: 'pdf.read_page_context',
+    description: 'Read bounded text context for one explicit page of an open PDF.',
+    inputSchema: { type: 'object', additionalProperties: false, required: ['documentId', 'page'], properties: { documentId: { type: 'string' }, page: { type: 'integer', minimum: 0 } } },
+  },
+  {
     name: 'slides.apply_ops',
     description: 'Validate or atomically apply canonical edits to an open Slides document.',
     inputSchema: {
@@ -330,6 +347,24 @@ export class ShellMcpGateway implements McpBridgeGateway {
       const documentId = this.requireOnlyDocumentId(argumentsValue)
       const target = await this.requireRendererTarget(documentId, kind)
       const result = await this.requireRenderer().request(target.webContentsId, name as RendererMcpAction, {}, context.signal)
+      return toolResult(JSON.stringify(result), false, target.revision)
+    }
+    if (name === 'sheets.read_range') {
+      const { documentId, sheetId, range } = argumentsValue
+      if (
+        typeof documentId !== 'string' || typeof sheetId !== 'string' || typeof range !== 'string' ||
+        documentId.length === 0 || sheetId.length === 0 || range.length === 0 || Object.keys(argumentsValue).length !== 3
+      ) throw new CapabilityError('validation_error', 'documentId, sheetId, and range are required')
+      const target = await this.requireRendererTarget(documentId, 'sheets')
+      const result = await this.requireRenderer().request(target.webContentsId, 'sheets.read_range', { sheetId, range }, context.signal)
+      return toolResult(JSON.stringify(result), false, target.revision)
+    }
+    if (name === 'pdf.read_page_context') {
+      const documentId = argumentsValue.documentId
+      const page = argumentsValue.page
+      if (typeof documentId !== 'string' || typeof page !== 'number' || !Number.isSafeInteger(page) || page < 0 || Object.keys(argumentsValue).length !== 2) throw new CapabilityError('validation_error', 'documentId and non-negative page are required')
+      const target = await this.requireRendererTarget(documentId, 'pdf')
+      const result = await this.requireRenderer().request(target.webContentsId, 'pdf.read_page_context', { page }, context.signal)
       return toolResult(JSON.stringify(result), false, target.revision)
     }
     if (

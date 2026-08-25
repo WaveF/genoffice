@@ -83,6 +83,8 @@ describe('ShellMcpGateway', () => {
         expect.objectContaining({ name: 'slides.render_preview' }),
         expect.objectContaining({ name: 'docs.get_context' }),
         expect.objectContaining({ name: 'markdown.read_blocks' }),
+        expect.objectContaining({ name: 'sheets.read_range' }),
+        expect.objectContaining({ name: 'pdf.read_page_context' }),
       ]),
     )
   })
@@ -136,6 +138,28 @@ describe('ShellMcpGateway', () => {
     await expect(
       gatewayWith([docsTarget]).handle(
         request({ name: 'markdown.get_context', input: { documentId: 'doc-123' } }),
+      ),
+    ).rejects.toMatchObject({ code: 'validation_error' })
+  })
+
+  it('routes bounded Sheets and PDF reads to their matching renderer targets', async () => {
+    const sheetsTarget = { ...target, kind: 'sheets' as const }
+    const pdfTarget = { ...target, documentId: 'doc-pdf', kind: 'pdf' as const }
+    const sheets = await gatewayWith([sheetsTarget, pdfTarget]).handle(
+      request({ name: 'sheets.read_range', input: { documentId: 'doc-123', sheetId: 'sheet-1', range: 'A1:B2' } }),
+    )
+    const pdf = await gatewayWith([sheetsTarget, pdfTarget]).handle(
+      request({ name: 'pdf.read_page_context', input: { documentId: 'doc-pdf', page: 0 } }),
+    )
+    expect(JSON.parse((sheets as { content: string }).content)).toMatchObject({
+      action: 'sheets.read_range', input: { sheetId: 'sheet-1', range: 'A1:B2' },
+    })
+    expect(JSON.parse((pdf as { content: string }).content)).toMatchObject({
+      action: 'pdf.read_page_context', input: { page: 0 },
+    })
+    await expect(
+      gatewayWith([sheetsTarget]).handle(
+        request({ name: 'pdf.get_document_context', input: { documentId: 'doc-123' } }),
       ),
     ).rejects.toMatchObject({ code: 'validation_error' })
   })

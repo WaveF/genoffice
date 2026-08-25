@@ -99,6 +99,7 @@ import type { CharStyle } from './color-runs'
 import { platformShortcuts } from '@genoffice/i18n'
 import { Dropdown, useDismissablePopover } from '@genoffice/ui'
 import { useI18n } from './i18n/locale'
+import { handlePdfMcpRequest } from './mcp-adapter'
 import { useAutosave } from './useAutosave'
 import type {
   AnnotDeleteInput,
@@ -384,6 +385,14 @@ export default function App() {
   /** WPS-style paragraph boxes shown while edit-text mode is on, clustered lazily
       per visible page from the search index (PDF space; cleared on doc reload) */
   const [pageBlocks, setPageBlocks] = useState<Map<number, TextBlock[]>>(new Map())
+  useEffect(() => window.pdfApi.onMcpRequest((request) => {
+    try {
+      const result = handlePdfMcpRequest(request.action, request.input, { pageCount: doc?.numPages ?? 0, sizes, pageBlocks })
+      window.pdfApi.respondMcpRequest({ requestId: request.requestId, ok: true, result })
+    } catch (error) {
+      window.pdfApi.respondMcpRequest({ requestId: request.requestId, ok: false, error: error instanceof Error ? error.message : 'PDF MCP request failed' })
+    }
+  }), [doc, sizes, pageBlocks])
   const [blockHover, setBlockHover] = useState<{ origIdx: number; idx: number } | null>(null)
   /** Border-drag of a clustered block (WPS-style move); client-space endpoints,
       converted to a PDF-space delta on release like the image-edit drag */

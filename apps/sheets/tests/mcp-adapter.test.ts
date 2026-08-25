@@ -1,0 +1,34 @@
+import { describe, expect, it } from 'vitest'
+import { InMemoryWorkbookAdapter } from '../src/domain/in-memory-workbook'
+import { handleSheetsMcpRequest } from '../src/renderer/mcp-adapter'
+
+const adapter = new InMemoryWorkbookAdapter({
+  revision: 7,
+  sheets: [{ id: 'sheet-1', name: 'Data', cells: { A1: { value: 'Name' }, B1: { value: 42 }, A2: { formula: '=B1*2', value: null } } }],
+})
+
+describe('handleSheetsMcpRequest', () => {
+  it('returns compact workbook metadata without cell contents', () => {
+    expect(handleSheetsMcpRequest(adapter, 'sheets.get_workbook_context', {})).toEqual({
+      revision: 7,
+      sheets: [{ id: 'sheet-1', name: 'Data', cellCount: 3 }],
+    })
+  })
+
+  it('reads only an explicit rectangular range and includes blank cells', () => {
+    expect(handleSheetsMcpRequest(adapter, 'sheets.read_range', { sheetId: 'sheet-1', range: 'A1:B2' })).toEqual({
+      revision: 7,
+      sheetId: 'sheet-1',
+      range: 'A1:B2',
+      cells: [
+        { address: 'A1', value: 'Name' }, { address: 'B1', value: 42 },
+        { address: 'A2', formula: '=B1*2', value: null }, { address: 'B2', value: null },
+      ],
+    })
+  })
+
+  it('rejects oversized or malformed range requests', () => {
+    expect(() => handleSheetsMcpRequest(adapter, 'sheets.read_range', { sheetId: 'sheet-1', range: 'A1:A2001' })).toThrow('2000')
+    expect(() => handleSheetsMcpRequest(adapter, 'sheets.read_range', { sheetId: 'sheet-1' })).toThrow('sheetId and range')
+  })
+})

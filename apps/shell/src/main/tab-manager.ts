@@ -225,7 +225,7 @@ export class TabManager {
 
   private documentRevision(tab: TabRecord & { view: WebContentsView; documentId: string }): number {
     if (tab.kind === 'slides') return slidesRevision(tab.view.webContents.id)
-    if (tab.kind === 'docs' || tab.kind === 'markdown') return rendererMcpRevision(tab.view.webContents.id)
+    if (tab.kind === 'docs' || tab.kind === 'markdown' || tab.kind === 'sheets' || tab.kind === 'pdf') return rendererMcpRevision(tab.view.webContents.id)
     return tab.revision ?? 0
   }
 
