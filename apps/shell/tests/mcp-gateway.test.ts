@@ -86,6 +86,7 @@ describe('ShellMcpGateway', () => {
         expect.objectContaining({ name: 'sheets.read_range' }),
         expect.objectContaining({ name: 'pdf.read_page_context' }),
         expect.objectContaining({ name: 'pdf.search' }),
+        expect.objectContaining({ name: 'pdf.read_annotations' }),
       ]),
     )
   })
@@ -173,6 +174,16 @@ describe('ShellMcpGateway', () => {
     expect(result).toMatchObject({ mutated: false, revision: 3 })
     expect(JSON.parse((result as { content: string }).content)).toMatchObject({
       action: 'pdf.search', input: { query: 'revenue' },
+    })
+  })
+
+  it('routes one explicit PDF annotation page through the fixed renderer bridge', async () => {
+    const pdfTarget = { ...target, kind: 'pdf' as const }
+    const result = await gatewayWith([pdfTarget]).handle(
+      request({ name: 'pdf.read_annotations', input: { documentId: 'doc-123', page: 0 } }),
+    )
+    expect(JSON.parse((result as { content: string }).content)).toMatchObject({
+      action: 'pdf.read_annotations', input: { page: 0 },
     })
   })
 
