@@ -38,6 +38,9 @@ describe('SlidesMcpAdapter', () => {
     const before = { ...session.opened.deck.size }
     const ops = [{ op: 'setSlideSize', cx: before.cx + 1000, cy: before.cy + 1000 }]
 
+    expect(adapter.getDeckContext(WEB_CONTENTS_ID)).toMatchObject({ revision: 0, slideCount: 1 })
+    expect(adapter.readSlide(WEB_CONTENTS_ID, 0)).toMatchObject({ revision: 0, index: 0 })
+
     expect(adapter.applyOps(WEB_CONTENTS_ID, ops, 0, true)).toMatchObject({
       applied: false,
       dryRun: true,
@@ -61,6 +64,27 @@ describe('SlidesMcpAdapter', () => {
       revision: 0,
       mimeType: 'image/png',
       base64: 'iVBORw0KGgo=',
+    })
+  })
+
+  it('supports explicit slide lifecycle and application-controlled save callbacks', async () => {
+    expect(adapter.addSlide(WEB_CONTENTS_ID, 0, 0)).toMatchObject({ applied: true, revision: 1 })
+    expect(session.opened.deck.slides).toHaveLength(2)
+    expect(adapter.deleteSlide(WEB_CONTENTS_ID, 1, 1)).toMatchObject({ applied: true, revision: 2 })
+    expect(session.opened.deck.slides).toHaveLength(1)
+
+    const save = vi.fn(async () => ({ ok: true as const, path: '/not-exposed.pptx' }))
+    const savingAdapter = new SlidesMcpAdapter(save)
+    await expect(savingAdapter.save(WEB_CONTENTS_ID, 2)).resolves.toEqual({ saved: true, revision: 2 })
+    expect(save).toHaveBeenCalledWith(WEB_CONTENTS_ID)
+  })
+
+  it('maps renderer preview failures to the standard renderer-unavailable error', async () => {
+    const unavailable = new SlidesMcpAdapter(undefined, async () => {
+      throw new Error('renderer reloaded')
+    })
+    await expect(unavailable.renderSlidePreview(WEB_CONTENTS_ID, 0)).rejects.toMatchObject({
+      code: 'renderer_unavailable',
     })
   })
 })
