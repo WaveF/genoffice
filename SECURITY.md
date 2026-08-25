@@ -73,6 +73,44 @@ lockdown (`sandbox: true`, `contextIsolation: true`, `nodeIntegration: false`),
 no preload script, no IPC surface — the main process drives it exclusively
 through `executeJavaScript` and destroys it under a watchdog timeout.
 
+## Threat Model: External MCP control
+
+The MCP integration exposes a narrow local capability surface to an external
+AI client. It is not a general Electron IPC, filesystem, or renderer-control
+channel.
+
+- The Shell creates a fresh random token and a private Unix socket (or Windows
+  named pipe) for every application session. Discovery files are user-only on
+  POSIX and are removed on shutdown. The bridge has no HTTP listener.
+- The bridge assigns its own connection identity. An MCP client cannot select
+  another connection's identity to reuse a write permission grant.
+- Tools address only opaque `documentId` values for documents already open in
+  GenOffice. File paths, `WebContents` IDs, archive bytes, and arbitrary IPC
+  channels are never MCP inputs or outputs.
+- Main-process adapters validate capability schemas and apply bounded input
+  limits. Slides accepts only registered canonical operations; archive bytes,
+  source paths, scripts, and oversized/nested payloads are rejected.
+- Writes require `expectedRevision`, are serialized per document, and return
+  `conflict` when a document changed after it was read. The renderer's active
+  selection is never an implicit write target.
+- First write/file operations require an application-native confirmation for
+  the current bridge connection. Destructive slide operations require a new
+  confirmation every time. Save operations use only application-controlled
+  paths.
+- Audit logs contain only connection ID, tool name, document ID, outcome, and
+  revision. They intentionally omit token values, generated content, tool
+  arguments, API keys, and file paths.
+
+Documents may contain untrusted instructions intended to influence an external
+AI. GenOffice treats document text as data: it does not automatically grant
+additional MCP permissions, open paths, invoke tools, or execute scripts based
+on document content. External AI clients should similarly treat document text
+as untrusted input.
+
+Report any way to read unopened local files, bypass an MCP confirmation,
+reuse another connection's grant, invoke an arbitrary IPC channel, or retain a
+working bridge after GenOffice exits as a security vulnerability.
+
 ## Out of Scope
 
 - The cloud AI services this client talks to are operated separately and are

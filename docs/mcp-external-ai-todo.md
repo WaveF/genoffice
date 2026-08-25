@@ -57,7 +57,7 @@
 | SEC-03 | 为删除、关闭未保存文档、覆盖文件、超过阈值的批量写入增加强制二次确认。 | P0 | SEC-02 | 进行中 | Codex | Slides MCP guard + permissions | `deleteSlide`/`deleteElement`/`deleteComment` 已要求每次允许一次；关闭、覆盖和批量阈值待对应 tool 落地。 | |
 | SEC-04 | 实现审计日志（client、tool、documentId、输入摘要、结果、revision、时间）。 | P1 | INF-04 | 进行中 | Codex | `apps/shell/src/main/mcp/audit.ts` | 已记录安全元数据并实现 1 MiB rotation；待依赖恢复后执行测试与补充 retention。 | |
 | SEC-05 | 统一限制参数深度、payload 大小、base64 大小、数组长度和单次批量 op 数量。 | P0 | CAP-01 | 进行中 | Codex | adapter/bridge schema guard | 已限制 stdio/bridge 单行 1 MiB、gateway 输入 256 KiB、深度/字段/数组/字符串上限；Slides guard 额外禁止 bytes/path/source，待补全其余 adapter。 | |
-| SEC-06 | 完成 MCP threat model，并更新 `SECURITY.md`。 | P1 | SEC-01..05 | 未开始 | TBD | `SECURITY.md` | 覆盖本机 token、恶意 MCP client、文档 prompt injection、renderer 崩溃、文件路径与审计。 | |
+| SEC-06 | 完成 MCP threat model，并更新 `SECURITY.md`。 | P1 | SEC-01..05 | 进行中 | Codex | `SECURITY.md` | 已覆盖 token、恶意 client、prompt injection、路径、权限与审计；待 renderer 崩溃/三端包验证完成后收尾。 | |
 
 ## 4. Slides MVP
 
