@@ -76,13 +76,13 @@
 
 | ID | 任务 | 优先级 | 依赖 | 状态 | 负责人 | 代码落点 | 验收标准 | PR |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| RBR-01 | 定义主进程 ↔ renderer 的专用 `mcp:request` / `mcp:response` 协议。 | P0 | CAP-01, SEC-05 | 未开始 | TBD | shared IPC + preload | 请求含 requestId/documentId/revision；无通用 `invoke(channel,args)` 逃逸口。 | |
-| RBR-02 | 实现 renderer 请求超时、销毁检测和取消；gateway 将错误映射为标准 MCP 错误。 | P0 | RBR-01 | 未开始 | TBD | shell gateway + preload | renderer reload/destroy 不会导致请求永久挂起。 | |
-| DOC-01 | 将 Docs AI tools 中与模型无关的编辑能力提取到 renderer capability adapter。 | P1 | RBR-01 | 未开始 | TBD | `apps/docs/src/renderer/capabilities/` | 不依赖 AiPanel/AgentLoop；保留已有 block/command 验证。 | |
-| DOC-02 | 实现 Docs 读取与写入 tools：context、read_blocks、insert_content、replace_blocks、apply_commands。 | P1 | DOC-01, CAP-03, SEC-02 | 未开始 | TBD | Docs adapter | 人工编辑造成版本冲突时无写入；每次成功写入进入现有 undo 栈。 | |
+| RBR-01 | 定义主进程 ↔ renderer 的专用 `mcp:request` / `mcp:response` 协议。 | P0 | CAP-01, SEC-05 | 进行中 | Codex | Shell `renderer-bridge` + shared IPC + preload | 已建立固定 action/requestId 的单向桥，未暴露通用 `invoke(channel,args)`；revision 字段待写入能力接入。 | |
+| RBR-02 | 实现 renderer 请求超时、销毁检测和取消；gateway 将错误映射为标准 MCP 错误。 | P0 | RBR-01 | 进行中 | Codex | Shell `renderer-bridge` | 已有 sender 绑定、AbortSignal、发送失败和 15 秒超时；待 bridge 单测覆盖。 | |
+| DOC-01 | 将 Docs AI tools 中与模型无关的编辑能力提取到 renderer capability adapter。 | P1 | RBR-01 | 进行中 | Codex | `apps/docs/src/renderer/mcp-adapter.ts` | 已抽取不依赖 AiPanel 的只读 block adapter；写入 commands 待抽取。 | |
+| DOC-02 | 实现 Docs 读取与写入 tools：context、read_blocks、insert_content、replace_blocks、apply_commands。 | P1 | DOC-01, CAP-03, SEC-02 | 进行中 | Codex | Docs adapter + Shell gateway | `docs.get_context`/`docs.read_blocks` 已路由；写入 tools 待 revision/undo 接入。 | |
 | DOC-03 | 为 Docs bridge 写集成测试。 | P1 | DOC-02 | 未开始 | TBD | `apps/docs/tests/` | 覆盖 selection 不作为隐式写入目标、reload、关闭、撤销和保存。 | |
-| MD-01 | 将 Markdown AI tools 提取到 renderer capability adapter。 | P1 | RBR-01 | 未开始 | TBD | `apps/markdown/src/renderer/capabilities/` | 不依赖 AiPanel/AgentLoop。 | |
-| MD-02 | 实现 Markdown context/read/insert/replace/commands MCP tools。 | P1 | MD-01, CAP-03, SEC-02 | 未开始 | TBD | Markdown adapter | 真实 `.md` 文档读写、undo/redo、保存回写可用。 | |
+| MD-01 | 将 Markdown AI tools 提取到 renderer capability adapter。 | P1 | RBR-01 | 进行中 | Codex | `apps/markdown/src/renderer/mcp-adapter.ts` | 已抽取不依赖 AiPanel 的 Markdown block adapter；写入 commands 待抽取。 | |
+| MD-02 | 实现 Markdown context/read/insert/replace/commands MCP tools。 | P1 | MD-01, CAP-03, SEC-02 | 进行中 | Codex | Markdown adapter + Shell gateway | `markdown.get_context`/`markdown.read_blocks` 已路由；写入 tools 待 revision/undo 接入。 | |
 | MD-03 | 为 Markdown bridge 写集成测试。 | P1 | MD-02 | 未开始 | TBD | `apps/markdown/tests/` | 覆盖路径安全、本地图片限制、冲突与重载。 | |
 
 ## 6. Sheets 与 PDF：能力提取

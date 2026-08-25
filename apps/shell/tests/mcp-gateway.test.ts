@@ -3,6 +3,7 @@ import { CapabilityError, type DocumentTarget } from '@genoffice/capabilities'
 import {
   ShellMcpGateway,
   type DocumentTargetSource,
+  type RendererMcpReader,
   type SlidesMcpReader,
 } from '../src/main/mcp/gateway'
 
@@ -36,6 +37,9 @@ function gatewayWith(documents: DocumentTarget[] = [target]): ShellMcpGateway {
       base64: 'iVBORw0KGgo=',
     }),
   }
+  const renderer: RendererMcpReader = {
+    request: async (_webContentsId, action, input) => ({ action, input, blocks: [] }),
+  }
   return new ShellMcpGateway(source, {
     ...slides,
     opsRisk: () => 'write',
@@ -50,7 +54,7 @@ function gatewayWith(documents: DocumentTarget[] = [target]): ShellMcpGateway {
     deleteSlide: (_webContentsId, _slide, expectedRevision) => ({ applied: true, revision: expectedRevision + 1 }),
   }, {
     authorize: async () => undefined,
-  })
+  }, undefined, renderer)
 }
 
 function request(params: Record<string, unknown>) {
@@ -77,6 +81,8 @@ describe('ShellMcpGateway', () => {
         expect.objectContaining({ name: 'list_open_documents' }),
         expect.objectContaining({ name: 'slides.apply_ops' }),
         expect.objectContaining({ name: 'slides.render_preview' }),
+        expect.objectContaining({ name: 'docs.get_context' }),
+        expect.objectContaining({ name: 'markdown.read_blocks' }),
       ]),
     )
   })
@@ -106,6 +112,32 @@ describe('ShellMcpGateway', () => {
     )
     expect(context).toMatchObject({ revision: 3, mutated: false })
     expect(JSON.parse((slide as { content: string }).content)).toEqual({ revision: 3, slide: 's_1' })
+  })
+
+  it('routes Docs and Markdown reads through the fixed renderer bridge', async () => {
+    const docsTarget = { ...target, kind: 'docs' as const }
+    const markdownTarget = { ...target, documentId: 'doc-markdown', kind: 'markdown' as const }
+    const docs = await gatewayWith([docsTarget, markdownTarget]).handle(
+      request({ name: 'docs.get_context', input: { documentId: 'doc-123' } }),
+    )
+    const markdown = await gatewayWith([docsTarget, markdownTarget]).handle(
+      request({
+        name: 'markdown.read_blocks',
+        input: { documentId: 'doc-markdown', start: 2, limit: 10 },
+      }),
+    )
+    expect(JSON.parse((docs as { content: string }).content)).toMatchObject({
+      action: 'docs.get_context',
+    })
+    expect(JSON.parse((markdown as { content: string }).content)).toMatchObject({
+      action: 'markdown.read_blocks',
+      input: { start: 2, limit: 10 },
+    })
+    await expect(
+      gatewayWith([docsTarget]).handle(
+        request({ name: 'markdown.get_context', input: { documentId: 'doc-123' } }),
+      ),
+    ).rejects.toMatchObject({ code: 'validation_error' })
   })
 
   it('renders a bounded Slides preview through the explicit document/slide route', async () => {

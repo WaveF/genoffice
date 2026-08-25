@@ -127,6 +127,15 @@ export interface MarkdownApi {
   sendCloseSaveResult(ok: boolean): void
   /** The file was renamed on disk (Home list rename) — renderer syncs its display path */
   onFileRenamed(handler: (newPath: string) => void): () => void
+  /** Fixed MCP renderer bridge; it never exposes arbitrary IPC invocation. */
+  onMcpRequest(
+    handler: (request: {
+      requestId: string
+      action: 'markdown.get_context' | 'markdown.read_blocks'
+      input: Record<string, unknown>
+    }) => void,
+  ): () => void
+  respondMcpRequest(response: { requestId: string; ok: boolean; result?: unknown; error?: string }): void
   /**
    * Pick an image file and copy it into `assets/` next to the open document;
    * returns the relative path to author into the markdown, or null when the

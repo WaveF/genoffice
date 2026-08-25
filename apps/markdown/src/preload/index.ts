@@ -27,6 +27,19 @@ const api: MarkdownApi = {
     ipcRenderer.on(MARKDOWN_CHANNELS.fileRenamed, listener)
     return () => ipcRenderer.removeListener(MARKDOWN_CHANNELS.fileRenamed, listener)
   },
+  onMcpRequest: (handler) => {
+    const listener = (
+      _e: Electron.IpcRendererEvent,
+      request: {
+        requestId: string
+        action: 'markdown.get_context' | 'markdown.read_blocks'
+        input: Record<string, unknown>
+      },
+    ) => handler(request)
+    ipcRenderer.on('mcp:renderer-request', listener)
+    return () => ipcRenderer.removeListener('mcp:renderer-request', listener)
+  },
+  respondMcpRequest: (response) => ipcRenderer.send('mcp:renderer-response', response),
   pickImage: () => ipcRenderer.invoke(MARKDOWN_CHANNELS.pickImage),
   saveImage: (data) => ipcRenderer.invoke(MARKDOWN_CHANNELS.saveImage, data),
   readImage: (src) => ipcRenderer.invoke(MARKDOWN_CHANNELS.readImage, src),

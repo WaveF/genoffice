@@ -220,6 +220,15 @@ export interface DesktopApi {
   onOpenDocx(handler: (result: Exclude<OpenDocxResult, null>) => void): () => void
   /** File was renamed externally (renamed in the shell Home list) — pushes old and new paths; renderer syncs its save path and title bar */
   onRenamedDocx(handler: (paths: { oldPath: string; newPath: string }) => void): () => void
+  /** Fixed MCP renderer bridge; it never exposes arbitrary IPC invocation. */
+  onMcpRequest(
+    handler: (request: {
+      requestId: string
+      action: 'docs.get_context' | 'docs.read_blocks'
+      input: Record<string, unknown>
+    }) => void,
+  ): () => void
+  respondMcpRequest(response: { requestId: string; ok: boolean; result?: unknown; error?: string }): void
   /** auto=true marks an autosave: an externally modified file then fails with
    *  reason 'external-modified' instead of prompting (manual saves get an
    *  Overwrite/Cancel dialog in the main process) */

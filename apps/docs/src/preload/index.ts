@@ -62,6 +62,19 @@ const api: DesktopApi = {
     ipcRenderer.on('docs:renamed', listener)
     return () => ipcRenderer.removeListener('docs:renamed', listener)
   },
+  onMcpRequest: (handler) => {
+    const listener = (
+      _event: IpcRendererEvent,
+      request: {
+        requestId: string
+        action: 'docs.get_context' | 'docs.read_blocks'
+        input: Record<string, unknown>
+      },
+    ) => handler(request)
+    ipcRenderer.on('mcp:renderer-request', listener)
+    return () => ipcRenderer.removeListener('mcp:renderer-request', listener)
+  },
+  respondMcpRequest: (response) => ipcRenderer.send('mcp:renderer-response', response),
   saveDocx: (path: string, data: ArrayBuffer, auto?: boolean) =>
     ipcRenderer.invoke('docs:save', path, data, auto === true),
   writeRecoveryCopy: (path: string, data: ArrayBuffer) =>

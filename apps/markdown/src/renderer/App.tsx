@@ -26,6 +26,7 @@ import { DOCX_MAX_IMAGE_PX, exportDocxBytes } from './export/docxExport'
 import { buildPrintHtml } from './export/printHtml'
 import { resolveImageSrc } from './editor/localImage'
 import type { ExportFormat, SaveMode } from '../shared/ipc'
+import { handleMarkdownMcpRequest } from './mcp-adapter'
 
 type LoadStatus = 'loading' | 'ready' | 'error'
 type SaveState = 'idle' | 'saving' | 'saved' | 'failed'
@@ -188,6 +189,25 @@ export default function App() {
   })
   editorRef.current = editor
   filePathRef.current = filePath
+
+  useEffect(() => {
+    if (!editor) return
+    return window.markdownApi.onMcpRequest((request) => {
+      try {
+        window.markdownApi.respondMcpRequest({
+          requestId: request.requestId,
+          ok: true,
+          result: handleMarkdownMcpRequest(editor, request.action, request.input),
+        })
+      } catch (error) {
+        window.markdownApi.respondMcpRequest({
+          requestId: request.requestId,
+          ok: false,
+          error: error instanceof Error ? error.message : 'Markdown MCP request failed',
+        })
+      }
+    })
+  }, [editor])
 
   useEffect(() => {
     setImageBaseDir(filePath ? dirOf(filePath) : null)

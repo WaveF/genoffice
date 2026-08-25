@@ -14,6 +14,7 @@ import { DOMParser as PmDOMParser, type Mark as PmMark } from '@tiptap/pm/model'
 import { NodeSelection } from '@tiptap/pm/state'
 import { Dropdown } from '@genoffice/ui'
 import { markdownPasteHtml } from './editor/markdown-paste'
+import { handleDocsMcpRequest } from './mcp-adapter'
 import {
   BLANK_BULLET_NUM_ID,
   BLANK_ORDERED_NUM_ID,
@@ -849,6 +850,25 @@ export function App() {
       forceRender()
     },
   })
+
+  useEffect(() => {
+    if (!editor) return
+    return window.desktop.onMcpRequest((request) => {
+      try {
+        window.desktop.respondMcpRequest({
+          requestId: request.requestId,
+          ok: true,
+          result: handleDocsMcpRequest(editor, request.action, request.input),
+        })
+      } catch (error) {
+        window.desktop.respondMcpRequest({
+          requestId: request.requestId,
+          ok: false,
+          error: error instanceof Error ? error.message : 'Docs MCP request failed',
+        })
+      }
+    })
+  }, [editor])
 
   // textbox sub-editors: re-render the ribbon on focus/selection changes and
   // mark the document dirty when their content changes

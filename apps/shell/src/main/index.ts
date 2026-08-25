@@ -189,6 +189,7 @@ import { showErrorDialog } from './error-dialog'
 import { normalizeRecentQuery, pageRecentPaths, statExistingPaths } from './recent-files'
 import { TabManager } from './tab-manager'
 import { LocalMcpBridge } from './mcp/bridge'
+import { RendererMcpBridge } from './mcp/renderer-bridge'
 import { ShellMcpGateway } from './mcp/gateway'
 import { SessionMcpPermissionGate } from './mcp/permissions'
 import { FileMcpAuditLogger } from './mcp/audit'
@@ -2303,6 +2304,7 @@ const tm = (key: Parameters<typeof tMain>[1], params?: Parameters<typeof tMain>[
 let shellWindow: BrowserWindow | null = null
 let tabManager: TabManager | null = null
 let mcpBridge: LocalMcpBridge | null = null
+let rendererMcpBridge: RendererMcpBridge | null = null
 
 /**
  * When the user creates a file from a specific project view, remember which
@@ -4216,6 +4218,7 @@ app.whenReady().then(async () => {
   createShellWindow()
   if (tabManager) {
     try {
+      rendererMcpBridge = new RendererMcpBridge()
       mcpBridge = new LocalMcpBridge({
         userDataPath: app.getPath('userData'),
         ...(existsSync(MCP_ADAPTER_PATH) ? { adapterPath: MCP_ADAPTER_PATH } : {}),
@@ -4224,6 +4227,7 @@ app.whenReady().then(async () => {
           new SlidesMcpAdapter(saveOpenSlidesDocument, renderOpenSlidesMcpPreview),
           new SessionMcpPermissionGate(),
           new FileMcpAuditLogger(app.getPath('userData')),
+          rendererMcpBridge,
         ),
       })
       await mcpBridge.start()

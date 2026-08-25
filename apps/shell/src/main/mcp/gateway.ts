@@ -12,6 +12,7 @@ import type { McpPermissionGate } from './permissions'
 import { DocumentWriteQueue } from './write-queue'
 import type { McpAuditLogger } from './audit'
 import { assertSafeMcpInput } from './input-guard'
+import type { RendererMcpAction, RendererMcpBridge } from './renderer-bridge'
 
 /** Small interface keeps the gateway unit-testable without an Electron runtime. */
 export interface DocumentTargetSource {
@@ -50,6 +51,15 @@ export interface SlidesMcpWriter extends SlidesMcpReader {
     slide: number | string,
     expectedRevision: number,
   ): { applied: boolean; revision: number; [key: string]: unknown }
+}
+
+export interface RendererMcpReader {
+  request(
+    webContentsId: number,
+    action: RendererMcpAction,
+    input: Record<string, unknown>,
+    signal: AbortSignal,
+  ): Promise<unknown>
 }
 
 interface ToolDescriptor {
@@ -149,6 +159,27 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
       properties: { documentId: { type: 'string', minLength: 1, maxLength: 128 }, slide: { anyOf: [{ type: 'integer', minimum: 0 }, { type: 'string', minLength: 1 }] } },
     },
   },
+  ...(['docs', 'markdown'] as const).flatMap((kind) => [
+    {
+      name: `${kind}.get_context`,
+      description: `Read a compact context summary from one open ${kind} document.`,
+      inputSchema: GET_DOCUMENT_STATUS.inputSchema,
+    },
+    {
+      name: `${kind}.read_blocks`,
+      description: `Read a bounded block range from one open ${kind} document.`,
+      inputSchema: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['documentId'],
+        properties: {
+          documentId: { type: 'string', minLength: 1, maxLength: 128 },
+          start: { type: 'integer', minimum: 0 },
+          limit: { type: 'integer', minimum: 1, maximum: 100 },
+        },
+      },
+    },
+  ]),
   {
     name: 'slides.apply_ops',
     description: 'Validate or atomically apply canonical edits to an open Slides document.',
@@ -193,6 +224,7 @@ export class ShellMcpGateway implements McpBridgeGateway {
     private readonly slides?: SlidesMcpReader,
     private readonly permissions?: McpPermissionGate,
     private readonly audit?: McpAuditLogger,
+    private readonly renderer?: RendererMcpReader,
   ) {}
 
   async handle(request: McpBridgeRequest): Promise<unknown> {
@@ -247,6 +279,30 @@ export class ShellMcpGateway implements McpBridgeGateway {
       const { documentId, slide } = this.requireDocumentSlide(argumentsValue)
       const target = await this.requireSlidesTarget(documentId)
       return toolResult(JSON.stringify(await this.requireSlides().renderSlidePreview(target.webContentsId, slide)), false, target.revision)
+    }
+    if (
+      name === 'docs.get_context' ||
+      name === 'markdown.get_context' ||
+      name === 'docs.read_blocks' ||
+      name === 'markdown.read_blocks'
+    ) {
+      const [kind, operation] = name.split('.') as ['docs' | 'markdown', 'get_context' | 'read_blocks']
+      const documentId =
+        operation === 'get_context'
+          ? this.requireOnlyDocumentId(argumentsValue)
+          : this.requireDocumentBlockRange(argumentsValue).documentId
+      const target = await this.requireRendererTarget(documentId, kind)
+      const input =
+        operation === 'get_context'
+          ? {}
+          : this.requireDocumentBlockRange(argumentsValue)
+      const result = await this.requireRenderer().request(
+        target.webContentsId,
+        name as RendererMcpAction,
+        input,
+        context.signal,
+      )
+      return toolResult(JSON.stringify(result), false, target.revision)
     }
     if (name === 'slides.apply_ops') {
       const documentId = argumentsValue.documentId
@@ -429,11 +485,52 @@ export class ShellMcpGateway implements McpBridgeGateway {
     return { documentId, slide: slide as number | string }
   }
 
+  private requireDocumentBlockRange(argumentsValue: Record<string, unknown>): {
+    documentId: string
+    start?: number
+    limit?: number
+  } {
+    const documentId = argumentsValue.documentId
+    const start = argumentsValue.start
+    const limit = argumentsValue.limit
+    if (
+      typeof documentId !== 'string' ||
+      documentId.length === 0 ||
+      (start !== undefined &&
+        (typeof start !== 'number' || !Number.isSafeInteger(start) || start < 0)) ||
+      (limit !== undefined &&
+        (typeof limit !== 'number' || !Number.isSafeInteger(limit) || limit < 1 || limit > 100)) ||
+      Object.keys(argumentsValue).some((key) => !['documentId', 'start', 'limit'].includes(key))
+    ) {
+      throw new CapabilityError('validation_error', 'documentId and optional bounded start/limit are required')
+    }
+    return {
+      documentId,
+      ...(typeof start === 'number' ? { start } : {}),
+      ...(typeof limit === 'number' ? { limit } : {}),
+    }
+  }
+
   private async requireSlidesTarget(documentId: string): Promise<DocumentTarget> {
     const target = await this.documents.findDocumentTarget(documentId)
     if (!target) throw new CapabilityError('not_found', 'Document is no longer open')
     if (target.kind !== 'slides') throw new CapabilityError('validation_error', 'Document is not a Slides deck')
     return target
+  }
+
+  private async requireRendererTarget(
+    documentId: string,
+    kind: 'docs' | 'markdown',
+  ): Promise<DocumentTarget> {
+    const target = await this.documents.findDocumentTarget(documentId)
+    if (!target) throw new CapabilityError('not_found', 'Document is no longer open')
+    if (target.kind !== kind) throw new CapabilityError('validation_error', `Document is not a ${kind} document`)
+    return target
+  }
+
+  private requireRenderer(): RendererMcpReader {
+    if (!this.renderer) throw new CapabilityError('not_running', 'Renderer MCP support is unavailable')
+    return this.renderer
   }
 
   private requireSlides(): SlidesMcpReader {
