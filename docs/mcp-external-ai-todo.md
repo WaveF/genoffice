@@ -95,7 +95,7 @@
 | SHT-04 | 为 Sheets 写端到端测试。 | P1 | SHT-02..03 | 未开始 | TBD | `apps/sheets/tests/` | 覆盖真实 xlsx、懒加载、公式、结构修改、保存回写。 | |
 | PDF-01 | 盘点 PDF AI tools 的 renderer/main 依赖，定义 document-scoped adapter。 | P1 | CAP-01 | 已完成 | Codex | `apps/pdf/src/renderer/mcp-adapter.ts`、`App.tsx` | document-scoped bridge 与风险矩阵已完成。 | |
 | PDF-02 | 实现 PDF 只读 tools：page context、search、annotations、forms、outline。 | P2 | PDF-01, RBR-01 | 已完成 | Codex | PDF adapter | 页面文字、书签、表单摘要、搜索、批注计数与逐项单页批注读取已完成并受限输出。 | |
-| PDF-03 | 实现 PDF 写 tools：text/annotation/form/image/page 操作。 | P2 | PDF-02, SEC-02, SEC-03 | 进行中 | Codex | PDF adapter | 可撤销的 note/markup 批处理已完成；text/form/image/page 操作及页操作确认待补。 | |
+| PDF-03 | 实现 PDF 写 tools：text/annotation/form/image/page 操作。 | P2 | PDF-02, SEC-02, SEC-03 | 进行中 | Codex | PDF adapter | note/markup、text、form、PNG image 与单页删除已完成；删除走 destructive 权限确认。替换/拆分/合并页仍待补。 | |
 | PDF-04 | 为 PDF 写端到端测试。 | P2 | PDF-02..03 | 未开始 | TBD | `apps/pdf/tests/` | 覆盖保存、取消、页面删除确认、renderer 销毁。 | |
 
 ## 7. 下线内置 AI
