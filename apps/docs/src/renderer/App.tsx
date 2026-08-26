@@ -3704,6 +3704,7 @@ export function App() {
     onSave: () => void save(false),
     onSaveAs: () => void save(true),
     onToggleAi: () => setShowAi((v) => !v),
+    onAiPreset: () => {},
     onSection: (next: SectionSettings) => {
       // layout applies to the cursor's section; the final section's sectPr goes through SaveOptions.section (also drives canvas geometry)
       setSections((prev) =>
@@ -3752,11 +3753,6 @@ export function App() {
     onZoom: setZoom,
     onZoomFit: zoomFit,
     onDarkCanvas: setDarkCanvas,
-    onAiPreset: (text: string) => {
-      // Word's Editor / Translate start working as soon as they're clicked
-      setShowAi(true)
-      setAiPreset({ text, nonce: Date.now(), autoRun: true })
-    },
     onHeader: (next: HeaderFooter) => {
       setHeader(next)
       setHeaderDirty(true)
@@ -4290,10 +4286,6 @@ export function App() {
           onParagraphDialog={() => setShowParaDialog(true)}
           onLink={() => setShowLinkModal(true)}
           onNewComment={startNewComment}
-          onAiPreset={(text) => {
-            setShowAi(true)
-            setAiPreset({ text, nonce: Date.now(), autoRun: true })
-          }}
           onRestartNumbering={restartNumbering}
           onContinueNumbering={continueNumbering}
           onUpdateFields={updateFields}
