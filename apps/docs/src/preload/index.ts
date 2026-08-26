@@ -1,10 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { IpcRendererEvent } from 'electron'
 import type {
-  AiChatRequest,
-  AiSettings,
-  AiStreamChunk,
-  AiStreamRequest,
   DesktopApi,
   MenuCommand,
   UiTheme,
@@ -48,8 +44,6 @@ const api: DesktopApi = {
     ipcRenderer.invoke('docs:discard-password-intents', throughRevision),
   consumePendingOpenDocx: () => ipcRenderer.invoke('docs:consume-pending-open'),
   consumeNewBlankDoc: () => ipcRenderer.invoke('docs:consume-new-blank'),
-  consumeAiDocContent: () => ipcRenderer.invoke('docs:consume-ai-doc-content'),
-  createDocument: (request) => ipcRenderer.invoke('docs:create-document', request),
   onOpenDocx: (handler) => {
     const listener = (_event: IpcRendererEvent, result: Parameters<typeof handler>[0]) =>
       handler(result)
@@ -104,38 +98,13 @@ const api: DesktopApi = {
     ipcRenderer.invoke('docs:print-pdf-buffer', pageWidthTwips, pageHeightTwips),
   saveMergedPdf: (defaultName: string, base64Parts: string[], outPath?: string) =>
     ipcRenderer.invoke('docs:save-merged-pdf', defaultName, base64Parts, outPath),
-  getAiSettings: () => ipcRenderer.invoke('ai:get-settings'),
-  setAiSettings: (settings: AiSettings) => ipcRenderer.invoke('ai:set-settings', settings),
-  aiChat: (request: AiChatRequest) => ipcRenderer.invoke('ai:chat', request),
-  aiStream: (request: AiStreamRequest) => ipcRenderer.invoke('ai:stream', request),
-  aiStreamCancel: (requestId: string) => ipcRenderer.invoke('ai:stream-cancel', requestId),
-  aiGskStatus: (withEmail?: boolean) => ipcRenderer.invoke('ai:gsk-status', withEmail),
-  aiGskLogin: () => ipcRenderer.invoke('ai:gsk-login'),
-  webSearch: (query: string, maxResults?: number) =>
-    ipcRenderer.invoke('ai:web-search', query, maxResults),
-  imageSearch: (query: string, maxResults?: number) =>
-    ipcRenderer.invoke('ai:image-search', query, maxResults),
   fetchImage: (url: string) => ipcRenderer.invoke('ai:fetch-image', url),
-  aiGenerateImage: (op: { prompt: string; aspectRatio?: string }) =>
-    ipcRenderer.invoke('docs:ai-generate-image', op),
-  pickAttachments: () => ipcRenderer.invoke('files:pick'),
-  addAttachmentPaths: (paths: string[]) => ipcRenderer.invoke('files:add', paths),
-  addPastedImage: (data: ArrayBuffer, ext: string) =>
-    ipcRenderer.invoke('files:add-pasted-image', data, ext),
   copyImageToClipboard: (dataUrl: string, metaJson?: string) =>
     ipcRenderer.invoke('docs:copy-image-to-clipboard', dataUrl, metaJson),
-  readAttachment: (path: string, offset: number, maxChars: number) =>
-    ipcRenderer.invoke('files:read', path, offset, maxChars),
-  readAttachmentImage: (path: string) => ipcRenderer.invoke('files:read-image', path),
   getPathForFile: (file: File) => webUtils.getPathForFile(file),
   openNewTab: (openPath?: string | null) => ipcRenderer.invoke('win:new', openPath ?? null),
   listDocsTabs: () => ipcRenderer.invoke('win:list'),
   focusDocsTab: (id: string) => ipcRenderer.invoke('win:focus', id),
-  onAiStream: (handler: (chunk: AiStreamChunk) => void) => {
-    const listener = (_event: IpcRendererEvent, chunk: AiStreamChunk) => handler(chunk)
-    ipcRenderer.on('ai:stream-chunk', listener)
-    return () => ipcRenderer.removeListener('ai:stream-chunk', listener)
-  },
   onMenuCommand: (handler: (command: MenuCommand, payload?: string) => void) => {
     const listener = (_event: IpcRendererEvent, command: MenuCommand, payload?: string) =>
       handler(command, payload)
