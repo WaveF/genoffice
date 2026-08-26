@@ -58,8 +58,6 @@ import { ContextMenu } from './components/ContextMenu'
 import { ShapeGalleryPopover } from './components/ShapeGalleryPopover'
 import { PasteOptionsFloater } from './components/PasteOptionsFloater'
 import {
-  AiAskPopover,
-  AiAskTrigger,
   type AnchorRect,
   type AskTarget,
 } from './components/AiAskPopover'
@@ -1197,13 +1195,13 @@ export function App() {
     [findNodeCtx, slides, current],
   )
 
-  const getAskAnchorRect = useCallback(
+  const _getAskAnchorRect = useCallback(
     (): AnchorRect | null => (askState ? selectionRect(askState.ids) : null),
     [askState, selectionRect],
   )
 
   /** Anchor for the floating Ask AI chip that follows the live selection */
-  const getAskTriggerRect = useCallback(
+  const _getAskTriggerRect = useCallback(
     (): AnchorRect | null => (selectedIds.length > 0 ? selectionRect(selectedIds) : null),
     [selectedIds, selectionRect],
   )
@@ -1218,7 +1216,7 @@ export function App() {
     setAskState({ ids: selectedIds })
   }, [editing, editingCell, selectedIds])
 
-  const commitAsk = useCallback(
+  const _commitAsk = useCallback(
     (instruction: string) => {
       const state = askState
       setAskState(null)
@@ -3919,43 +3917,6 @@ export function App() {
             </div>
           </div>
         </div>
-      )}
-
-      {!askState &&
-        !editing &&
-        !editingCell &&
-        !cropTarget &&
-        !cutoutTarget &&
-        inkTool === 'select' &&
-        selectedIds.length > 0 && (
-          <AiAskTrigger getAnchorRect={getAskTriggerRect} onOpen={openAskPopover} />
-        )}
-
-      {askState && askTargets.length > 0 && (
-        <AiAskPopover
-          targets={askTargets}
-          getAnchorRect={getAskAnchorRect}
-          queueFull={editQueue.length >= EDIT_QUEUE_MAX}
-          onSubmit={(instruction) => {
-            askClosedAtRef.current = Date.now()
-            commitAsk(instruction)
-          }}
-          onCancel={() => {
-            askClosedAtRef.current = Date.now()
-            setAskState(null)
-          }}
-          onSendNow={
-            askState.itemKey
-              ? undefined
-              : (instruction) => {
-                  askClosedAtRef.current = Date.now()
-                  setAskState(null)
-                  // A normal run reads the live canvas selection, so the
-                  // instruction lands scoped to the still-selected element(s)
-                  pushAiPreset(instruction)
-                }
-          }
-        />
       )}
 
       {ctxMenu && (
