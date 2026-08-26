@@ -38,10 +38,9 @@ import {
 } from '@genoffice/docx-engine'
 import type { AiDocContent, AiSettings, OpenDocxResult } from '../shared/ipc'
 import { AI_PROVIDERS } from '../shared/ipc'
-import { AiPanel, AI_REVISION_AUTHOR } from './ai/AiPanel'
+const AI_REVISION_AUTHOR = 'AI Assistant'
 import type { AiCommentsAccess, AiHeaderFooterAccess } from './ai/tools'
 import { applyHfText, hfEditText } from './editor/hf-text'
-import { AiAskPopover } from './components/AiAskPopover'
 import { EDIT_QUEUE_MAX, selectionForAnchor, type DocsEditQueueItem } from './ai/edit-queue'
 import { addQueueAnchor, clearQueueAnchors, removeQueueAnchors } from './editor/ai-queue-anchors'
 import { asianCharCount, countWords, nonAsianWordCount } from './word-count'
@@ -4010,34 +4009,6 @@ export function App() {
       />
 
       <div className="app-main">
-        {doc && (
-          <div className={`ai-dock${showAi ? '' : ' collapsed'}`}>
-            {/* always mounted: collapse must not drop state or in-flight runs */}
-            <AiPanel
-              key={aiPanelKey}
-              editor={editor}
-              blocks={doc.parsed.blocks}
-              settings={settings}
-              docEmpty={wordCount === 0}
-              numIdFallback={
-                doc.isBlank ? { bullet: BLANK_BULLET_NUM_ID, ordered: BLANK_ORDERED_NUM_ID } : null
-              }
-              preset={aiPreset}
-              open={showAi}
-              onExpand={() => setShowAi(true)}
-              onCollapse={() => setShowAi(false)}
-              filePath={doc?.filePath ?? null}
-              editQueue={editQueue}
-              onQueueEditInstruction={queueUpdate}
-              onQueueRemove={queueRemove}
-              onQueueClear={queueClear}
-              onQueueFocus={queueFocus}
-              onQueueConsume={queueConsume}
-              commentsAccess={aiCommentsAccess}
-              hfAccess={aiHfAccess}
-            />
-          </div>
-        )}
         <div className="app-content">
           <div className={`workspace ${darkCanvas ? 'workspace-dark' : ''}`}>
             {doc && showFind && (
@@ -4053,17 +4024,6 @@ export function App() {
               />
             )}
             {doc && showNav && <NavPane editor={editor} doc={editor.state.doc} />}
-            {doc && (
-              <AiAskPopover
-                editor={editor}
-                queueFull={editQueue.length >= EDIT_QUEUE_MAX}
-                getItem={getQueueItem}
-                onSendNow={askSendNow}
-                onQueueAdd={queueAdd}
-                onQueueUpdate={queueUpdate}
-                onQueueRemove={queueRemove}
-              />
-            )}
             <div className="editor-area">
               <main className="editor-scroll">
                 {doc ? (
