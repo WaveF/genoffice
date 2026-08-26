@@ -57,10 +57,7 @@ import { formatClock, type CustomShow } from './slideshow-utils'
 import { ContextMenu } from './components/ContextMenu'
 import { ShapeGalleryPopover } from './components/ShapeGalleryPopover'
 import { PasteOptionsFloater } from './components/PasteOptionsFloater'
-import {
-  type AnchorRect,
-  type AskTarget,
-} from './components/AiAskPopover'
+import { type AnchorRect, type AskTarget } from './components/AiAskPopover'
 import {
   anchorId,
   describeNode,
@@ -1097,14 +1094,14 @@ export function App() {
     if (slides.length === 0) void window.slidesApi.getRecentFiles().then(setRecent)
   }, [slides.length])
 
-  const toggleAi = useCallback(() => {
+  const _toggleAi = useCallback(() => {
     setShowAi((v) => {
       localStorage.setItem('ai-slides-show-ai', v ? '0' : '1')
       return !v
     })
   }, [])
 
-  const pushAiPreset = useCallback(
+  const _pushAiPreset = useCallback(
     (
       text: string,
       autoRun = true,
@@ -2760,10 +2757,6 @@ export function App() {
         onZoom={previewZoom}
         showThumbs={showThumbs}
         onToggleThumbs={() => setShowThumbs((v) => !v)}
-        aiOpen={showAi}
-        onToggleAi={toggleAi}
-        onAiPreset={(text, opts) => pushAiPreset(text, true, undefined, undefined, opts?.slideShot)}
-        onAskSelection={openAskPopover}
         onInsert={(kind) => void insertElement(kind)}
         onPickShape={pickShape}
         onInsertImage={() => void insertImage()}
