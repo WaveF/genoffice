@@ -81,9 +81,7 @@ export interface FileActionContext {
   setShowPrintDialog: (show: boolean) => void
   setStatus: (status: string) => void
   setRecent: (paths: string[]) => void
-  setShowAi: (show: boolean) => void
   setDoc: Dispatch<SetStateAction<DocState | null>>
-  setAiPanelKey: Dispatch<SetStateAction<number>>
   setDocCss: (css: string) => void
   setShowPagePreview: (show: boolean) => void
   section: SectionSettings | null
@@ -275,7 +273,6 @@ export async function loadFile(
     // Done here, not in the main process's loadDocx — Review > Compare also
     // opens files without replacing the current document.
     discardStalePasswordIntents()
-    ctx.setAiPanelKey((k) => k + 1)
     ctx.setDocCss(docStyleCss(parsed))
     ctx.setSection(readSectionSettings(parsed))
     ctx.setSections(readSections(parsed))
@@ -381,7 +378,6 @@ export async function newFile(ctx: FileActionContext): Promise<boolean | undefin
     // a fresh blank draft starts unencrypted: drop any pending password left by
     // the previous draft (its DocState, including the encrypted flag, is gone)
     discardStalePasswordIntents()
-    ctx.setAiPanelKey((k) => k + 1)
     ctx.setDocCss(docStyleCss(parsed))
     ctx.setSection(readSectionSettings(parsed))
     ctx.setSections(readSections(parsed))
@@ -420,7 +416,6 @@ export async function newFile(ctx: FileActionContext): Promise<boolean | undefin
     ctx.onWriteProtectionLoaded(null)
     ctx.setCompareResult(null)
     ctx.dirtyRef.current = false
-    ctx.setShowAi(true)
     ctx.setStatus(t('appNewDocCreated'))
     return true
   } catch (err) {

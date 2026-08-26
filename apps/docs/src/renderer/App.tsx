@@ -381,9 +381,6 @@ export function App() {
   } | null>(null)
   const [_recent, setRecent] = useState<string[]>([])
   const [_settings, setSettings] = useState<AiSettings>(DEFAULT_SETTINGS)
-  const [showAi, setShowAi] = useState(() => localStorage.getItem('aidocs.showAi') !== '0')
-  /** Increments on every open/new document: AiPanel remounts by key to reset the conversation and history (save path changes don't bump it, so the session continues) */
-  const [aiPanelKey, setAiPanelKey] = useState(0)
   const [ribbonTabRequest, setRibbonTabRequest] = useState<{ tab: string; nonce: number } | null>(
     null,
   )
@@ -866,10 +863,6 @@ export function App() {
   }, [])
 
   useEffect(() => {
-    localStorage.setItem('aidocs.showAi', showAi ? '1' : '0')
-  }, [showAi])
-
-  useEffect(() => {
     localStorage.setItem('aidocs.autoSave', autoSave ? '1' : '0')
   }, [autoSave])
 
@@ -1014,9 +1007,7 @@ export function App() {
     setShowPrintDialog,
     setStatus,
     setRecent,
-    setShowAi,
     setDoc,
-    setAiPanelKey,
     setDocCss,
     setShowPagePreview,
     section,
@@ -3533,7 +3524,7 @@ export function App() {
     onOpen: () => void openFile(),
     onSave: () => void save(false),
     onSaveAs: () => void save(true),
-    onToggleAi: () => setShowAi((v) => !v),
+    onToggleAi: () => {},
     onAiPreset: () => {},
     onSection: (next: SectionSettings) => {
       // layout applies to the cursor's section; the final section's sectPr goes through SaveOptions.section (also drives canvas geometry)
@@ -3787,7 +3778,7 @@ export function App() {
         blocks={doc?.parsed.blocks ?? EMPTY_BLOCKS}
         styles={ribbonStyles}
         docDefaults={doc?.parsed.docDefaults}
-        showAi={showAi}
+        showAi={false}
         section={sections[activeSection]?.settings ?? section}
         activeSection={sections.length > 1 ? activeSection : null}
         pageColor={pageColor}
