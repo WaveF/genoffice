@@ -129,7 +129,6 @@ import {
 } from './decoration-extensions'
 import { AutoDirectionExtension } from './direction'
 import { InactiveSelectionExtension } from './inactive-selection'
-import { AiQueueAnchorsExtension } from './ai-queue-anchors'
 import { PageGapNavExtension } from './page-gap-nav'
 import { moveBlocks } from './move-block'
 export * from './marks'
@@ -4056,7 +4055,6 @@ export const editorExtensions = [
   ListNumberingExtension,
   PaginationGapsExtension,
   InactiveSelectionExtension,
-  AiQueueAnchorsExtension,
   PageGapNavExtension,
   ImageCopyExtension,
   EnterReplacesSelection,
