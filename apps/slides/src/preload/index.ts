@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer, webUtils } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
 import type { IpcRendererEvent } from 'electron'
 import type { RenderSlide } from '@genoffice/pptx-render'
 import type { ProjectApi } from '@genoffice/project-store'
@@ -52,7 +52,6 @@ import type {
   ShowInkEvent,
   ShowSyncState,
   DeleteElementOp,
-  DesktopFilesApi,
   EditBackgroundOp,
   EditFillOp,
   EditFillImageOp,
@@ -363,20 +362,6 @@ const api: SlidesApi = {
 }
 
 contextBridge.exposeInMainWorld('slidesApi', api)
-
-// Chat attachment bridge: method names/signatures match the window.desktop attachment subset in docs, so the renderer's files-skill is copied over wholesale
-const filesApi: DesktopFilesApi = {
-  pickAttachments: () => ipcRenderer.invoke('slides:files-pick'),
-  addAttachmentPaths: (paths: string[]) => ipcRenderer.invoke('slides:files-add', paths),
-  addPastedImage: (data: ArrayBuffer, ext: string) =>
-    ipcRenderer.invoke('slides:files-add-pasted-image', data, ext),
-  readAttachment: (path: string, offset: number, maxChars: number) =>
-    ipcRenderer.invoke('slides:files-read', path, offset, maxChars),
-  readAttachmentImage: (path: string) => ipcRenderer.invoke('slides:files-read-image', path),
-  getPathForFile: (file: File) => webUtils.getPathForFile(file),
-}
-
-contextBridge.exposeInMainWorld('desktop', filesApi)
 
 const projectApi: ProjectApi = {
   resolveChat: (args) => ipcRenderer.invoke('project:resolveChat', args),

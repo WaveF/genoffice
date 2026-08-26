@@ -46,62 +46,6 @@ export interface OpenResult {
   defaultFont?: string
 }
 
-// ---- Chat attachments (local files fed to the agent via tools; structure copied from apps/docs) ----
-
-/** Image attachment extensions: no text extraction; read as base64 on send and passed to the model as multimodal images with the user message */
-export const ATTACHMENT_IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp'])
-
-export interface AttachmentMeta {
-  /** Absolute local path; files never leave this machine */
-  path: string
-  name: string
-  /** Lowercase extension, without the dot */
-  ext: string
-  sizeBytes: number
-}
-
-export interface AttachmentAddResult {
-  accepted: AttachmentMeta[]
-  /** Per-file rejection reason (too large / unsupported type / unreadable) */
-  rejected: string[]
-}
-
-export interface AttachmentReadResult {
-  ok: boolean
-  error?: string
-  name?: string
-  /** Total character count of the extracted text */
-  totalChars?: number
-  /** The requested slice */
-  text?: string
-  offset?: number
-}
-
-/** Image attachment raw-byte read (multimodal input, slides:files-read-image) */
-export interface AttachmentImageResult {
-  ok: boolean
-  /** raw base64 (without the data: prefix) */
-  base64?: string
-  mime?: string
-  error?: string
-}
-
-/** Attachment bridge (window.desktop): same names/signatures as docs' DesktopApi attachment subset, so files-skill can be copied wholesale */
-export interface DesktopFilesApi {
-  /** Multi-select attachment file dialog */
-  pickAttachments(): Promise<AttachmentAddResult | null>
-  /** Validate dragged-in paths and return attachment metadata */
-  addAttachmentPaths(paths: string[]): Promise<AttachmentAddResult>
-  /** Save a clipboard-pasted image (no local path) to a temp file and add it as an attachment */
-  addPastedImage(data: ArrayBuffer, ext: string): Promise<AttachmentAddResult>
-  /** Read one slice of an attachment's extracted text */
-  readAttachment(path: string, offset: number, maxChars: number): Promise<AttachmentReadResult>
-  /** Read an image attachment as base64 for multimodal (≤5MB) */
-  readAttachmentImage(path: string): Promise<AttachmentImageResult>
-  /** Absolute path of a File dropped on the window (Electron webUtils) */
-  getPathForFile(file: File): string
-}
-
 /** One rich-text run (sent by the editor, with independent formatting). */
 export interface EditRun {
   text: string
@@ -1545,6 +1489,5 @@ export interface SlidesApi {
 declare global {
   interface Window {
     slidesApi: SlidesApi
-    desktop: DesktopFilesApi
   }
 }

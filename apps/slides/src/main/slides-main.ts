@@ -237,7 +237,6 @@ const lastSlidePaste = new Map<number, { afterIndex: number; undoLen: number }>(
 const CLOUD_PAGE_PREFIX = 'cloudpptx:'
 const issuedCloudPages = new Set<string>()
 import { registerPresenterIpc } from './presenter-show'
-import { registerAttachmentIpc } from './attachments-ipc'
 
 export {
   configureSlidesRuntime,
@@ -1041,8 +1040,13 @@ export async function renderOpenSlidesMcpPreview(
 ): Promise<{ pngBase64: string }> {
   const session = sessions.get(webContentsId)
   const contents = webContents.fromId(webContentsId)
-  if (!session || !contents || contents.isDestroyed()) throw new Error('Slides renderer is unavailable')
-  if (!Number.isInteger(slideIndex) || slideIndex < 0 || slideIndex >= session.opened.deck.slides.length) {
+  if (!session || !contents || contents.isDestroyed())
+    throw new Error('Slides renderer is unavailable')
+  if (
+    !Number.isInteger(slideIndex) ||
+    slideIndex < 0 ||
+    slideIndex >= session.opened.deck.slides.length
+  ) {
     throw new Error('Slide is no longer available')
   }
   const requestId = randomUUID()
@@ -4258,13 +4262,9 @@ html, body { margin: 0; padding: 0; }
     }
   })
 
-  // ── Chat attachments (slides:files-*) ──
-  registerAttachmentIpc()
-
   // ── Presenter-view multi-screen show (registered inside registerSlidesIpc: shell
   // aggregate mode only calls this function) ──
   registerPresenterIpc()
-
 }
 
 // ── project-store IPC (standalone mode) ───────────────────────────────────
