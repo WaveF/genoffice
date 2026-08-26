@@ -6,7 +6,7 @@ import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist/legacy/build/pdf.mj
 import type { PDFDocumentProxy } from 'pdfjs-dist'
 import workerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url'
 import { AiPanel, GensparkMark } from './ai/AiPanel'
-import { AiAskPopover, type AskAnchorRect } from './AiAskPopover'
+import type { AskAnchorRect } from './AiAskPopover'
 import { loadSavedAnnots } from './annotation-catalog'
 import {
   OcrTextLayer,
@@ -6110,7 +6110,7 @@ export default function App() {
           )}
           {ribbonTab === 'annotate' && (
             <>
-              <div className="ribbon-group">
+              <div className="ribbon-group" hidden>
                 <div className="ribbon-group-items">
                   <button
                     className="rb-big ai-entry"
@@ -6274,6 +6274,7 @@ export default function App() {
                   <button
                     className="rb-big ai-entry"
                     disabled={readOnly}
+                    hidden
                     data-tip={t('aiFillFormBtn')}
                     onClick={() => runAiPreset(t('aiFillFormPrompt'))}
                   >
@@ -8044,18 +8045,6 @@ export default function App() {
                   {t('aiAskBtn')}
                 </button>
               </div>
-            )}
-            {askPop && (
-              <AiAskPopover
-                rect={askPop.rect}
-                excerpt={askPop.excerpt}
-                readOnly={readOnly}
-                onSend={(text) => {
-                  setAskPop(null)
-                  runAiPreset(text)
-                }}
-                onClose={() => setAskPop(null)}
-              />
             )}
             {selected && (
               <div

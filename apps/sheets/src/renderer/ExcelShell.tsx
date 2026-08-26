@@ -28,7 +28,6 @@ import type { ChartSeriesVisualState } from '../domain/chart-visual'
 import type { ChangePlan } from '../domain/workbook.types'
 import type { AttachmentMeta } from '../shared/desktop-api'
 import { AiChatPanel, type AiChatMessage } from './ai/AiChatPanel'
-import { AiSelectionAsk } from './ai/AiSelectionAsk'
 import type { SelectionAskAnchor } from './ai/selection-ask'
 import {
   PivotDialog,
@@ -336,8 +335,8 @@ export function ExcelShell({
   aiScopeRange,
   aiScopeColumns,
   aiScopeLocked,
-  aiSelectionAskAnchor,
-  onAiSelectionAskDismiss,
+  aiSelectionAskAnchor: _aiSelectionAskAnchor,
+  onAiSelectionAskDismiss: _onAiSelectionAskDismiss,
   onAiScopeDismiss,
   onAiCitation,
   onCommand,
@@ -634,18 +633,6 @@ export function ExcelShell({
           <section className="workbook-area">
             <div id="univer-container" className="spreadsheet" />
           </section>
-          {aiSelectionAskAnchor && aiScopeRange && !aiBusy && (
-            <AiSelectionAsk
-              anchor={aiSelectionAskAnchor}
-              range={aiScopeRange}
-              onDismiss={onAiSelectionAskDismiss}
-              onSend={(instruction) => {
-                setIsCopilotOpen(true)
-                onSend(instruction)
-              }}
-            />
-          )}
-
           {/* Status bar spans the sheet column only — the AI dock keeps the full window height (unified with docs/slides). */}
           <footer className="status-bar">
             <div className="status-left">
