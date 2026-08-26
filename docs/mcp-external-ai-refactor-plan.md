@@ -107,7 +107,7 @@ interface CapabilityTool {
 - `save_document`
 - `undo`
 - `redo`
-- `close_document`（默认需要应用内确认）
+- `close_document`（仅允许已认证 bridge；未保存状态与关闭范围须显式返回给 client）
 
 ### 5.2 Slides：第一个正式支持的编辑器
 
@@ -144,8 +144,8 @@ Slides 的 deck session、undo/redo 和 canonical op registry 已在主进程，
 MCP server 必须视外部 AI 为不可信调用方，包括它传来的文档内容、URL 和工具参数。
 
 - 工具按 `read`、`write`、`file`、`destructive` 分类。
-- 第一次 write/file/destructive 调用在应用内弹窗授权，可按“本次会话”记忆。
-- `delete_*`、覆盖现有文件、关闭未保存文档、批量修改超过阈值时总是再次确认。
+- 仅允许持有本次应用会话 bridge token 的本机 MCP client 调用工具；token 校验通过后不显示应用内授权弹窗。
+- `delete_*`、覆盖现有文件、关闭未保存文档、批量修改超过阈值仍须实施严格的 schema、目标范围与审计限制，但不要求原生确认。
 - 文件路径只接受已打开文档、用户显式授权目录或应用生成的临时文件；禁止任意绝对路径读写。
 - 文本、图片、base64 和批量 ops 设置大小与数量上限。
 - 记录本地审计日志：client id、tool、documentId、输入摘要、结果、时间和 revision；不记录完整文档正文或 API key。
@@ -206,6 +206,6 @@ MCP server 必须视外部 AI 为不可信调用方，包括它传来的文档�
 实施前需确认以下产品决策：
 
 1. 外部 AI 是否只允许控制已打开文档，还是可以通过 MCP 打开本机文件。
-2. 写操作是每次确认、按 MCP client 授权，还是默认允许并依赖客户端权限提示。
+2. 写操作的授权边界：已确认采用每次应用启动轮换的 bridge token，不显示应用内确认。
 3. 是否保留应用内“AI 设置 / Genspark 登录 / 云图像工具”作为非聊天功能。
 4. MCP MVP 的首个文档类型是否接受 Slides 优先；本方案建议接受。

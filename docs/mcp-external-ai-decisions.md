@@ -12,7 +12,7 @@ MVP 不提供任意本机路径的 `open_document`、`read_file` 或 `write_file
 
 ## DEC-03：写入授权
 
-MCP client 首次调用 `write` 或 `file` 风险等级的工具时，GenOffice 显示应用内授权提示；许可只在本次应用会话内对该 client 生效。`destructive` 操作始终再次确认。读取工具不弹窗，但仍要求已完成本机 bridge 认证。
+本机 bridge 的随机 token 是外部 AI 调用 MCP 的唯一授权凭据。每次应用启动都会生成新 token，discovery 文件仅允许当前 OS 用户读取；bridge 在请求进入 gateway 前必须完成 token 校验。通过认证的请求可执行所有已公开工具，不显示应用内逐次或逐文档确认对话框。风险等级仍用于工具注册、参数约束和审计，但不再触发原生授权 UI。
 
 ## DEC-04：内置云 AI 一并下线
 

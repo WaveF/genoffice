@@ -1,5 +1,4 @@
-import { dialog } from 'electron'
-import { CapabilityError, type DocumentTarget, type ToolRisk } from '@genoffice/capabilities'
+import type { DocumentTarget, ToolRisk } from '@genoffice/capabilities'
 
 export interface McpPermissionRequest {
   clientId: string
@@ -13,29 +12,16 @@ export interface McpPermissionGate {
 }
 
 /**
- * Main-process, connection-scoped consent for MCP mutations. Read tools skip
- * this gate. A new bridge connection asks again, even when it reports the
- * same MCP client name.
+ * The LocalMcpBridge validates a fresh, per-application-session secret before
+ * it forwards a request to the gateway. The bridge discovery file is limited
+ * to the current OS user, so a successfully authenticated bridge request is
+ * the authorization boundary for every MCP risk level.
+ *
+ * This class deliberately has no Electron dialog: MCP clients should be able
+ * to perform a sequence of edits without requiring repeated UI interaction.
  */
-export class SessionMcpPermissionGate implements McpPermissionGate {
-  private readonly writeGrants = new Set<string>()
-
-  async authorize(request: McpPermissionRequest): Promise<void> {
-    if (request.risk === 'read') return
-    const key = `${request.clientId}:${request.document.documentId}`
-    if (request.risk === 'write' && this.writeGrants.has(key)) return
-    const result = await dialog.showMessageBox({
-      type: 'warning',
-      buttons: ['Deny', request.risk === 'write' ? 'Allow for this session' : 'Allow once'],
-      defaultId: 0,
-      cancelId: 0,
-      noLink: true,
-      message: 'Allow an external AI to modify this document?',
-      detail: `${request.toolName} requests ${request.risk} access to “${request.document.title}”.`,
-    })
-    if (result.response !== 1) {
-      throw new CapabilityError('permission_denied', 'User did not allow this MCP operation')
-    }
-    if (request.risk === 'write') this.writeGrants.add(key)
+export class AuthenticatedMcpPermissionGate implements McpPermissionGate {
+  async authorize(_request: McpPermissionRequest): Promise<void> {
+    // Authentication is enforced by LocalMcpBridge before the gateway is called.
   }
 }

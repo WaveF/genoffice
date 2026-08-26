@@ -33,7 +33,7 @@ node "<adapterPath from bridge.json>" --discovery "/absolute/path/to/GenOffice/m
 
 - 只可操作用户已经在 GenOffice 中打开的文档。
 - `documentId` 是临时、不透明标识；关闭 Tab 后立即失效。
-- 写入、保存与破坏性操作由应用内原生对话框确认；删除类操作每次确认。
+- bridge token 是 MCP 写入、保存和删除类操作的唯一授权凭据；认证成功后不会显示应用内确认对话框。应用每次启动都会轮换 token。
 - 所有文档写操作使用 `expectedRevision`，过期请求返回 `conflict`。
 - discovery 文件权限限制为当前用户；不要复制、上传或提交其中的 token。
 

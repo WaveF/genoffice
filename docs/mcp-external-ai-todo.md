@@ -21,7 +21,7 @@
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | DEC-01 | 确认 MVP 仅控制“已打开文档”，不支持由 MCP 任意打开本机路径。 | P0 | - | 已完成 | Codex | 决策记录在 `mcp-external-ai-decisions.md`。 | |
 | DEC-02 | 确认首个支持类型为 Slides。 | P0 | - | 已完成 | Codex | 决策记录在 `mcp-external-ai-decisions.md`。 | |
-| DEC-03 | 确认写入授权策略：首次写入按 MCP client 授权，本次会话有效；危险操作每次确认。 | P0 | - | 已完成 | Codex | 决策记录在 `mcp-external-ai-decisions.md`。 | |
+| DEC-03 | 确认写入授权策略：bridge token 为唯一 MCP 授权凭据，认证后不显示应用内确认。 | P0 | - | 已完成 | Codex | 决策记录在 `mcp-external-ai-decisions.md`。 | |
 | DEC-04 | 确认内置 Genspark 登录、云搜索和图像生成在 MCP MVP 后的处理方式。 | P1 | DEC-01 | 已完成 | Codex | 决策为与内置聊天一并移除，记录在 `mcp-external-ai-decisions.md`。 | |
 
 ## 1. 基础设施：MCP adapter 与应用内 gateway
@@ -53,8 +53,8 @@
 | ID | 任务 | 优先级 | 依赖 | 状态 | 负责人 | 代码落点 | 验收标准 | PR |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | SEC-01 | 定义工具风险元数据：`read`、`write`、`file`、`destructive`。 | P0 | CAP-01 | 进行中 | Codex | capabilities + shell gateway | 已为已公开 read/write tools 声明风险；仍需改为强制注册 metadata。 | |
-| SEC-02 | 实现应用内 MCP 授权对话框与“本次会话允许”存储。 | P0 | INF-04, SEC-01 | 进行中 | Codex | `apps/shell/src/main/mcp/permissions.ts` | 已实现 connection-scoped 首次 write 授权；file/destructive tool 尚未公开。 | |
-| SEC-03 | 为删除、关闭未保存文档、覆盖文件、超过阈值的批量写入增加强制二次确认。 | P0 | SEC-02 | 进行中 | Codex | Slides MCP guard + permissions | `deleteSlide`/`deleteElement`/`deleteComment` 已要求每次允许一次；关闭、覆盖和批量阈值待对应 tool 落地。 | |
+| SEC-02 | 将 MCP 授权收敛为 bridge token 校验，不显示应用内确认对话框。 | P0 | INF-04, SEC-01 | 已完成 | Codex | `apps/shell/src/main/mcp/bridge.ts`、`permissions.ts` | bridge 在进入 gateway 前校验每次启动轮换的 token；认证请求直接执行。 | |
+| SEC-03 | 为删除、关闭未保存文档、覆盖文件、超过阈值的批量写入增加严格目标范围、schema 和审计限制。 | P0 | SEC-02 | 进行中 | Codex | Slides MCP guard + permissions | 删除类工具不再弹窗；关闭、覆盖和批量阈值待对应 tool 落地。 | |
 | SEC-04 | 实现审计日志（client、tool、documentId、输入摘要、结果、revision、时间）。 | P1 | INF-04 | 进行中 | Codex | `apps/shell/src/main/mcp/audit.ts` | 已记录安全元数据并实现 1 MiB rotation；待依赖恢复后执行测试与补充 retention。 | |
 | SEC-05 | 统一限制参数深度、payload 大小、base64 大小、数组长度和单次批量 op 数量。 | P0 | CAP-01 | 进行中 | Codex | adapter/bridge schema guard | 已限制 stdio/bridge 单行 1 MiB、gateway 输入 256 KiB、深度/字段/数组/字符串上限；Slides guard 额外禁止 bytes/path/source，待补全其余 adapter。 | |
 | SEC-06 | 完成 MCP threat model，并更新 `SECURITY.md`。 | P1 | SEC-01..05 | 进行中 | Codex | `SECURITY.md` | 已覆盖 token、恶意 client、prompt injection、路径、权限与审计；待 renderer 崩溃/三端包验证完成后收尾。 | |
