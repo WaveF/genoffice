@@ -5,7 +5,6 @@ import type { CSSProperties, MouseEvent as ReactMouseEvent } from 'react'
 import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs'
 import type { PDFDocumentProxy } from 'pdfjs-dist'
 import workerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url'
-import { AiPanel, GensparkMark } from './ai/AiPanel'
 import type { AskAnchorRect } from './AiAskPopover'
 import { loadSavedAnnots } from './annotation-catalog'
 import {
@@ -27,6 +26,7 @@ import {
   viewToPdf,
 } from './annotations'
 import type { LocalMarkup, PageGeom } from './annotations'
+
 import { groupLineSpans } from './text-line'
 import { DRAW_COLORS, DrawLayer, cssRgb } from './DrawLayer'
 import { ColorPickerPopover } from './ColorPicker'
@@ -259,6 +259,12 @@ const RIBBON_TABS = [
 ] as const
 type RibbonTab = (typeof RIBBON_TABS)[number]['id'] | 'fillForm'
 
+const GensparkMark = ({ size = 18 }: { size?: number }) => (
+  <span aria-hidden style={{ fontSize: size, lineHeight: 1 }}>
+    ✦
+  </span>
+)
+
 export default function App() {
   const { lang, t } = useI18n()
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null)
@@ -319,7 +325,7 @@ export default function App() {
     localStorage.setItem('genoffice-pdf-show-ai', aiCollapsed ? '0' : '1')
   }, [aiCollapsed])
   /** One-shot prompt pushed by the ribbon AI buttons; the panel auto-runs it (docs preset pattern) */
-  const [aiPreset, setAiPreset] = useState<{ text: string; nonce: number } | null>(null)
+  const [, setAiPreset] = useState<{ text: string; nonce: number } | null>(null)
   const [ribbonTab, setRibbonTab] = useState<RibbonTab>('home')
   const [spread, setSpread] = useState<1 | 2>(1)
   const [nightMode, setNightMode] = useState(false)
@@ -5191,7 +5197,7 @@ export default function App() {
     return `The document has ${bits.join(' and ')}; use read_annotations to read them.`
   }
 
-  const aiApi: PdfAiDeps = {
+  const _aiApi: PdfAiDeps = {
     doc: () => doc,
     fileName: () => fileName,
     pageCount: () => sizes.length,
@@ -5364,7 +5370,7 @@ export default function App() {
    * PDFs the user merely opened keep the pending-until-⌘S contract (isUntitled is
    * false for them, and the main process would refuse the rename anyway).
    */
-  const autoSaveAfterAiRun = async () => {
+  const _autoSaveAfterAiRun = async () => {
     if (!filePath || readOnly) return
     try {
       if (!(await window.pdfApi.isUntitled(filePath))) return
@@ -6599,28 +6605,6 @@ export default function App() {
         }}
       />
       <div className="app-main">
-        {/* dock wrapper animates the width between panel and rail (docs-style 180ms ease);
-            the panel stays mounted while collapsed so the chat history survives */}
-        <div className={`ai-dock${aiCollapsed ? ' collapsed' : ''}`} hidden>
-          {aiCollapsed && (
-            <button
-              className="ai-rail"
-              data-tip={t('aiOpenAssistant')}
-              aria-label={t('aiOpenAssistant')}
-              onClick={() => setAiCollapsed(false)}
-            >
-              <GensparkMark size={22} />
-            </button>
-          )}
-          <AiPanel
-            api={aiApi}
-            filePath={filePath}
-            preset={aiPreset}
-            onCollapse={() => setAiCollapsed(true)}
-            onRunDone={() => void autoSaveAfterAiRun()}
-            onClearSelection={() => setAiSelection(null)}
-          />
-        </div>
         <div className="app-content">
           <div className="pdf-body">
             {sidebar === 'outline' && outline && (
