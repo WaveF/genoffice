@@ -99,7 +99,6 @@ import {
   recordRecentFile,
   removeRecentFiles,
   replaceRecentFile,
-  registerAiIpc,
   registerProjectIpc,
   toggleStarredFile,
   registerDocsIpc,
@@ -4177,13 +4176,12 @@ app.on('second-instance', (_event, argv, _cwd, additionalData) => {
 
 installNavigationGuard(app)
 installContextMenu(app, () => contextMenuLabels(currentLang()))
-registerAiIpc()
 registerProjectIpc()
 registerDocsIpc()
 registerHomeIpc()
 registerTabsIpc()
 
-// sheets' project:resolveChat goes through the handler registered by docs-main; the sessionId reverse lookup hooks in here
+// Sheets shares the project-session resolver registered by docs-main.
 setSessionPathResolver(resolveSheetsSessionPath)
 
 /** Dev-only pid marker for the takeover below; scoped to userData like the lock itself. */

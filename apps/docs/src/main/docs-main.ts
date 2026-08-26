@@ -4239,7 +4239,6 @@ export function startDocsStandalone(): void {
     mainWindow?.focus()
   })
 
-  registerAiIpc()
   registerProjectIpc()
   registerDocsIpc()
 
