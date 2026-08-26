@@ -648,58 +648,159 @@ export default function App() {
   const [deleted, setDeleted] = useState<Set<number>>(new Set())
   const mcpRevisionRef = useRef(0)
   const mcpSearchIndexRef = useRef<() => Promise<SearchIndex> | null>(() => null)
-  const mcpApplyOperationsRef = useRef<(operations: PdfMcpOperation[]) => Promise<void>>(async () => {
-    throw new Error('PDF is not ready')
-  })
-  useEffect(() => window.pdfApi.onMcpRequest((request) => {
-    if (request.action === 'pdf.read_annotations') {
-      const page = request.input.page
-      if (!Number.isSafeInteger(page) || (page as number) < 0 || (page as number) >= (doc?.numPages ?? 0)) {
-        window.pdfApi.respondMcpRequest({ requestId: request.requestId, ok: false, error: 'A valid page index is required' })
-        return
-      }
-      const pageIndex = page as number
-      const removed = new Set(annotDeletes.map((entry) => entry.annot.objNum))
-      const saved = [...(savedMarkups.get(pageIndex) ?? []), ...(savedNotes.get(pageIndex) ?? [])]
-        .filter((annotation) => !removed.has(annotation.objNum)).slice(0, 200)
-      const pending = [
-        ...markups.filter((annotation) => annotation.pageIndex === pageIndex).map((annotation) => ({ kind: 'markup', type: annotation.type, quads: annotation.quads, pending: true })),
-        ...drawings.filter((drawing) => drawing.input.kind === 'note' && drawing.input.pageIndex === pageIndex).map((drawing) => {
-          const note = drawing.input as NoteInput
-          return { kind: 'note', contents: note.contents.slice(0, 4096), at: note.at, pending: true }
-        }),
-      ].slice(0, 200)
-      window.pdfApi.respondMcpRequest({ requestId: request.requestId, ok: true, result: { revision: mcpRevisionRef.current, page: pageIndex, annotations: [...saved, ...pending].slice(0, 200) } })
-      return
-    }
-    if (request.action === 'pdf.search') {
-      const query = request.input.query
-      if (typeof query !== 'string' || query.length === 0 || query.length > 256) {
-        window.pdfApi.respondMcpRequest({ requestId: request.requestId, ok: false, error: 'A bounded query is required' })
-        return
-      }
-      const index = mcpSearchIndexRef.current()
-      if (!index) {
-        window.pdfApi.respondMcpRequest({ requestId: request.requestId, ok: false, error: 'PDF is not ready' })
-        return
-      }
-      void index.then((entries) => window.pdfApi.respondMcpRequest({ requestId: request.requestId, ok: true, result: { revision: mcpRevisionRef.current, query, matches: searchInIndex(entries, query).slice(0, 200).map((match) => ({ page: match.pageIndex, rects: match.rects.slice(0, 20) })) } }), (error: unknown) => window.pdfApi.respondMcpRequest({ requestId: request.requestId, ok: false, error: error instanceof Error ? error.message : 'PDF search failed' }))
-      return
-    }
-    void Promise.resolve(handlePdfMcpRequest(request.action, request.input, {
-        pageCount: doc?.numPages ?? 0, sizes, pageBlocks, outline,
-        revision: mcpRevisionRef.current,
-        forms: [...(formCatalog?.fields.values() ?? [])].map((field) => ({ name: field.name, kind: field.kind, pageIndex: field.pageIndex, value: field.value, checked: field.checked, required: field.required, readOnly: field.readOnly })),
-        annotations: {
-          pendingMarkups: markups.length,
-          pendingNotes: drawings.filter((drawing) => drawing.input.kind === 'note').length,
-          savedMarkups: [...savedMarkups.values()].reduce((total, annotations) => total + annotations.length, 0),
-          savedNotes: [...savedNotes.values()].reduce((total, annotations) => total + annotations.length, 0),
-        },
-      }, mcpApplyOperationsRef.current))
-      .then((result) => window.pdfApi.respondMcpRequest({ requestId: request.requestId, ok: true, result }))
-      .catch((error: unknown) => window.pdfApi.respondMcpRequest({ requestId: request.requestId, ok: false, error: error instanceof Error ? error.message : 'PDF MCP request failed' }))
-  }), [doc, sizes, pageBlocks, outline, formCatalog, markups, drawings, savedMarkups, savedNotes])
+  const mcpApplyOperationsRef = useRef<(operations: PdfMcpOperation[]) => Promise<void>>(
+    async () => {
+      throw new Error('PDF is not ready')
+    },
+  )
+  useEffect(
+    () =>
+      window.pdfApi.onMcpRequest((request) => {
+        if (request.action === 'pdf.read_annotations') {
+          const page = request.input.page
+          if (
+            !Number.isSafeInteger(page) ||
+            (page as number) < 0 ||
+            (page as number) >= (doc?.numPages ?? 0)
+          ) {
+            window.pdfApi.respondMcpRequest({
+              requestId: request.requestId,
+              ok: false,
+              error: 'A valid page index is required',
+            })
+            return
+          }
+          const pageIndex = page as number
+          const removed = new Set(annotDeletes.map((entry) => entry.annot.objNum))
+          const saved = [
+            ...(savedMarkups.get(pageIndex) ?? []),
+            ...(savedNotes.get(pageIndex) ?? []),
+          ]
+            .filter((annotation) => !removed.has(annotation.objNum))
+            .slice(0, 200)
+          const pending = [
+            ...markups
+              .filter((annotation) => annotation.pageIndex === pageIndex)
+              .map((annotation) => ({
+                kind: 'markup',
+                type: annotation.type,
+                quads: annotation.quads,
+                pending: true,
+              })),
+            ...drawings
+              .filter(
+                (drawing) => drawing.input.kind === 'note' && drawing.input.pageIndex === pageIndex,
+              )
+              .map((drawing) => {
+                const note = drawing.input as NoteInput
+                return {
+                  kind: 'note',
+                  contents: note.contents.slice(0, 4096),
+                  at: note.at,
+                  pending: true,
+                }
+              }),
+          ].slice(0, 200)
+          window.pdfApi.respondMcpRequest({
+            requestId: request.requestId,
+            ok: true,
+            result: {
+              revision: mcpRevisionRef.current,
+              page: pageIndex,
+              annotations: [...saved, ...pending].slice(0, 200),
+            },
+          })
+          return
+        }
+        if (request.action === 'pdf.search') {
+          const query = request.input.query
+          if (typeof query !== 'string' || query.length === 0 || query.length > 256) {
+            window.pdfApi.respondMcpRequest({
+              requestId: request.requestId,
+              ok: false,
+              error: 'A bounded query is required',
+            })
+            return
+          }
+          const index = mcpSearchIndexRef.current()
+          if (!index) {
+            window.pdfApi.respondMcpRequest({
+              requestId: request.requestId,
+              ok: false,
+              error: 'PDF is not ready',
+            })
+            return
+          }
+          void index.then(
+            (entries) =>
+              window.pdfApi.respondMcpRequest({
+                requestId: request.requestId,
+                ok: true,
+                result: {
+                  revision: mcpRevisionRef.current,
+                  query,
+                  matches: searchInIndex(entries, query)
+                    .slice(0, 200)
+                    .map((match) => ({ page: match.pageIndex, rects: match.rects.slice(0, 20) })),
+                },
+              }),
+            (error: unknown) =>
+              window.pdfApi.respondMcpRequest({
+                requestId: request.requestId,
+                ok: false,
+                error: error instanceof Error ? error.message : 'PDF search failed',
+              }),
+          )
+          return
+        }
+        void Promise.resolve(
+          handlePdfMcpRequest(
+            request.action,
+            request.input,
+            {
+              pageCount: doc?.numPages ?? 0,
+              sizes,
+              pageBlocks,
+              outline,
+              revision: mcpRevisionRef.current,
+              forms: [...(formCatalog?.fields.values() ?? [])].map((field) => ({
+                name: field.name,
+                kind: field.kind,
+                pageIndex: field.pageIndex,
+                value: field.value,
+                checked: field.checked,
+                required: field.required,
+                readOnly: field.readOnly,
+              })),
+              annotations: {
+                pendingMarkups: markups.length,
+                pendingNotes: drawings.filter((drawing) => drawing.input.kind === 'note').length,
+                savedMarkups: [...savedMarkups.values()].reduce(
+                  (total, annotations) => total + annotations.length,
+                  0,
+                ),
+                savedNotes: [...savedNotes.values()].reduce(
+                  (total, annotations) => total + annotations.length,
+                  0,
+                ),
+              },
+            },
+            mcpApplyOperationsRef.current,
+          ),
+        )
+          .then((result) =>
+            window.pdfApi.respondMcpRequest({ requestId: request.requestId, ok: true, result }),
+          )
+          .catch((error: unknown) =>
+            window.pdfApi.respondMcpRequest({
+              requestId: request.requestId,
+              ok: false,
+              error: error instanceof Error ? error.message : 'PDF MCP request failed',
+            }),
+          )
+      }),
+    [doc, sizes, pageBlocks, outline, formCatalog, markups, drawings, savedMarkups, savedNotes],
+  )
   /** Markup bar over the current selection; quads (PDF space, keyed by original page
       index) drive the Word-style toggle state of the buttons */
   const [selPopup, setSelPopup] = useState<{
@@ -1553,35 +1654,78 @@ export default function App() {
     for (const operation of operations) {
       if (operation.op === 'add_note') {
         const id = newId()
-        setDrawings((previous) => [...previous, {
-          id,
-          input: { kind: 'note', pageIndex: operation.page, color: DRAW_COLORS[0]!.rgb, at: [operation.x, operation.y], contents: operation.contents, author: 'MCP client', createdMs: Date.now(), localId: id },
-        }])
+        setDrawings((previous) => [
+          ...previous,
+          {
+            id,
+            input: {
+              kind: 'note',
+              pageIndex: operation.page,
+              color: DRAW_COLORS[0]!.rgb,
+              at: [operation.x, operation.y],
+              contents: operation.contents,
+              author: 'MCP client',
+              createdMs: Date.now(),
+              localId: id,
+            },
+          },
+        ])
       } else if (operation.op === 'add_markup') {
-        setMarkups((previous) => [...previous, {
-          id: `mcp-${newId()}`, pageIndex: operation.page, type: operation.type,
-          color: operation.type === 'highlight' ? MARKUP_COLORS.highlight : MARKUP_COLORS[operation.type], quads: operation.quads,
-        }])
+        setMarkups((previous) => [
+          ...previous,
+          {
+            id: `mcp-${newId()}`,
+            pageIndex: operation.page,
+            type: operation.type,
+            color:
+              operation.type === 'highlight'
+                ? MARKUP_COLORS.highlight
+                : MARKUP_COLORS[operation.type],
+            quads: operation.quads,
+          },
+        ])
       } else if (operation.op === 'set_form_value') {
         const field = formCatalog?.fields.get(operation.name)
         if (!field || field.readOnly || field.kind !== operation.kind) {
           throw new Error('Form field is missing, read-only, or has a different kind')
         }
-        setFormEdits((previous) => new Map(previous).set(operation.name, {
-          name: operation.name, kind: operation.kind,
-          ...(operation.value === undefined ? {} : { value: operation.value }),
-          ...(operation.checked === undefined ? {} : { checked: operation.checked }),
-        }))
+        setFormEdits((previous) =>
+          new Map(previous).set(operation.name, {
+            name: operation.name,
+            kind: operation.kind,
+            ...(operation.value === undefined ? {} : { value: operation.value }),
+            ...(operation.checked === undefined ? {} : { checked: operation.checked }),
+          }),
+        )
       } else if (operation.op === 'insert_text') {
-        setTextInserts((previous) => [...previous, {
-          id: newId(),
-          input: { pageIndex: operation.page, origin: [operation.x, operation.y], text: operation.text, fontSize: operation.fontSize ?? 12, color: [0, 0, 0] },
-        }])
+        setTextInserts((previous) => [
+          ...previous,
+          {
+            id: newId(),
+            input: {
+              pageIndex: operation.page,
+              origin: [operation.x, operation.y],
+              text: operation.text,
+              fontSize: operation.fontSize ?? 12,
+              color: [0, 0, 0],
+            },
+          },
+        ])
       } else if (operation.op === 'insert_image') {
-        setImageEdits((previous) => [...previous, {
-          id: newId(),
-          input: { kind: 'insertImage', pageIndex: operation.page, image: operation.image, rect: operation.rect, layer: operation.layer, rotate: rotations.get(operation.page) ?? 0 },
-        }])
+        setImageEdits((previous) => [
+          ...previous,
+          {
+            id: newId(),
+            input: {
+              kind: 'insertImage',
+              pageIndex: operation.page,
+              image: operation.image,
+              rect: operation.rect,
+              layer: operation.layer,
+              rotate: rotations.get(operation.page) ?? 0,
+            },
+          },
+        ])
       } else if (operation.op === 'replace_pages') {
         const result = await window.pdfApi.replacePages({ path: filePath, pages: operation.pages })
         if (!result.ok) throw new Error(result.error)
@@ -1589,13 +1733,17 @@ export default function App() {
         await loadDoc(filePath, doc)
       } else if (operation.op === 'split_pages') {
         const result = await window.pdfApi.splitPages({
-          path: filePath, perPage: operation.perPage,
+          path: filePath,
+          perPage: operation.perPage,
           suggestedName: `${fileName.replace(/\.pdf$/i, '')}-split.pdf`,
         })
         if (!result.ok) throw new Error(result.error)
       } else if (operation.op === 'merge_pages') {
         const result = await window.pdfApi.mergePages({
-          path: filePath, perSheet: operation.perSheet, direction: operation.direction, separator: operation.separator,
+          path: filePath,
+          perSheet: operation.perSheet,
+          direction: operation.direction,
+          separator: operation.separator,
           suggestedName: `${fileName.replace(/\.pdf$/i, '')}-${operation.perSheet}in1.pdf`,
         })
         if (!result.ok) throw new Error(result.error)
@@ -1604,7 +1752,9 @@ export default function App() {
         if (readOnly) throw new Error('PDF is read-only')
         setDeleted((previous) => new Set(previous).add(operation.page))
         setMarkups((previous) => previous.filter((markup) => markup.pageIndex !== operation.page))
-        setDrawings((previous) => previous.filter((drawing) => drawing.input.pageIndex !== operation.page))
+        setDrawings((previous) =>
+          previous.filter((drawing) => drawing.input.pageIndex !== operation.page),
+        )
       }
     }
     mcpRevisionRef.current += 1
@@ -5832,7 +5982,7 @@ export default function App() {
           {ribbonTab === 'home' && (
             <>
               {/* ---- Genspark AI (first slot: entry + one-click AI actions, docs parity) ---- */}
-              <div className="ribbon-group">
+              <div className="ribbon-group" hidden>
                 <div className="ribbon-group-items">
                   <button
                     className={`rb-big ai-entry${aiCollapsed ? '' : ' active'}`}
@@ -6450,7 +6600,7 @@ export default function App() {
       <div className="app-main">
         {/* dock wrapper animates the width between panel and rail (docs-style 180ms ease);
             the panel stays mounted while collapsed so the chat history survives */}
-        <div className={`ai-dock${aiCollapsed ? ' collapsed' : ''}`}>
+        <div className={`ai-dock${aiCollapsed ? ' collapsed' : ''}`} hidden>
           {aiCollapsed && (
             <button
               className="ai-rail"
