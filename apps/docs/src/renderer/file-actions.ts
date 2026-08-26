@@ -11,8 +11,6 @@ import {
   applyPageNumType,
   applySectionSettings,
   applySectionStartType,
-  BLANK_BULLET_NUM_ID,
-  BLANK_ORDERED_NUM_ID,
   buildBlankDocx,
   findChartWorkbookPath,
   parseChartPartXml,
@@ -39,7 +37,7 @@ import {
   type WriteProtection,
 } from '@genoffice/docx-engine'
 import type { Dispatch, SetStateAction } from 'react'
-import type { AiDocContent, OpenDocxResult } from '../shared/ipc'
+import type { OpenDocxResult } from '../shared/ipc'
 import {
   hfVariantsFromParsed,
   openedFileStartsDirty,
@@ -59,7 +57,7 @@ import {
   type InkTool,
 } from './editor/ink'
 import { t, getLang } from './i18n/locale'
-import { isBlankDocument, parseHtmlFragment, replaceBlockRange } from './ai/protocol'
+import { isBlankDocument } from './ai/protocol'
 import { isDocDirty } from './doc-dirty'
 import { createSaveSerializer } from './save-until-persisted'
 import { checkMissingFonts, collectDocFonts } from './font-check'
@@ -663,64 +661,6 @@ export function save(
     () => saveOnce(ctx, saveAs, auto, newDocName),
     () => !saveAs && !ctx.saveIncompleteRef.current && !isDocDirty(ctx),
   )
-}
-
-/** the parsed fragment flags every node aiChanged (yellow highlight); a boot-time fill is not a reviewable AI edit */
-function stripAiChanged(node: PmNode): PmNode {
-  const next: PmNode = { ...node }
-  if (next.attrs && 'aiChanged' in next.attrs) next.attrs = { ...next.attrs, aiChanged: false }
-  if (next.content) next.content = next.content.map(stripAiChanged)
-  return next
-}
-
-/**
- * Parse queued create_document content into blocks. The docs chat validates
- * the fragment before queueing, but the pdf chat cannot (the parser lives
- * here), so unparseable HTML falls back to plain-text paragraphs instead of
- * silently dropping the content.
- */
-export function aiDocContentNodes(html: string): PmNode[] {
-  const numIds = { bullet: BLANK_BULLET_NUM_ID, ordered: BLANK_ORDERED_NUM_ID }
-  try {
-    const nodes = parseHtmlFragment(html, numIds)
-    if (nodes.length > 0) return nodes.map(stripAiChanged)
-  } catch {
-    /* fall through to the plain-text salvage */
-  }
-  try {
-    // textContent glues adjacent blocks in minified markup — reinsert the
-    // block structure as blank lines (and cell gaps as spaces) before parsing
-    const spaced = html
-      .replace(/<\/(?:td|th)>/gi, ' $&')
-      .replace(/<\/(?:p|h[1-6]|li|div|pre|blockquote|tr)>/gi, '$&\n\n')
-    const text = new DOMParser().parseFromString(spaced, 'text/html').body.textContent ?? ''
-    if (!text.trim()) return []
-    return parseHtmlFragment(text, numIds).map(stripAiChanged)
-  } catch {
-    return []
-  }
-}
-
-/**
- * Boot-time half of the AI create_document tool: fill the fresh blank
- * document with the queued content (same restricted-HTML pipeline as
- * insert_content), then silently save it under the tool-provided title.
- * The save runs even when nothing could be parsed — the tool already
- * reported the document as created, so an unsaved untitled tab would lie.
- */
-export async function applyAiDocContent(
-  ctx: FileActionContext,
-  content: AiDocContent,
-): Promise<void> {
-  const { editor, doc } = ctx
-  if (!editor || !doc) return
-  const nodes = aiDocContentNodes(content.html)
-  if (nodes.length > 0) {
-    replaceBlockRange(editor, 0, editor.state.doc.childCount - 1, nodes)
-    // the document is born with this content: undo must not reach back to empty
-    resetEditorHistory(editor)
-  }
-  await save(ctx, false, true, `${content.title}.docx`)
 }
 
 async function saveOnce(

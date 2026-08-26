@@ -34,8 +34,7 @@ import {
   type ThemeColors,
   type ThemeFonts,
 } from '@genoffice/docx-engine'
-import type { AiDocContent, AiSettings, OpenDocxResult } from '../shared/ipc'
-import { AI_PROVIDERS } from '../shared/ipc'
+import type { OpenDocxResult } from '../shared/ipc'
 import { asianCharCount, countWords, nonAsianWordCount } from './word-count'
 import { CommentsPanel } from './components/CommentsPanel'
 import { EquationModal } from './components/EquationModal'
@@ -187,7 +186,6 @@ import {
   type PendingNumbering,
 } from './doc-state'
 import {
-  applyAiDocContent as applyAiDocContentImpl,
   exportPdf as exportPdfImpl,
   loadFile as loadFileImpl,
   newFile as newFileImpl,
@@ -344,24 +342,12 @@ function makeGapNotesEl(
   return wrap
 }
 
-const DEFAULT_SETTINGS: AiSettings = {
-  provider: 'anthropic',
-  providers: Object.fromEntries(
-    AI_PROVIDERS.map((p) => [
-      p.id,
-      { apiKey: '', model: p.defaultModel, baseUrl: p.needsBaseUrl ? '' : undefined },
-    ]),
-  ) as AiSettings['providers'],
-}
-
 export function App() {
   // subscribe to language switches for re-render; strings all go through module-level t, so memoized callbacks never capture stale closures
   const { lang } = useI18n()
   const [doc, setDoc] = useState<DocState | null>(null)
   /** true until the pending-open / new-blank boot checks settle; the start screen stays hidden meanwhile */
-  const bootPendingRef = useRef<Promise<[OpenDocxResult, boolean, AiDocContent | null]> | null>(
-    null,
-  )
+  const bootPendingRef = useRef<Promise<[OpenDocxResult, boolean]> | null>(null)
   const bootHandledRef = useRef(false)
   /** password prompt for an ECMA-376 encrypted docx; submit retries via openDocxDecrypt */
   const [docPwdPrompt, setDocPwdPrompt] = useState<{
@@ -380,7 +366,6 @@ export function App() {
     errorKey: '' | 'appDocPwdWrong'
   } | null>(null)
   const [_recent, setRecent] = useState<string[]>([])
-  const [_settings, setSettings] = useState<AiSettings>(DEFAULT_SETTINGS)
   const [ribbonTabRequest, setRibbonTabRequest] = useState<{ tab: string; nonce: number } | null>(
     null,
   )
@@ -859,7 +844,6 @@ export function App() {
 
   useEffect(() => {
     void window.desktop.getRecentFiles().then(setRecent)
-    void window.desktop.getAiSettings().then(setSettings)
   }, [])
 
   useEffect(() => {
@@ -1142,18 +1126,16 @@ export function App() {
     const unsubscribe = window.desktop.onOpenDocx((result) => {
       void loadFile(result)
     })
-    // With no pending file the window lands directly in the editor on a blank document
-    // (the AI panel carries the generate-from-prompt flow). StrictMode runs the mount
-    // effect twice but the pending queues can only be consumed once, so the consume
-    // Promise lives in a ref and its result is processed only once.
+    // StrictMode runs the mount effect twice but the pending queues can only be
+    // consumed once, so the consume Promise lives in a ref and its result is
+    // processed only once.
     bootPendingRef.current ??= Promise.all([
       window.desktop.consumePendingOpenDocx(),
       // Still consume the one-shot new-blank flag so it doesn't leak into the next open
       window.desktop.consumeNewBlankDoc(),
-      window.desktop.consumeAiDocContent(),
     ])
     void bootPendingRef.current
-      .then(async ([pending, , aiContent]) => {
+      .then(async ([pending]) => {
         if (bootHandledRef.current) return
         bootHandledRef.current = true
         // A failed open (corrupt file etc.) falls back to a blank document —
@@ -1162,13 +1144,6 @@ export function App() {
         // 'password': the prompt is up; its cancel path lands on blank instead.
         const outcome = pending ? await loadFile(pending) : 'canceled'
         if (outcome === 'failed' || outcome === 'canceled') await newFile()
-        if (aiContent && !pending) {
-          // fileCtxRef refreshes per render: wait until newFile's setDoc landed
-          for (let i = 0; i < 100 && !fileCtxRef.current.doc; i++) {
-            await new Promise((resolve) => setTimeout(resolve, 20))
-          }
-          await applyAiDocContentImpl(fileCtxRef.current, aiContent)
-        }
       })
       // Open failures also land on a blank document, or the tab stays at "Opening…" forever
       .catch(() => {
@@ -1187,7 +1162,7 @@ export function App() {
     await loadFile(await window.desktop.openDocx())
   }, [loadFile])
 
-  /** new document from the built-in blank template (AI can then generate into it) */
+  /** Create a new document from the built-in blank template. */
   const newFile = useCallback(() => newFileImpl(fileCtxRef.current), [])
 
   const openRecent = useCallback(
