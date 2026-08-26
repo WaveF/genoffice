@@ -131,7 +131,6 @@ import { computeFormatState } from './components/ribbon-format-state'
 import { IconRedo, IconSave, IconUndo } from './components/icons'
 import { ToastHost } from './components/toast'
 import {
-  AI_REWRITE_ACK_KEY,
   LinkInsertModal,
   TableInsertModal,
   applyParagraphStyle,
@@ -656,11 +655,6 @@ export function App() {
   const [autoSave, setAutoSave] = useState(() => localStorage.getItem('aidocs.autoSave') === '1')
   // tab closed but this renderer kept alive (shell freeze workaround): go inert
   const [tornDown, setTornDown] = useState(false)
-  const [_aiPreset, setAiPreset] = useState<{
-    text: string
-    nonce: number
-    autoRun?: boolean
-  } | null>(null)
   // selection-scoped AI edit queue (anchors live as editor decorations)
   const [editQueue, setEditQueue] = useState<DocsEditQueueItem[]>([])
   const editQueueRef = useRef(editQueue)
@@ -2987,19 +2981,6 @@ export function App() {
     })
   }, [editor, zoom, pageInfo.total])
 
-  // Review > Editor, the Tools menu and Word's F7 all run the same AI proofread
-  // behind the one-time whole-document-rewrite acknowledgement
-  const runAiProofread = useCallback(() => {
-    if (
-      localStorage.getItem(AI_REWRITE_ACK_KEY) !== '1' &&
-      !window.confirm(t('ribbonAiRewriteConfirm'))
-    )
-      return
-    localStorage.setItem(AI_REWRITE_ACK_KEY, '1')
-    setShowAi(true)
-    setAiPreset({ text: t('ribbonEditorPrompt'), nonce: Date.now(), autoRun: true })
-  }, [])
-
   // "has unsaved changes" check shared by the close guard and autosave; refreshed on every
   // render (all edit paths forceRender), so the guard's query reads the latest value
   const anyDirtyRef = useRef(false)
@@ -3288,11 +3269,6 @@ export function App() {
           insertField(instr)
         }
       }
-      // Proofread F7 (Word's spelling & grammar check)
-      if (e.key === 'F7' && !e.shiftKey && doc) {
-        e.preventDefault()
-        runAiProofread()
-      }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
@@ -3306,7 +3282,6 @@ export function App() {
     startNewComment,
     insertNote,
     insertField,
-    runAiProofread,
     trackChangesForced,
   ])
 
@@ -3398,9 +3373,6 @@ export function App() {
         case 'word-count':
           if (doc) openStats()
           break
-        case 'ai-proofread':
-          if (doc) runAiProofread()
-          break
         case 'shortcuts':
           setShowShortcuts(true)
           break
@@ -3451,7 +3423,6 @@ export function App() {
     zoomFit,
     openStats,
     startNewComment,
-    runAiProofread,
   ])
 
   // Word: TOC entries jump on ⌘/Ctrl+click only; a plain click just places the
@@ -3608,11 +3579,6 @@ export function App() {
     editor.view.dispatch(editor.state.tr.setSelection(selection).scrollIntoView())
     editor.view.focus()
   }
-  const _askSendNow = (text: string): void => {
-    setShowAi(true)
-    setAiPreset({ text, nonce: Date.now(), autoRun: true })
-  }
-
   // AI comment tools run the same review-actions code paths as the comments pane
   const _aiCommentsAccess = useMemo<AiCommentsAccess>(
     () => ({
