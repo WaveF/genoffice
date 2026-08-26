@@ -5,7 +5,6 @@ import type { ProjectApi } from '@genoffice/project-store'
 import type {
   AddChartOp,
   AddElementOp,
-  AiRunFailure,
   ApplyEditScriptOp,
   ApplyTxnOp,
   AddImageBytesOp,
@@ -22,7 +21,6 @@ import type {
   AddTableOp,
   HeaderFooterOp,
   SetLinkOp,
-  AiSettings,
   CopyElementsOp,
   PasteElementsOp,
   DuplicateElementsOp,
@@ -50,8 +48,6 @@ import type {
   RemoveSectionOp,
   MoveSectionOp,
   MoveSlideOp,
-  AiStreamChunk,
-  AiStreamRequest,
   AudienceNavAction,
   ShowInkEvent,
   ShowSyncState,
@@ -342,55 +338,6 @@ const api: SlidesApi = {
     return () => ipcRenderer.removeListener('slides:mcp-preview-request', listener)
   },
   respondMcpPreview: (response) => ipcRenderer.send('slides:mcp-preview-response', response),
-  getAiSettings: () => ipcRenderer.invoke('ai:get-settings'),
-  setAiSettings: (settings: AiSettings) => ipcRenderer.invoke('ai:set-settings', settings),
-  aiStream: (request: AiStreamRequest) => ipcRenderer.invoke('ai:stream', request),
-  aiStreamCancel: (requestId: string) => ipcRenderer.invoke('ai:stream-cancel', requestId),
-  aiGskStatus: (withEmail?: boolean) => ipcRenderer.invoke('ai:gsk-status', withEmail),
-  aiGskLogin: () => ipcRenderer.invoke('ai:gsk-login'),
-  aiLogRunFailure: (entry: AiRunFailure) => ipcRenderer.invoke('ai:log-run-failure', entry),
-  webSearch: (query: string, maxResults?: number) =>
-    ipcRenderer.invoke('ai:web-search', query, maxResults),
-  imageSearch: (query: string, maxResults?: number) =>
-    ipcRenderer.invoke('ai:image-search', query, maxResults),
-  insertImageUrl: (op: {
-    slideIndex: number
-    url: string
-    xPx: number
-    yPx: number
-    wPx: number
-    hPx: number
-    fitWidthPx: number
-  }) => ipcRenderer.invoke('ai:insert-image-url', op),
-  replacePictureUrl: (op: {
-    slideIndex: number
-    sourceId: string
-    url: string
-    keepSrcRect?: boolean
-  }) => ipcRenderer.invoke('ai:replace-picture-url', op),
-  generateImage: (op: {
-    prompt: string
-    model?: string
-    referenceImageUrls?: string[]
-    aspectRatio?: string
-    imageSize?: string
-  }) => ipcRenderer.invoke('ai:generate-image', op),
-  analyzeMedia: (op: { mediaUrls: string[]; requirements: string }) =>
-    ipcRenderer.invoke('ai:analyze-media', op),
-  gskStatus: () => ipcRenderer.invoke('ai:gsk-status'),
-  onAiStream: (handler: (chunk: AiStreamChunk) => void) => {
-    const listener = (_e: IpcRendererEvent, chunk: AiStreamChunk) => handler(chunk)
-    ipcRenderer.on('ai:stream-chunk', listener)
-    return () => ipcRenderer.removeListener('ai:stream-chunk', listener)
-  },
-  saveStyleSidecar: (data: { topic: string; styleSkill: string; createdAt: string }) =>
-    ipcRenderer.invoke('ai:save-sidecar', data),
-  saveStyleTemplate: (
-    name: string,
-    data: { topic: string; styleSkill: string; createdAt: string },
-  ) => ipcRenderer.invoke('ai:save-style-template', name, data),
-  listStyleTemplates: () => ipcRenderer.invoke('ai:list-style-templates'),
-  loadStyleTemplate: (name: string) => ipcRenderer.invoke('ai:load-style-template', name),
   presenterStart: () => ipcRenderer.invoke('slides:presenter-start'),
   presenterSync: (state: ShowSyncState) => ipcRenderer.send('slides:presenter-sync', state),
   presenterInk: (ev: ShowInkEvent) => ipcRenderer.send('slides:presenter-ink', ev),

@@ -9,27 +9,8 @@
  */
 import type { RenderSlide } from '@genoffice/pptx-render'
 import type { SlideComment, SectionInfo } from '@genoffice/pptx-engine'
-import type {
-  AiSettings,
-  AiStreamChunk,
-  AiStreamRequest,
-  GenSparkAccountStatus,
-} from '@genoffice/ai-provider'
 
 export type { SlideComment, SectionInfo } from '@genoffice/pptx-engine'
-
-// Canonical definitions of AI-related types live in @genoffice/ai-provider / @genoffice/agent-core (shared with docs)
-export type {
-  AiProviderConfig,
-  AiProviderId,
-  AiProviderMeta,
-  AiSettings,
-  AiStreamChunk,
-  AiStreamRequest,
-  GenSparkAccountStatus,
-} from '@genoffice/ai-provider'
-export { AI_PROVIDERS } from '@genoffice/ai-provider'
-export type { AgentToolCall, AgentToolDef } from '@genoffice/agent-core'
 
 export type UiTheme = 'light' | 'dark' | 'system'
 
@@ -214,23 +195,6 @@ export interface ApplyTxnResult {
 }
 
 /** The whole edit script as one atomic transaction (surface px; the main-process shim converts). */
-/**
- * A run that ended without a usable reply. These never reach the chat history —
- * agent-core rolls a failed turn out of the model context, so storing it there
- * would feed it back on the next reopen. This lands in a separate log instead,
- * which is the only trace left of a model that loops or a stream that dies.
- */
-export interface AiRunFailure {
-  kind: 'error' | 'stopped'
-  /** What was sent to the model, so the log alone explains what triggered it */
-  instruction: string
-  /** Whatever the model had streamed before it ended (truncated by the main process) */
-  streamed: string
-  error?: string
-  tools?: string[]
-  durationMs?: number
-}
-
 export interface ApplyEditScriptOp {
   slideIndex: number
   fitWidthPx: number
@@ -1536,96 +1500,7 @@ export interface SlidesApi {
     handler: (request: { requestId: string; slideIndex: number }) => void,
   ) => () => void
   /** Return the bounded PNG payload for a prior MCP preview request. */
-  respondMcpPreview: (response: {
-    requestId: string
-    pngBase64?: string
-    error?: string
-  }) => void
-  getAiSettings: () => Promise<AiSettings>
-  setAiSettings: (settings: AiSettings) => Promise<void>
-  aiStream: (request: AiStreamRequest) => Promise<void>
-  aiStreamCancel: (requestId: string) => Promise<void>
-  /** Genspark account status (gsk login state); with withEmail also fetches the email (needs a network request, slower) */
-  aiGskStatus: (withEmail?: boolean) => Promise<GenSparkAccountStatus>
-  /** Open the browser to log into Genspark (fire-and-forget; aiGskStatus turns logged-in once done) */
-  aiGskLogin: () => Promise<void>
-  /** Record a run that ended without a usable reply, for post-mortem (fire-and-forget, never throws) */
-  aiLogRunFailure: (entry: AiRunFailure) => Promise<void>
-  webSearch: (
-    query: string,
-    maxResults?: number,
-  ) => Promise<{
-    results: Array<{ title: string; url: string; snippet: string }>
-    answer?: string
-    method: string
-    /** failure reason when method === 'error' */
-    error?: string
-  }>
-  imageSearch: (
-    query: string,
-    maxResults?: number,
-  ) => Promise<{
-    images: Array<{
-      title: string
-      imageUrl: string
-      sourceUrl: string
-      source: string
-      width?: number
-      height?: number
-    }>
-    method: string
-    /** failure reason when method === 'error' */
-    error?: string
-  }>
-  insertImageUrl: (op: {
-    slideIndex: number
-    url: string
-    xPx: number
-    yPx: number
-    wPx: number
-    hPx: number
-    fitWidthPx: number
-  }) => Promise<{ slide: RenderSlide; sourceId: string } | null>
-  /** Download a URL and swap it into an existing picture in place (frame/z-order/effects survive) */
-  replacePictureUrl: (op: {
-    slideIndex: number
-    sourceId: string
-    url: string
-    keepSrcRect?: boolean
-  }) => Promise<RenderSlide | null>
-  /** gsk (Genspark) AI image generation/editing, returns the image URL (error prompts login when logged out) */
-  generateImage: (op: {
-    prompt: string
-    model?: string
-    referenceImageUrls?: string[]
-    aspectRatio?: string
-    imageSize?: string
-  }) => Promise<{ url?: string; error?: string }>
-  /** gsk (Genspark) media analysis: image/audio/video content understanding, returns analysis text */
-  analyzeMedia: (op: {
-    mediaUrls: string[]
-    requirements: string
-  }) => Promise<{ text?: string; error?: string }>
-  /** gsk availability: installed and logged in (for UI/tools to prompt login) */
-  gskStatus: () => Promise<{ available: boolean; email?: string }>
-  onAiStream: (handler: (chunk: AiStreamChunk) => void) => () => void
-  /** Style Skill sidecar: write styleSkill to a same-named .styleskill.json next to the draft */
-  saveStyleSidecar: (data: {
-    topic: string
-    styleSkill: string
-    createdAt: string
-  }) => Promise<{ ok: boolean }>
-  /** Store styleSkill in userData/style-templates/<name>.json */
-  saveStyleTemplate: (
-    name: string,
-    data: { topic: string; styleSkill: string; createdAt: string },
-  ) => Promise<{ ok: boolean; error?: string }>
-  /** List saved Style templates */
-  listStyleTemplates: () => Promise<Array<{ name: string; topic: string; createdAt: string }>>
-  /** Load a given Style template's content */
-  loadStyleTemplate: (
-    name: string,
-  ) => Promise<{ ok: boolean; styleSkill?: string; topic?: string; error?: string }>
+  respondMcpPreview: (response: { requestId: string; pngBase64?: string; error?: string }) => void
   /** New blank page (with a specific layout): inserted after slide sourceIndex, rels pointing at the chosen layout */
   addSlideWithLayout: (
     op: AddSlideWithLayoutOp,
