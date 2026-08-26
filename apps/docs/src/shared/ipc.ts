@@ -60,15 +60,6 @@ export type {
 } from '@genoffice/ai-provider'
 export { AI_PROVIDERS } from '@genoffice/ai-provider'
 
-// ---- agent protocol: canonical types live in @genoffice/agent-core ----
-
-export type {
-  AgentMessage,
-  AgentToolCall,
-  AgentToolDef,
-  AgentToolResult,
-} from '@genoffice/agent-core'
-
 // ---- chat attachments (local files fed to the agent via tools) ----
 
 /** Image attachment extensions: no text extraction; read as base64 on send and passed to the model as a multimodal image with the user message */
