@@ -15,7 +15,6 @@
   },
   "devDependencies": {
     "@embedpdf/pdfium": "^2.15.0",
-    "@genoffice/agent-core": "*",
     "@genoffice/ai-provider": "*",
     "@genoffice/ai-search": "*",
     "@genoffice/electron-utils": "*",
