@@ -36,11 +36,6 @@ import {
 } from '@genoffice/docx-engine'
 import type { AiDocContent, AiSettings, OpenDocxResult } from '../shared/ipc'
 import { AI_PROVIDERS } from '../shared/ipc'
-const AI_REVISION_AUTHOR = 'AI Assistant'
-import type { AiCommentsAccess, AiHeaderFooterAccess } from './ai/tools'
-import { applyHfText, hfEditText } from './editor/hf-text'
-import { EDIT_QUEUE_MAX, selectionForAnchor, type DocsEditQueueItem } from './ai/edit-queue'
-import { addQueueAnchor, clearQueueAnchors, removeQueueAnchors } from './editor/ai-queue-anchors'
 import { asianCharCount, countWords, nonAsianWordCount } from './word-count'
 import { CommentsPanel } from './components/CommentsPanel'
 import { EquationModal } from './components/EquationModal'
@@ -655,16 +650,6 @@ export function App() {
   const [autoSave, setAutoSave] = useState(() => localStorage.getItem('aidocs.autoSave') === '1')
   // tab closed but this renderer kept alive (shell freeze workaround): go inert
   const [tornDown, setTornDown] = useState(false)
-  // selection-scoped AI edit queue (anchors live as editor decorations)
-  const [editQueue, setEditQueue] = useState<DocsEditQueueItem[]>([])
-  const editQueueRef = useRef(editQueue)
-  editQueueRef.current = editQueue
-  const queueSeqRef = useRef(0)
-  // opening/creating a document drops every anchor with setContent; the queue
-  // must not leak the previous file's items (they would sit orphaned at the cap)
-  useEffect(() => {
-    setEditQueue([])
-  }, [aiPanelKey])
   const [docCss, setDocCss] = useState('')
   // Live CJK-ness of the body while editing; overrides docCss's --doc-line-factor
   const [liveDocCjk, setLiveDocCjk] = useState<boolean | null>(null)
@@ -3541,127 +3526,6 @@ export function App() {
   const ribbonStyles = useMemo(() => (doc ? new Map(doc.parsed.styles) : undefined), [doc])
 
   /** every function prop of the memoized Ribbon, with stable identities (dispatches into the latest render's closures) */
-  // ---- selection-scoped AI edit queue ----
-  const _getQueueItem = useCallback(
-    (qid: string) => editQueueRef.current.find((item) => item.qid === qid),
-    [],
-  )
-  const _queueAdd = (instruction: string): void => {
-    const { from, to, empty } = editor.state.selection
-    if (empty || editQueueRef.current.length >= EDIT_QUEUE_MAX) return
-    const qid = `q${++queueSeqRef.current}`
-    addQueueAnchor(editor, qid, from, to)
-    const capturedText = editor.state.doc
-      .textBetween(from, to, ' ', ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, 80)
-    setEditQueue((queue) => [...queue, { qid, instruction, capturedText }])
-  }
-  const _queueUpdate = (qid: string, instruction: string): void =>
-    setEditQueue((queue) => queue.map((i) => (i.qid === qid ? { ...i, instruction } : i)))
-  const _queueRemove = (qid: string): void => {
-    removeQueueAnchors(editor, [qid])
-    setEditQueue((queue) => queue.filter((i) => i.qid !== qid))
-  }
-  const _queueClear = (): void => {
-    clearQueueAnchors(editor)
-    setEditQueue([])
-  }
-  /** a submission hands its items to the run and drops them from the queue */
-  const _queueConsume = (qids: string[]): void => {
-    removeQueueAnchors(editor, qids)
-    setEditQueue((queue) => queue.filter((i) => !qids.includes(i.qid)))
-  }
-  const _queueFocus = (qid: string): void => {
-    const selection = selectionForAnchor(editor, qid)
-    if (!selection) return
-    editor.view.dispatch(editor.state.tr.setSelection(selection).scrollIntoView())
-    editor.view.focus()
-  }
-  // AI comment tools run the same review-actions code paths as the comments pane
-  const _aiCommentsAccess = useMemo<AiCommentsAccess>(
-    () => ({
-      list: () => reviewCtxRef.current.comments,
-      reply: (parentId, text) =>
-        replyToCommentImpl(reviewCtxRef.current, parentId, text, AI_REVISION_AUTHOR),
-      resolve: (id) => {
-        const ctx = reviewCtxRef.current
-        if (!ctx.comments.some((c) => c.id === id)) return false
-        resolveCommentImpl(ctx, id, true)
-        return true
-      },
-    }),
-    [],
-  )
-
-  // AI header/footer tool: reads the live HF state and writes through the same
-  // commit path as on-canvas editing (variant routing, per-section edits, dirty flags).
-  // The overlay mirrors this render's AI writes: an agent batch runs several tools
-  // between renders, so a read right after a set must not see the pre-write state
-  // (same pitfall as the comments id-minting ref mirror). Recreated per render,
-  // by which time React state has caught up.
-  const aiHfCtx = {
-    overlay: new Map<string, HeaderFooter>(),
-    valueOf(kind: 'header' | 'footer', view: HfView): HeaderFooter | null {
-      const pending = this.overlay.get(`${kind}:${view}`)
-      if (pending) return pending
-      if (view === 'first')
-        return kind === 'header' ? hfVariants.headerFirst : hfVariants.footerFirst
-      if (view === 'even') return kind === 'header' ? hfVariants.headerEven : hfVariants.footerEven
-      if (multiHf) return sectionHfValue(kind)
-      return kind === 'header' ? header : footer
-    },
-    commit: commitHf,
-    titlePg,
-    evenOddHf,
-    multiHf,
-    locked: isProtected || readMode,
-  }
-  const aiHfCtxRef = useRef(aiHfCtx)
-  aiHfCtxRef.current = aiHfCtx
-  const _aiHfAccess = useMemo<AiHeaderFooterAccess>(
-    () => ({
-      read: () => {
-        const ctx = aiHfCtxRef.current
-        const textOf = (kind: 'header' | 'footer', view: HfView) => {
-          const value = ctx.valueOf(kind, view)
-          return value ? hfEditText(value) : ''
-        }
-        return {
-          header: textOf('header', 'default'),
-          footer: textOf('footer', 'default'),
-          headerFirst: ctx.titlePg ? textOf('header', 'first') : null,
-          footerFirst: ctx.titlePg ? textOf('footer', 'first') : null,
-          headerEven: ctx.evenOddHf ? textOf('header', 'even') : null,
-          footerEven: ctx.evenOddHf ? textOf('footer', 'even') : null,
-          titlePg: ctx.titlePg,
-          evenOddHf: ctx.evenOddHf,
-          multiSection: ctx.multiHf,
-        }
-      },
-      set: (kind, view, text) => {
-        const ctx = aiHfCtxRef.current
-        if (ctx.locked) return 'the document is read-only; headers/footers cannot be edited'
-        if (view === 'first' && !ctx.titlePg) {
-          setTitlePg(true)
-          setTitlePgDirty(true)
-          ctx.titlePg = true
-        }
-        if (view === 'even' && !ctx.evenOddHf) {
-          setEvenOddHf(true)
-          setEvenOddHfDirty(true)
-          ctx.evenOddHf = true
-        }
-        const next = applyHfText(ctx.valueOf(kind, view), text)
-        ctx.commit(kind, next, view)
-        ctx.overlay.set(`${kind}:${view}`, next)
-        return null
-      },
-    }),
-    [],
-  )
-
   const ribbonActions = useStableCallbacks({
     allocateNumId: (kind: 'bullet' | 'ordered') => allocateListNumId(kind),
     createListDef: (levels: CustomNumberingLevel[]) => createCustomListDef(levels),
