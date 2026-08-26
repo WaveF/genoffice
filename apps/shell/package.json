@@ -19,7 +19,6 @@
     "dist:linux": "electron-vite build && electron-builder --linux"
   },
   "devDependencies": {
-    "@genoffice/agent-core": "*",
     "@genoffice/ai-provider": "*",
     "@genoffice/ai-search": "*",
     "@genoffice/capabilities": "*",
