@@ -342,7 +342,6 @@ export function App() {
     localStorage.setItem('ai-slides-auto-save', autoSave ? '1' : '0')
     window.slidesApi.setAutoSavePref?.(autoSave)
   }, [autoSave])
-  const [showAi] = useState(() => localStorage.getItem('ai-slides-show-ai') !== '0')
   const [showFormat, setShowFormat] = useState(false)
   const [showBgFormat, setShowBgFormat] = useState(false)
   const [_recent, setRecent] = useState<string[]>([])
@@ -521,14 +520,14 @@ export function App() {
       const viewportW =
         el?.clientWidth ||
         stageViewportSize.w ||
-        window.innerWidth - (showThumbs ? thumbsW : 0) - (showAi ? 360 : 34)
+        window.innerWidth - (showThumbs ? thumbsW : 0)
       const viewportH = el?.clientHeight || stageViewportSize.h || window.innerHeight - 150
       const availW = viewportW - 56
       // -72: vertical padding is 48 (AI-bar headroom) + 32, minus the same 8px slack as width
       const availH = viewportH - 72
       return Math.min(availW / s.widthPx, availH / s.heightPx)
     },
-    [showThumbs, showAi, stageViewportSize.h, stageViewportSize.w, thumbsW],
+    [showThumbs, stageViewportSize.h, stageViewportSize.w, thumbsW],
   )
   /** Fit zoom for display: rawFit clamped to the 0.1–1.5 auto-fit range */
   const fitZoom = useCallback(
