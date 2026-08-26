@@ -27,7 +27,7 @@ import { shouldInterceptClearSelection } from './clear-selection-keyboard'
 import type { ChartSeriesVisualState } from '../domain/chart-visual'
 import type { ChangePlan } from '../domain/workbook.types'
 import type { AttachmentMeta } from '../shared/desktop-api'
-import { AiChatPanel, type AiChatMessage } from './ai/AiChatPanel'
+import type { AiChatMessage } from './ai/AiChatPanel'
 import type { SelectionAskAnchor } from './ai/selection-ask'
 import {
   PivotDialog,
@@ -584,37 +584,7 @@ export function ExcelShell({
         />
       </header>
 
-      {/* The external MCP bridge replaces the retired built-in chat panel. */}
       <div className="sheet-body">
-        <div hidden>
-          <AiChatPanel
-            isOpen={isCopilotOpen}
-            hasContent={sheetHasContent}
-            chat={chat}
-            {...(historicChat !== undefined ? { historicChat } : {})}
-            attachments={attachments}
-            attachNotice={attachNotice}
-            onPickAttachments={onPickAttachments}
-            onAddAttachmentPaths={onAddAttachmentPaths}
-            onAddPastedImage={onAddPastedImage}
-            onRemoveAttachment={onRemoveAttachment}
-            prompt={prompt}
-            preview={preview}
-            aiBusy={aiBusy}
-            onPromptChange={onPromptChange}
-            onSend={onSend}
-            onStop={onStop}
-            onNewChat={onNewChat}
-            onUndo={onUndo}
-            scopeRange={aiScopeRange}
-            scopeColumns={aiScopeColumns}
-            scopeLocked={aiScopeLocked}
-            onScopeDismiss={onAiScopeDismiss}
-            onCitation={onAiCitation}
-            onExpand={() => setIsCopilotOpen(true)}
-            onCollapse={() => setIsCopilotOpen(false)}
-          />
-        </div>
         <div className="sheet-main">
           {/* Excel's formula-bar row, Name Box only for now (fx bar TBD). */}
           <div className="name-box-bar">
