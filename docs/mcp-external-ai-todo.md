@@ -112,6 +112,12 @@
 | SUN-05 | 删除 `packages/ai-provider`、`packages/agent-core` 和仅用于聊天的 project-store 逻辑。 | P2     | SUN-04             | 未开始 | TBD    | workspaces/package manifests               | 全仓 typecheck、测试、打包通过，无悬挂 workspace 依赖。 |                                                |
 | SUN-06 | 清理 AI 专属 i18n、图片、测试和文档；更新 README/隐私/安全说明。                       | P1     | SUN-04             | 未开始 | TBD    | 全仓                                       | 用户文档准确描述“外部 AI + MCP”模式。                   |                                                |
 
+## 7.1 MCP 能力缺口（不阻塞下线）
+
+| ID | 任务 | 优先级 | 依赖 | 状态 | 负责人 | 记录 | 验收标准 | PR |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| MED-01 | 受控导入外部 Agent 生成的图片，并向各文档类型提供 handle-based 插入能力。 | P1 | SUN-04 | 未开始 | TBD | `mcp-capability-gaps.md` | 禁止任意路径；满足 MIME/大小/SSRF/审计约束；至少覆盖 Slides。 | |
+
 ## 8. 持续质量门禁
 
 | ID     | 任务                                                                                               | 优先级 | 依赖            | 状态   | 负责人 | 验收标准                                                                                         | PR  |
