@@ -570,8 +570,6 @@ export function ExcelShell({
             else if (command === 'goto-open') setShowGoTo(true)
             else if (command === 'header-footer-open') setShowHeaderFooter(true)
             else if (command === 'allow-edit-ranges-open') setShowAllowEditRanges(true)
-            else if (command === 'ai-open-panel') setIsCopilotOpen(true)
-            else if (command === 'ai-toggle-panel') setIsCopilotOpen((v) => !v)
             else if (command === 'chart-element-title') setChartTextTarget('title')
             else if (command === 'chart-element-axis-cat') setChartTextTarget('axis-category')
             else if (command === 'chart-element-axis-val') setChartTextTarget('axis-value')
@@ -2338,7 +2336,7 @@ function Ribbon({
             onClick={() => onCommand('workbook-statistics')}
           />
         </RibbonGroup>
-        <RibbonGroup label={t('appGroupLanguage')}>
+        <RibbonGroup label={t('appGroupLanguage')} hidden>
           <div className="ribbon-tool large" data-tip={t('appTranslateTitle')}>
             <span className="tool-icon-row">
               <ToolSymbol symbol="文" />
