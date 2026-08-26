@@ -3776,7 +3776,6 @@ export function App() {
         showRuler={showRuler}
         showNav={showNav}
         commentCount={comments.length}
-        openCommentCount={comments.filter((c) => !c.parentId && c.done !== true).length}
         canComment={!editor.state.selection.empty}
         trackChanges={trackChanges}
         revisionDisplay={revisionDisplay}

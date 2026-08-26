@@ -203,8 +203,6 @@ interface RibbonProps {
   showNav: boolean
   onShowNav: (v: boolean) => void
   commentCount: number
-  /** unresolved root comments (drives the AI resolve-comments action) */
-  openCommentCount: number
   onShowComments: () => void
   /** Review → comments / revisions / compare / protection */
   canComment: boolean
@@ -600,7 +598,6 @@ function RibbonInner({
   showNav,
   onShowNav,
   commentCount,
-  openCommentCount,
   onShowComments,
   canComment,
   onNewComment,
@@ -3460,9 +3457,7 @@ function RibbonInner({
             hasDoc={hasDoc}
             dropdown={dropdown}
             setDropdown={setDropdown}
-            onAiPreset={onAiPreset}
             commentCount={commentCount}
-            openCommentCount={openCommentCount}
             onShowComments={onShowComments}
             canComment={canComment}
             onNewComment={onNewComment}
