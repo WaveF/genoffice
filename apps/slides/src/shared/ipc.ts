@@ -1352,18 +1352,15 @@ export interface SlidesApi {
   deleteComment: (op: DeleteCommentOp) => Promise<SlideComment[] | null>
   /** System clipboard while text-editing (webContents.cut/copy/paste, for menu command echo) */
   nativeClipboard: (op: 'cut' | 'copy' | 'paste') => Promise<void>
-  /** Nestable history transaction; all edits between begin/end become one undo step.
-      The outermost end registers an AI rollback point and returns its id (null when nothing changed). */
+  /** Nestable history transaction; all edits between begin/end become one undo step. */
   beginHistoryBatch: () => Promise<boolean>
-  endHistoryBatch: () => Promise<number | null>
+  endHistoryBatch: () => Promise<boolean>
   /** Apply an edit script's collected primitives as ONE atomic op transaction (the executor rolls back on any failure); returns the rebuilt slide or a guided error */
   applyEditScript: (
     op: ApplyEditScriptOp,
   ) => Promise<{ slide: RenderSlide } | { error: string } | null>
-  /** AI batch surface: apply raw ops as one transaction (atomic/per_op, dry-run supported) */
+  /** Apply raw operations as one transaction (atomic/per_op, dry-run supported). */
   applyTxn: (op: ApplyTxnOp) => Promise<ApplyTxnResult | null>
-  /** Roll the deck back to an AI rollback point; returns the restored full RenderSlide array, null when the id is unknown */
-  aiSnapshotRestore: (id: number) => Promise<RenderSlide[] | null>
   /** Undo/redo (main-process snapshot history): returns the restored full RenderSlide array, null when nothing to undo */
   undo: () => Promise<RenderSlide[] | null>
   redo: () => Promise<RenderSlide[] | null>

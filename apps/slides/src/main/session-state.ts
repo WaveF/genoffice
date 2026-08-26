@@ -53,14 +53,12 @@ export interface Session {
   fitWidthPx: number
   undoStack: HistorySnapshot[]
   redoStack: HistorySnapshot[]
-  /** Nested history transaction used to collapse an AI tool/run into one undo step. */
+  /** Nested history transaction used to collapse a compound edit into one undo step. */
   historyBatch?: {
     depth: number
     undoStart: number
     before: HistorySnapshot
   }
-  /** Rollback points for the AI panel's Snapshots list, keyed by id (one per AI run that edited the deck). */
-  aiSnapshots?: Map<number, HistorySnapshot>
   /** Edits that only touch archive entries (notes/comments; element-level dirty cannot detect them), reset after save */
   metaDirty?: boolean
   /** Transform preview gesture in progress (the first preview already pushed an undo snapshot; later previews/final commit do not) */
@@ -255,7 +253,7 @@ export function endHistoryBatch(session: Session): HistorySnapshot | null {
   return batch.before
 }
 
-/** Preserve the old deck and its history when AI replaces the entire presentation. */
+/** Preserve the old deck and its history when a full-deck replacement occurs. */
 export function carryHistoryForReplacement(
   previous: Session | undefined,
   replacement: Session,
@@ -265,30 +263,7 @@ export function carryHistoryForReplacement(
   replacement.undoStack = previous.undoStack
   replacement.redoStack = previous.redoStack
   replacement.historyBatch = previous.historyBatch
-  replacement.aiSnapshots = previous.aiSnapshots
   scheduleHistoryNotify(replacement)
-}
-
-const MAX_AI_SNAPSHOTS = 20
-let nextAiSnapshotId = 1
-
-/** Register a rollback point (stored as its own copy; `snap` typically also sits on the undo stack). */
-export function registerAiSnapshot(session: Session, snap: HistorySnapshot): number {
-  const map = (session.aiSnapshots ??= new Map())
-  const id = nextAiSnapshotId++
-  map.set(id, cloneSnapshot(snap))
-  while (map.size > MAX_AI_SNAPSHOTS) map.delete(map.keys().next().value as number)
-  return id
-}
-
-/** Roll the deck back to a registered AI snapshot; the pre-rollback state becomes one undo step. */
-export function restoreAiSnapshot(session: Session, id: number): boolean {
-  const snap = session.aiSnapshots?.get(id)
-  if (!snap) return false
-  pushHistory(session)
-  restoreSnapshot(session, snap)
-  session.aiSnapshots?.delete(id)
-  return true
 }
 
 export function restoreSnapshot(session: Session, snap: HistorySnapshot): void {
@@ -312,15 +287,14 @@ export function restoreSnapshot(session: Session, snap: HistorySnapshot): void {
 }
 
 /**
- * Close a history batch that outlived its run: an AI tool path that
+ * Close a history batch that outlived its caller: a compound-edit path that
  * throws between begin and end would otherwise leave historyBatch set forever,
  * and undo/redo — which refuse to run mid-batch — would silently do nothing for
  * the rest of the session. Collapsing here keeps the run's edits as one step.
  */
 export function settleStaleHistoryBatch(session: Session): void {
   while (session.historyBatch) {
-    const collapsed = endHistoryBatch(session)
-    if (collapsed) registerAiSnapshot(session, collapsed)
+    endHistoryBatch(session)
   }
 }
 

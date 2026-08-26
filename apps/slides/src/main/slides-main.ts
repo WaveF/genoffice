@@ -208,8 +208,6 @@ import {
   pushHistory,
   rebuildSlide,
   rebuildSlideWithReparse,
-  registerAiSnapshot,
-  restoreAiSnapshot,
   restoreSnapshot,
   settleStaleHistoryBatch,
   runtime,
@@ -3935,16 +3933,7 @@ export function registerSlidesIpc(): void {
   ipcMain.handle('slides:history-batch-end', (e) => {
     const session = sessions.get(e.sender.id)
     if (!session) return null
-    const before = endHistoryBatch(session)
-    return before ? registerAiSnapshot(session, before) : null
-  })
-
-  ipcMain.handle('slides:ai-snapshot-restore', (e, id: number) => {
-    const session = sessions.get(e.sender.id)
-    if (!session || session.masterEdit || session.historyBatch) return null
-    if (!restoreAiSnapshot(session, id)) return null
-    scheduleDeckBroadcast(session)
-    return buildAllRenderSlides(session.opened, session.fitWidthPx)
+    return endHistoryBatch(session) !== null
   })
 
   ipcMain.handle('slides:undo', (e) => {
