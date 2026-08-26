@@ -1,6 +1,7 @@
 import {
   CapabilityError,
   type CapabilityTool,
+  type DocumentKind,
   type DocumentTarget,
   type ExecutionContext,
   type ToolRisk,
@@ -12,13 +13,18 @@ import type { McpPermissionGate } from './permissions'
 import { DocumentWriteQueue } from './write-queue'
 import type { McpAuditLogger } from './audit'
 import { assertSafeMcpInput } from './input-guard'
-import type { RendererMcpAction, RendererMcpBridge } from './renderer-bridge'
+import type { RendererMcpAction } from './renderer-bridge'
 
 /** Small interface keeps the gateway unit-testable without an Electron runtime. */
 export interface DocumentTargetSource {
   listDocumentTargets(): Promise<DocumentTarget[]>
   findDocumentTarget(documentId: string): Promise<DocumentTarget | null>
   activateDocument(documentId: string): Promise<DocumentTarget | null>
+}
+
+/** Shell-owned factory: it creates only blank documents in the configured default location. */
+export interface McpDocumentFactory {
+  create(kind: DocumentKind): Promise<DocumentTarget>
 }
 
 /** Read-only portion of the Slides facade, injected to avoid an Electron dependency in gateway tests. */
@@ -40,7 +46,10 @@ export interface SlidesMcpWriter extends SlidesMcpReader {
     | Promise<{ applied: boolean; revision: number; [key: string]: unknown }>
   undo(webContentsId: number, expectedRevision: number): { applied: boolean; revision: number }
   redo(webContentsId: number, expectedRevision: number): { applied: boolean; revision: number }
-  save(webContentsId: number, expectedRevision: number): Promise<{ saved: boolean; revision: number }>
+  save(
+    webContentsId: number,
+    expectedRevision: number,
+  ): Promise<{ saved: boolean; revision: number }>
   addSlide(
     webContentsId: number,
     afterSlide: number | string,
@@ -108,6 +117,16 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
   LIST_OPEN_DOCUMENTS,
   GET_DOCUMENT_STATUS,
   {
+    name: 'create_document',
+    description: 'Create one blank document in GenOffice and return its opaque document ID.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['kind'],
+      properties: { kind: { enum: ['docs', 'sheets', 'slides', 'markdown', 'pdf'] } },
+    },
+  },
+  {
     name: 'slides.get_deck_context',
     description: 'Read the slide IDs and element counts for one open Slides document.',
     inputSchema: GET_DOCUMENT_STATUS.inputSchema,
@@ -116,21 +135,44 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
     name: 'slides.add_slide',
     description: 'Insert a blank slide after one explicit slide ID or index.',
     inputSchema: {
-      type: 'object', additionalProperties: false, required: ['documentId', 'expectedRevision', 'afterSlide'],
-      properties: { documentId: { type: 'string' }, expectedRevision: { type: 'integer', minimum: 0 }, afterSlide: { anyOf: [{ type: 'integer', minimum: 0 }, { type: 'string', minLength: 1 }] } },
+      type: 'object',
+      additionalProperties: false,
+      required: ['documentId', 'expectedRevision', 'afterSlide'],
+      properties: {
+        documentId: { type: 'string' },
+        expectedRevision: { type: 'integer', minimum: 0 },
+        afterSlide: {
+          anyOf: [
+            { type: 'integer', minimum: 0 },
+            { type: 'string', minLength: 1 },
+          ],
+        },
+      },
     },
   },
   {
     name: 'slides.delete_slide',
     description: 'Delete one explicit slide ID or index after a one-time confirmation.',
     inputSchema: {
-      type: 'object', additionalProperties: false, required: ['documentId', 'expectedRevision', 'slide'],
-      properties: { documentId: { type: 'string' }, expectedRevision: { type: 'integer', minimum: 0 }, slide: { anyOf: [{ type: 'integer', minimum: 0 }, { type: 'string', minLength: 1 }] } },
+      type: 'object',
+      additionalProperties: false,
+      required: ['documentId', 'expectedRevision', 'slide'],
+      properties: {
+        documentId: { type: 'string' },
+        expectedRevision: { type: 'integer', minimum: 0 },
+        slide: {
+          anyOf: [
+            { type: 'integer', minimum: 0 },
+            { type: 'string', minLength: 1 },
+          ],
+        },
+      },
     },
   },
   {
     name: 'save_document',
-    description: 'Save one explicitly identified open Slides document to its application-controlled path.',
+    description:
+      'Save one explicitly identified open Slides document to its application-controlled path.',
     inputSchema: DOCUMENT_REVISION_INPUT_SCHEMA,
   },
   {
@@ -147,7 +189,12 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
       required: ['documentId', 'slide'],
       properties: {
         documentId: { type: 'string', minLength: 1, maxLength: 128 },
-        slide: { anyOf: [{ type: 'integer', minimum: 0 }, { type: 'string', minLength: 1 }] },
+        slide: {
+          anyOf: [
+            { type: 'integer', minimum: 0 },
+            { type: 'string', minLength: 1 },
+          ],
+        },
       },
     },
   },
@@ -155,8 +202,18 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
     name: 'slides.render_preview',
     description: 'Render one open slide as a bounded PNG preview for inspection.',
     inputSchema: {
-      type: 'object', additionalProperties: false, required: ['documentId', 'slide'],
-      properties: { documentId: { type: 'string', minLength: 1, maxLength: 128 }, slide: { anyOf: [{ type: 'integer', minimum: 0 }, { type: 'string', minLength: 1 }] } },
+      type: 'object',
+      additionalProperties: false,
+      required: ['documentId', 'slide'],
+      properties: {
+        documentId: { type: 'string', minLength: 1, maxLength: 128 },
+        slide: {
+          anyOf: [
+            { type: 'integer', minimum: 0 },
+            { type: 'string', minLength: 1 },
+          ],
+        },
+      },
     },
   },
   ...(['docs', 'markdown'] as const).flatMap((kind) => [
@@ -169,14 +226,31 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
       name: `${kind}.insert_content`,
       description: `Append bounded content to one explicit open ${kind} document.`,
       inputSchema: {
-        type: 'object', additionalProperties: false, required: ['documentId', 'expectedRevision', 'content'],
-        properties: { documentId: { type: 'string' }, expectedRevision: { type: 'integer', minimum: 0 }, content: { type: 'string', minLength: 1, maxLength: 8192 } },
+        type: 'object',
+        additionalProperties: false,
+        required: ['documentId', 'expectedRevision', 'content'],
+        properties: {
+          documentId: { type: 'string' },
+          expectedRevision: { type: 'integer', minimum: 0 },
+          content: { type: 'string', minLength: 1, maxLength: 8192 },
+        },
       },
     },
     {
       name: `${kind}.replace_blocks`,
       description: `Replace explicitly addressed content in one open ${kind} document.`,
-      inputSchema: { type: 'object', additionalProperties: false, required: ['documentId', 'expectedRevision', 'content'], properties: { documentId: { type: 'string' }, expectedRevision: { type: 'integer', minimum: 0 }, start: { type: 'integer', minimum: 0 }, end: { type: 'integer', minimum: 0 }, content: { type: 'string', maxLength: 65536 } } },
+      inputSchema: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['documentId', 'expectedRevision', 'content'],
+        properties: {
+          documentId: { type: 'string' },
+          expectedRevision: { type: 'integer', minimum: 0 },
+          start: { type: 'integer', minimum: 0 },
+          end: { type: 'integer', minimum: 0 },
+          content: { type: 'string', maxLength: 65536 },
+        },
+      },
     },
     {
       name: `${kind}.read_blocks`,
@@ -193,10 +267,12 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
       },
     },
   ]),
-  ...([
-    ['sheets', 'get_workbook_context'],
-    ['pdf', 'get_document_context'],
-  ] as const).map(([kind, operation]) => ({
+  ...(
+    [
+      ['sheets', 'get_workbook_context'],
+      ['pdf', 'get_document_context'],
+    ] as const
+  ).map(([kind, operation]) => ({
     name: `${kind}.${operation}`,
     description: `Read a compact context summary from one open ${kind} document.`,
     inputSchema: GET_DOCUMENT_STATUS.inputSchema,
@@ -205,7 +281,9 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
     name: 'sheets.read_range',
     description: 'Read one explicit bounded cell range from an open workbook.',
     inputSchema: {
-      type: 'object', additionalProperties: false, required: ['documentId', 'sheetId', 'range'],
+      type: 'object',
+      additionalProperties: false,
+      required: ['documentId', 'sheetId', 'range'],
       properties: {
         documentId: { type: 'string', minLength: 1, maxLength: 128 },
         sheetId: { type: 'string', minLength: 1, maxLength: 128 },
@@ -214,16 +292,56 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
     },
   },
   {
-    name: 'sheets.find', description: 'Find bounded text matches in one explicit workbook range.',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['documentId', 'sheetId', 'range', 'query'], properties: { documentId: { type: 'string' }, sheetId: { type: 'string' }, range: { type: 'string' }, query: { type: 'string', minLength: 1, maxLength: 256 } } },
+    name: 'sheets.find',
+    description: 'Find bounded text matches in one explicit workbook range.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['documentId', 'sheetId', 'range', 'query'],
+      properties: {
+        documentId: { type: 'string' },
+        sheetId: { type: 'string' },
+        range: { type: 'string' },
+        query: { type: 'string', minLength: 1, maxLength: 256 },
+      },
+    },
   },
-  { name: 'sheets.aggregate', description: 'Aggregate numeric cells in one explicit workbook range.', inputSchema: { type: 'object', additionalProperties: false, required: ['documentId', 'sheetId', 'range', 'operation'], properties: { documentId: { type: 'string' }, sheetId: { type: 'string' }, range: { type: 'string' }, operation: { enum: ['sum', 'count', 'average'] } } } },
-  { name: 'sheets.trace_formula', description: 'Read direct A1 precedents of one formula cell.', inputSchema: { type: 'object', additionalProperties: false, required: ['documentId', 'sheetId', 'address'], properties: { documentId: { type: 'string' }, sheetId: { type: 'string' }, address: { type: 'string' } } } },
+  {
+    name: 'sheets.aggregate',
+    description: 'Aggregate numeric cells in one explicit workbook range.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['documentId', 'sheetId', 'range', 'operation'],
+      properties: {
+        documentId: { type: 'string' },
+        sheetId: { type: 'string' },
+        range: { type: 'string' },
+        operation: { enum: ['sum', 'count', 'average'] },
+      },
+    },
+  },
+  {
+    name: 'sheets.trace_formula',
+    description: 'Read direct A1 precedents of one formula cell.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['documentId', 'sheetId', 'address'],
+      properties: {
+        documentId: { type: 'string' },
+        sheetId: { type: 'string' },
+        address: { type: 'string' },
+      },
+    },
+  },
   {
     name: 'sheets.apply_operations',
     description: 'Dry-run or atomically apply a validated operation batch to an open workbook.',
     inputSchema: {
-      type: 'object', additionalProperties: false, required: ['documentId', 'expectedRevision', 'transactionId', 'summary', 'operations'],
+      type: 'object',
+      additionalProperties: false,
+      required: ['documentId', 'expectedRevision', 'transactionId', 'summary', 'operations'],
       properties: {
         documentId: { type: 'string', minLength: 1, maxLength: 128 },
         expectedRevision: { type: 'integer', minimum: 0 },
@@ -234,19 +352,51 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
       },
     },
   },
-  { name: 'sheets.undo', description: 'Undo the latest compatible workbook change.', inputSchema: DOCUMENT_REVISION_INPUT_SCHEMA },
+  {
+    name: 'sheets.undo',
+    description: 'Undo the latest compatible workbook change.',
+    inputSchema: DOCUMENT_REVISION_INPUT_SCHEMA,
+  },
   {
     name: 'pdf.read_page_context',
     description: 'Read bounded text context for one explicit page of an open PDF.',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['documentId', 'page'], properties: { documentId: { type: 'string' }, page: { type: 'integer', minimum: 0 } } },
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['documentId', 'page'],
+      properties: { documentId: { type: 'string' }, page: { type: 'integer', minimum: 0 } },
+    },
   },
-  { name: 'pdf.search', description: 'Search bounded text matches in an open PDF.', inputSchema: { type: 'object', additionalProperties: false, required: ['documentId', 'query'], properties: { documentId: { type: 'string' }, query: { type: 'string', minLength: 1, maxLength: 256 } } } },
-  { name: 'pdf.read_annotations', description: 'Read bounded saved and pending annotations on one PDF page.', inputSchema: { type: 'object', additionalProperties: false, required: ['documentId', 'page'], properties: { documentId: { type: 'string' }, page: { type: 'integer', minimum: 0 } } } },
+  {
+    name: 'pdf.search',
+    description: 'Search bounded text matches in an open PDF.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['documentId', 'query'],
+      properties: {
+        documentId: { type: 'string' },
+        query: { type: 'string', minLength: 1, maxLength: 256 },
+      },
+    },
+  },
+  {
+    name: 'pdf.read_annotations',
+    description: 'Read bounded saved and pending annotations on one PDF page.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['documentId', 'page'],
+      properties: { documentId: { type: 'string' }, page: { type: 'integer', minimum: 0 } },
+    },
+  },
   {
     name: 'pdf.apply_operations',
     description: 'Dry-run or queue bounded non-destructive annotations in an open PDF.',
     inputSchema: {
-      type: 'object', additionalProperties: false, required: ['documentId', 'expectedRevision', 'operations'],
+      type: 'object',
+      additionalProperties: false,
+      required: ['documentId', 'expectedRevision', 'operations'],
       properties: {
         documentId: { type: 'string', minLength: 1, maxLength: 128 },
         expectedRevision: { type: 'integer', minimum: 0 },
@@ -300,6 +450,7 @@ export class ShellMcpGateway implements McpBridgeGateway {
     private readonly permissions?: McpPermissionGate,
     private readonly audit?: McpAuditLogger,
     private readonly renderer?: RendererMcpReader,
+    private readonly documentFactory?: McpDocumentFactory,
   ) {}
 
   async handle(request: McpBridgeRequest): Promise<unknown> {
@@ -327,19 +478,37 @@ export class ShellMcpGateway implements McpBridgeGateway {
     const context = executionContext(request)
     if (name === LIST_OPEN_DOCUMENTS.name) {
       this.assertEmptyArguments(argumentsValue)
-      if (context.signal.aborted) throw new CapabilityError('cancelled', 'MCP request was cancelled')
+      if (context.signal.aborted)
+        throw new CapabilityError('cancelled', 'MCP request was cancelled')
       const documents = await this.documents.listDocumentTargets()
       return toolResult(JSON.stringify(documents))
     }
     if (name === GET_DOCUMENT_STATUS.name) {
       const documentId = this.requireOnlyDocumentId(argumentsValue)
-      if (context.signal.aborted) throw new CapabilityError('cancelled', 'MCP request was cancelled')
+      if (context.signal.aborted)
+        throw new CapabilityError('cancelled', 'MCP request was cancelled')
       const target = await this.documents.findDocumentTarget(documentId)
       return GET_DOCUMENT_STATUS.execute(target, { documentId }, context)
     }
+    if (name === 'create_document') {
+      const kind = argumentsValue.kind
+      if (
+        typeof kind !== 'string' ||
+        !['docs', 'sheets', 'slides', 'markdown', 'pdf'].includes(kind) ||
+        Object.keys(argumentsValue).length !== 1
+      ) {
+        throw new CapabilityError('validation_error', 'kind must be one supported document type')
+      }
+      const target = await this.requireDocumentFactory().create(kind as DocumentKind)
+      return toolResult(JSON.stringify(target), true, target.revision)
+    }
     if (name === 'slides.get_deck_context') {
       const target = await this.requireSlidesTarget(this.requireOnlyDocumentId(argumentsValue))
-      return toolResult(JSON.stringify(this.requireSlides().getDeckContext(target.webContentsId)), false, target.revision)
+      return toolResult(
+        JSON.stringify(this.requireSlides().getDeckContext(target.webContentsId)),
+        false,
+        target.revision,
+      )
     }
     if (name === 'slides.read_slide') {
       const { documentId, slide } = this.requireDocumentSlide(argumentsValue)
@@ -353,7 +522,11 @@ export class ShellMcpGateway implements McpBridgeGateway {
     if (name === 'slides.render_preview') {
       const { documentId, slide } = this.requireDocumentSlide(argumentsValue)
       const target = await this.requireSlidesTarget(documentId)
-      return toolResult(JSON.stringify(await this.requireSlides().renderSlidePreview(target.webContentsId, slide)), false, target.revision)
+      return toolResult(
+        JSON.stringify(await this.requireSlides().renderSlidePreview(target.webContentsId, slide)),
+        false,
+        target.revision,
+      )
     }
     if (
       name === 'docs.get_context' ||
@@ -361,16 +534,17 @@ export class ShellMcpGateway implements McpBridgeGateway {
       name === 'docs.read_blocks' ||
       name === 'markdown.read_blocks'
     ) {
-      const [kind, operation] = name.split('.') as ['docs' | 'markdown', 'get_context' | 'read_blocks']
+      const [kind, operation] = name.split('.') as [
+        'docs' | 'markdown',
+        'get_context' | 'read_blocks',
+      ]
       const documentId =
         operation === 'get_context'
           ? this.requireOnlyDocumentId(argumentsValue)
           : this.requireDocumentBlockRange(argumentsValue).documentId
       const target = await this.requireRendererTarget(documentId, kind)
       const input =
-        operation === 'get_context'
-          ? {}
-          : this.requireDocumentBlockRange(argumentsValue)
+        operation === 'get_context' ? {} : this.requireDocumentBlockRange(argumentsValue)
       const result = await this.requireRenderer().request(
         target.webContentsId,
         name as RendererMcpAction,
@@ -383,64 +557,188 @@ export class ShellMcpGateway implements McpBridgeGateway {
       const [kind] = name.split('.') as ['sheets' | 'pdf']
       const documentId = this.requireOnlyDocumentId(argumentsValue)
       const target = await this.requireRendererTarget(documentId, kind)
-      const result = await this.requireRenderer().request(target.webContentsId, name as RendererMcpAction, {}, context.signal)
+      const result = await this.requireRenderer().request(
+        target.webContentsId,
+        name as RendererMcpAction,
+        {},
+        context.signal,
+      )
       return toolResult(JSON.stringify(result), false, target.revision)
     }
     if (name === 'sheets.read_range') {
       const { documentId, sheetId, range } = argumentsValue
       if (
-        typeof documentId !== 'string' || typeof sheetId !== 'string' || typeof range !== 'string' ||
-        documentId.length === 0 || sheetId.length === 0 || range.length === 0 || Object.keys(argumentsValue).length !== 3
-      ) throw new CapabilityError('validation_error', 'documentId, sheetId, and range are required')
+        typeof documentId !== 'string' ||
+        typeof sheetId !== 'string' ||
+        typeof range !== 'string' ||
+        documentId.length === 0 ||
+        sheetId.length === 0 ||
+        range.length === 0 ||
+        Object.keys(argumentsValue).length !== 3
+      )
+        throw new CapabilityError('validation_error', 'documentId, sheetId, and range are required')
       const target = await this.requireRendererTarget(documentId, 'sheets')
-      const result = await this.requireRenderer().request(target.webContentsId, 'sheets.read_range', { sheetId, range }, context.signal)
+      const result = await this.requireRenderer().request(
+        target.webContentsId,
+        'sheets.read_range',
+        { sheetId, range },
+        context.signal,
+      )
       return toolResult(JSON.stringify(result), false, target.revision)
     }
     if (name === 'sheets.find') {
       const { documentId, sheetId, range, query } = argumentsValue
-      if (typeof documentId !== 'string' || typeof sheetId !== 'string' || typeof range !== 'string' || typeof query !== 'string' || Object.keys(argumentsValue).length !== 4) throw new CapabilityError('validation_error', 'documentId, sheetId, range, and query are required')
+      if (
+        typeof documentId !== 'string' ||
+        typeof sheetId !== 'string' ||
+        typeof range !== 'string' ||
+        typeof query !== 'string' ||
+        Object.keys(argumentsValue).length !== 4
+      )
+        throw new CapabilityError(
+          'validation_error',
+          'documentId, sheetId, range, and query are required',
+        )
       const target = await this.requireRendererTarget(documentId, 'sheets')
-      const result = await this.requireRenderer().request(target.webContentsId, 'sheets.find', { sheetId, range, query }, context.signal)
+      const result = await this.requireRenderer().request(
+        target.webContentsId,
+        'sheets.find',
+        { sheetId, range, query },
+        context.signal,
+      )
       return toolResult(JSON.stringify(result), false, target.revision)
     }
     if (name === 'sheets.aggregate') {
       const { documentId, sheetId, range, operation } = argumentsValue
-      if (typeof documentId !== 'string' || typeof sheetId !== 'string' || typeof range !== 'string' || !['sum', 'count', 'average'].includes(String(operation)) || Object.keys(argumentsValue).length !== 4) throw new CapabilityError('validation_error', 'documentId, sheetId, range, and operation are required')
+      if (
+        typeof documentId !== 'string' ||
+        typeof sheetId !== 'string' ||
+        typeof range !== 'string' ||
+        !['sum', 'count', 'average'].includes(String(operation)) ||
+        Object.keys(argumentsValue).length !== 4
+      )
+        throw new CapabilityError(
+          'validation_error',
+          'documentId, sheetId, range, and operation are required',
+        )
       const target = await this.requireRendererTarget(documentId, 'sheets')
-      const result = await this.requireRenderer().request(target.webContentsId, 'sheets.aggregate', { sheetId, range, operation }, context.signal)
+      const result = await this.requireRenderer().request(
+        target.webContentsId,
+        'sheets.aggregate',
+        { sheetId, range, operation },
+        context.signal,
+      )
       return toolResult(JSON.stringify(result), false, target.revision)
     }
     if (name === 'sheets.trace_formula') {
       const { documentId, sheetId, address } = argumentsValue
-      if (typeof documentId !== 'string' || typeof sheetId !== 'string' || typeof address !== 'string' || Object.keys(argumentsValue).length !== 3) throw new CapabilityError('validation_error', 'documentId, sheetId, and address are required')
+      if (
+        typeof documentId !== 'string' ||
+        typeof sheetId !== 'string' ||
+        typeof address !== 'string' ||
+        Object.keys(argumentsValue).length !== 3
+      )
+        throw new CapabilityError(
+          'validation_error',
+          'documentId, sheetId, and address are required',
+        )
       const target = await this.requireRendererTarget(documentId, 'sheets')
-      const result = await this.requireRenderer().request(target.webContentsId, 'sheets.trace_formula', { sheetId, address }, context.signal)
+      const result = await this.requireRenderer().request(
+        target.webContentsId,
+        'sheets.trace_formula',
+        { sheetId, address },
+        context.signal,
+      )
       return toolResult(JSON.stringify(result), false, target.revision)
     }
     if (name === 'sheets.apply_operations') {
-      const { documentId, expectedRevision, transactionId, summary, operations, dryRun = false } = argumentsValue
+      const {
+        documentId,
+        expectedRevision,
+        transactionId,
+        summary,
+        operations,
+        dryRun = false,
+      } = argumentsValue
       if (
-        typeof documentId !== 'string' || !Number.isSafeInteger(expectedRevision) || (expectedRevision as number) < 0 ||
-        typeof transactionId !== 'string' || typeof summary !== 'string' || !Array.isArray(operations) || typeof dryRun !== 'boolean' ||
-        Object.keys(argumentsValue).some((key) => !['documentId', 'expectedRevision', 'transactionId', 'summary', 'operations', 'dryRun'].includes(key))
-      ) throw new CapabilityError('validation_error', 'A complete Sheets operation batch is required')
+        typeof documentId !== 'string' ||
+        !Number.isSafeInteger(expectedRevision) ||
+        (expectedRevision as number) < 0 ||
+        typeof transactionId !== 'string' ||
+        typeof summary !== 'string' ||
+        !Array.isArray(operations) ||
+        typeof dryRun !== 'boolean' ||
+        Object.keys(argumentsValue).some(
+          (key) =>
+            ![
+              'documentId',
+              'expectedRevision',
+              'transactionId',
+              'summary',
+              'operations',
+              'dryRun',
+            ].includes(key),
+        )
+      )
+        throw new CapabilityError(
+          'validation_error',
+          'A complete Sheets operation batch is required',
+        )
       const target = await this.requireRendererTarget(documentId, 'sheets')
-      if (target.revision !== expectedRevision) throw new CapabilityError('conflict', 'Workbook changed since it was read', { expectedRevision, actualRevision: target.revision })
+      if (target.revision !== expectedRevision)
+        throw new CapabilityError('conflict', 'Workbook changed since it was read', {
+          expectedRevision,
+          actualRevision: target.revision,
+        })
       const result = await this.writeQueue.enqueue(target.documentId, context.signal, async () => {
-        if (!dryRun) await this.requirePermissions().authorize({ clientId: context.clientId, toolName: name, risk: 'write', document: target })
-        return this.requireRenderer().request(target.webContentsId, 'sheets.apply_operations', { expectedRevision, transactionId, summary, operations, dryRun }, context.signal)
+        if (!dryRun)
+          await this.requirePermissions().authorize({
+            clientId: context.clientId,
+            toolName: name,
+            risk: 'write',
+            document: target,
+          })
+        return this.requireRenderer().request(
+          target.webContentsId,
+          'sheets.apply_operations',
+          { expectedRevision, transactionId, summary, operations, dryRun },
+          context.signal,
+        )
       })
       const updated = await this.requireRendererTarget(documentId, 'sheets')
       return toolResult(JSON.stringify(result), !dryRun, updated.revision)
     }
     if (name === 'sheets.undo') {
       const { documentId, expectedRevision } = argumentsValue
-      if (typeof documentId !== 'string' || !Number.isSafeInteger(expectedRevision) || (expectedRevision as number) < 0 || Object.keys(argumentsValue).length !== 2) throw new CapabilityError('validation_error', 'documentId and expectedRevision are required')
+      if (
+        typeof documentId !== 'string' ||
+        !Number.isSafeInteger(expectedRevision) ||
+        (expectedRevision as number) < 0 ||
+        Object.keys(argumentsValue).length !== 2
+      )
+        throw new CapabilityError(
+          'validation_error',
+          'documentId and expectedRevision are required',
+        )
       const target = await this.requireRendererTarget(documentId, 'sheets')
-      if (target.revision !== expectedRevision) throw new CapabilityError('conflict', 'Workbook changed since it was read', { expectedRevision, actualRevision: target.revision })
+      if (target.revision !== expectedRevision)
+        throw new CapabilityError('conflict', 'Workbook changed since it was read', {
+          expectedRevision,
+          actualRevision: target.revision,
+        })
       const result = await this.writeQueue.enqueue(target.documentId, context.signal, async () => {
-        await this.requirePermissions().authorize({ clientId: context.clientId, toolName: name, risk: 'write', document: target })
-        return this.requireRenderer().request(target.webContentsId, 'sheets.undo', { expectedRevision }, context.signal)
+        await this.requirePermissions().authorize({
+          clientId: context.clientId,
+          toolName: name,
+          risk: 'write',
+          document: target,
+        })
+        return this.requireRenderer().request(
+          target.webContentsId,
+          'sheets.undo',
+          { expectedRevision },
+          context.signal,
+        )
       })
       const updated = await this.requireRendererTarget(documentId, 'sheets')
       return toolResult(JSON.stringify(result), true, updated.revision)
@@ -448,53 +746,136 @@ export class ShellMcpGateway implements McpBridgeGateway {
     if (name === 'pdf.read_page_context') {
       const documentId = argumentsValue.documentId
       const page = argumentsValue.page
-      if (typeof documentId !== 'string' || typeof page !== 'number' || !Number.isSafeInteger(page) || page < 0 || Object.keys(argumentsValue).length !== 2) throw new CapabilityError('validation_error', 'documentId and non-negative page are required')
+      if (
+        typeof documentId !== 'string' ||
+        typeof page !== 'number' ||
+        !Number.isSafeInteger(page) ||
+        page < 0 ||
+        Object.keys(argumentsValue).length !== 2
+      )
+        throw new CapabilityError(
+          'validation_error',
+          'documentId and non-negative page are required',
+        )
       const target = await this.requireRendererTarget(documentId, 'pdf')
-      const result = await this.requireRenderer().request(target.webContentsId, 'pdf.read_page_context', { page }, context.signal)
+      const result = await this.requireRenderer().request(
+        target.webContentsId,
+        'pdf.read_page_context',
+        { page },
+        context.signal,
+      )
       return toolResult(JSON.stringify(result), false, target.revision)
     }
     if (name === 'pdf.search') {
       const { documentId, query } = argumentsValue
-      if (typeof documentId !== 'string' || typeof query !== 'string' || query.length === 0 || Object.keys(argumentsValue).length !== 2) throw new CapabilityError('validation_error', 'documentId and query are required')
+      if (
+        typeof documentId !== 'string' ||
+        typeof query !== 'string' ||
+        query.length === 0 ||
+        Object.keys(argumentsValue).length !== 2
+      )
+        throw new CapabilityError('validation_error', 'documentId and query are required')
       const target = await this.requireRendererTarget(documentId, 'pdf')
-      const result = await this.requireRenderer().request(target.webContentsId, 'pdf.search', { query }, context.signal)
+      const result = await this.requireRenderer().request(
+        target.webContentsId,
+        'pdf.search',
+        { query },
+        context.signal,
+      )
       return toolResult(JSON.stringify(result), false, target.revision)
     }
     if (name === 'pdf.read_annotations') {
       const { documentId, page } = argumentsValue
-      if (typeof documentId !== 'string' || !Number.isSafeInteger(page) || (page as number) < 0 || Object.keys(argumentsValue).length !== 2) throw new CapabilityError('validation_error', 'documentId and page are required')
+      if (
+        typeof documentId !== 'string' ||
+        !Number.isSafeInteger(page) ||
+        (page as number) < 0 ||
+        Object.keys(argumentsValue).length !== 2
+      )
+        throw new CapabilityError('validation_error', 'documentId and page are required')
       const target = await this.requireRendererTarget(documentId, 'pdf')
-      const result = await this.requireRenderer().request(target.webContentsId, 'pdf.read_annotations', { page }, context.signal)
+      const result = await this.requireRenderer().request(
+        target.webContentsId,
+        'pdf.read_annotations',
+        { page },
+        context.signal,
+      )
       return toolResult(JSON.stringify(result), false, target.revision)
     }
     if (name === 'pdf.apply_operations') {
       const { documentId, expectedRevision, operations, dryRun = false } = argumentsValue
       if (
-        typeof documentId !== 'string' || !Number.isSafeInteger(expectedRevision) || (expectedRevision as number) < 0 ||
-        !Array.isArray(operations) || operations.length === 0 || operations.length > 50 || typeof dryRun !== 'boolean' ||
-        Object.keys(argumentsValue).some((key) => !['documentId', 'expectedRevision', 'operations', 'dryRun'].includes(key))
-      ) throw new CapabilityError('validation_error', 'A bounded PDF operation batch is required')
+        typeof documentId !== 'string' ||
+        !Number.isSafeInteger(expectedRevision) ||
+        (expectedRevision as number) < 0 ||
+        !Array.isArray(operations) ||
+        operations.length === 0 ||
+        operations.length > 50 ||
+        typeof dryRun !== 'boolean' ||
+        Object.keys(argumentsValue).some(
+          (key) => !['documentId', 'expectedRevision', 'operations', 'dryRun'].includes(key),
+        )
+      )
+        throw new CapabilityError('validation_error', 'A bounded PDF operation batch is required')
       const target = await this.requireRendererTarget(documentId, 'pdf')
-      if (target.revision !== expectedRevision) throw new CapabilityError('conflict', 'Document changed since it was read', { expectedRevision, actualRevision: target.revision })
-      const destructive = operations.some((operation) => isRecord(operation) && ['delete_page', 'replace_pages', 'split_pages', 'merge_pages'].includes(String(operation.op)))
+      if (target.revision !== expectedRevision)
+        throw new CapabilityError('conflict', 'Document changed since it was read', {
+          expectedRevision,
+          actualRevision: target.revision,
+        })
+      const destructive = operations.some(
+        (operation) =>
+          isRecord(operation) &&
+          ['delete_page', 'replace_pages', 'split_pages', 'merge_pages'].includes(
+            String(operation.op),
+          ),
+      )
       const result = await this.writeQueue.enqueue(target.documentId, context.signal, async () => {
-        if (!dryRun) await this.requirePermissions().authorize({ clientId: context.clientId, toolName: name, risk: destructive ? 'destructive' : 'write', document: target })
-        return this.requireRenderer().request(target.webContentsId, 'pdf.apply_operations', { expectedRevision, operations, dryRun }, context.signal)
+        if (!dryRun)
+          await this.requirePermissions().authorize({
+            clientId: context.clientId,
+            toolName: name,
+            risk: destructive ? 'destructive' : 'write',
+            document: target,
+          })
+        return this.requireRenderer().request(
+          target.webContentsId,
+          'pdf.apply_operations',
+          { expectedRevision, operations, dryRun },
+          context.signal,
+        )
       })
       const updated = await this.requireRendererTarget(documentId, 'pdf')
       return toolResult(JSON.stringify(result), !dryRun, updated.revision)
     }
     if (
-      name === 'docs.insert_content' || name === 'docs.replace_blocks' ||
-      name === 'markdown.insert_content' || name === 'markdown.replace_blocks'
+      name === 'docs.insert_content' ||
+      name === 'docs.replace_blocks' ||
+      name === 'markdown.insert_content' ||
+      name === 'markdown.replace_blocks'
     ) {
       const [kind] = name.split('.') as ['docs' | 'markdown']
-      const { documentId, expectedRevision } = this.requireDocumentRevisionWithContent(argumentsValue)
+      const { documentId, expectedRevision } =
+        this.requireDocumentRevisionWithContent(argumentsValue)
       const target = await this.requireRendererTarget(documentId, kind)
-      if (target.revision !== expectedRevision) throw new CapabilityError('conflict', 'Document changed since it was read', { expectedRevision, actualRevision: target.revision })
+      if (target.revision !== expectedRevision)
+        throw new CapabilityError('conflict', 'Document changed since it was read', {
+          expectedRevision,
+          actualRevision: target.revision,
+        })
       const result = await this.writeQueue.enqueue(target.documentId, context.signal, async () => {
-        await this.requirePermissions().authorize({ clientId: context.clientId, toolName: name, risk: 'write', document: target })
-        return this.requireRenderer().request(target.webContentsId, name as RendererMcpAction, argumentsValue, context.signal)
+        await this.requirePermissions().authorize({
+          clientId: context.clientId,
+          toolName: name,
+          risk: 'write',
+          document: target,
+        })
+        return this.requireRenderer().request(
+          target.webContentsId,
+          name as RendererMcpAction,
+          argumentsValue,
+          context.signal,
+        )
       })
       const updated = await this.requireRendererTarget(documentId, kind)
       return toolResult(JSON.stringify(result), true, updated.revision)
@@ -512,9 +893,14 @@ export class ShellMcpGateway implements McpBridgeGateway {
         expectedRevision < 0 ||
         !Array.isArray(rawOps) ||
         typeof dryRun !== 'boolean' ||
-        Object.keys(argumentsValue).some((key) => !['documentId', 'expectedRevision', 'ops', 'dryRun'].includes(key))
+        Object.keys(argumentsValue).some(
+          (key) => !['documentId', 'expectedRevision', 'ops', 'dryRun'].includes(key),
+        )
       ) {
-        throw new CapabilityError('validation_error', 'documentId, expectedRevision, ops, and optional dryRun are required')
+        throw new CapabilityError(
+          'validation_error',
+          'documentId, expectedRevision, ops, and optional dryRun are required',
+        )
       }
       const target = await this.requireSlidesTarget(documentId)
       const slides = this.requireSlidesWriter()
@@ -593,10 +979,16 @@ export class ShellMcpGateway implements McpBridgeGateway {
       )
       const target = await this.requireSlidesTarget(documentId)
       const slides = this.requireSlidesWriter()
-      const slide = argumentsValue[name === 'slides.add_slide' ? 'afterSlide' : 'slide'] as number | string
+      const slide = argumentsValue[name === 'slides.add_slide' ? 'afterSlide' : 'slide'] as
+        number | string
       const risk: ToolRisk = name === 'slides.delete_slide' ? 'destructive' : 'write'
       const result = await this.writeQueue.enqueue(target.documentId, context.signal, async () => {
-        await this.requirePermissions().authorize({ clientId: context.clientId, toolName: name, risk, document: target })
+        await this.requirePermissions().authorize({
+          clientId: context.clientId,
+          toolName: name,
+          risk,
+          document: target,
+        })
         return name === 'slides.add_slide'
           ? slides.addSlide(target.webContentsId, slide, expectedRevision)
           : slides.deleteSlide(target.webContentsId, slide, expectedRevision)
@@ -620,7 +1012,10 @@ export class ShellMcpGateway implements McpBridgeGateway {
       documentId.length > 128 ||
       Object.keys(argumentsValue).length !== 1
     ) {
-      throw new CapabilityError('validation_error', 'documentId must be the only non-empty string argument')
+      throw new CapabilityError(
+        'validation_error',
+        'documentId must be the only non-empty string argument',
+      )
     }
     return documentId
   }
@@ -653,8 +1048,14 @@ export class ShellMcpGateway implements McpBridgeGateway {
       expectedRevision: argumentsValue.expectedRevision,
     })
     const slide = argumentsValue[slideKey]
-    if ((typeof slide !== 'string' && (!Number.isInteger(slide) || (slide as number) < 0)) || Object.keys(argumentsValue).length !== 3) {
-      throw new CapabilityError('validation_error', `${slideKey} must be a slide ID or non-negative index`)
+    if (
+      (typeof slide !== 'string' && (!Number.isInteger(slide) || (slide as number) < 0)) ||
+      Object.keys(argumentsValue).length !== 3
+    ) {
+      throw new CapabilityError(
+        'validation_error',
+        `${slideKey} must be a slide ID or non-negative index`,
+      )
     }
     return base
   }
@@ -697,7 +1098,10 @@ export class ShellMcpGateway implements McpBridgeGateway {
         (typeof limit !== 'number' || !Number.isSafeInteger(limit) || limit < 1 || limit > 100)) ||
       Object.keys(argumentsValue).some((key) => !['documentId', 'start', 'limit'].includes(key))
     ) {
-      throw new CapabilityError('validation_error', 'documentId and optional bounded start/limit are required')
+      throw new CapabilityError(
+        'validation_error',
+        'documentId and optional bounded start/limit are required',
+      )
     }
     return {
       documentId,
@@ -706,18 +1110,35 @@ export class ShellMcpGateway implements McpBridgeGateway {
     }
   }
 
-  private requireDocumentRevisionWithContent(argumentsValue: Record<string, unknown>): { documentId: string; expectedRevision: number } {
-    const base = this.requireDocumentRevision({ documentId: argumentsValue.documentId, expectedRevision: argumentsValue.expectedRevision })
+  private requireDocumentRevisionWithContent(argumentsValue: Record<string, unknown>): {
+    documentId: string
+    expectedRevision: number
+  } {
+    const base = this.requireDocumentRevision({
+      documentId: argumentsValue.documentId,
+      expectedRevision: argumentsValue.expectedRevision,
+    })
     const content = argumentsValue.content
-    if (typeof content !== 'string' || content.length === 0 || content.length > 64 * 1024 || Object.keys(argumentsValue).some((key) => !['documentId', 'expectedRevision', 'start', 'end', 'content'].includes(key)))
-      throw new CapabilityError('validation_error', 'documentId, expectedRevision, and bounded content are required')
+    if (
+      typeof content !== 'string' ||
+      content.length === 0 ||
+      content.length > 64 * 1024 ||
+      Object.keys(argumentsValue).some(
+        (key) => !['documentId', 'expectedRevision', 'start', 'end', 'content'].includes(key),
+      )
+    )
+      throw new CapabilityError(
+        'validation_error',
+        'documentId, expectedRevision, and bounded content are required',
+      )
     return base
   }
 
   private async requireSlidesTarget(documentId: string): Promise<DocumentTarget> {
     const target = await this.documents.findDocumentTarget(documentId)
     if (!target) throw new CapabilityError('not_found', 'Document is no longer open')
-    if (target.kind !== 'slides') throw new CapabilityError('validation_error', 'Document is not a Slides deck')
+    if (target.kind !== 'slides')
+      throw new CapabilityError('validation_error', 'Document is not a Slides deck')
     return target
   }
 
@@ -727,12 +1148,14 @@ export class ShellMcpGateway implements McpBridgeGateway {
   ): Promise<DocumentTarget> {
     const target = await this.documents.findDocumentTarget(documentId)
     if (!target) throw new CapabilityError('not_found', 'Document is no longer open')
-    if (target.kind !== kind) throw new CapabilityError('validation_error', `Document is not a ${kind} document`)
+    if (target.kind !== kind)
+      throw new CapabilityError('validation_error', `Document is not a ${kind} document`)
     return target
   }
 
   private requireRenderer(): RendererMcpReader {
-    if (!this.renderer) throw new CapabilityError('not_running', 'Renderer MCP support is unavailable')
+    if (!this.renderer)
+      throw new CapabilityError('not_running', 'Renderer MCP support is unavailable')
     return this.renderer
   }
 
@@ -757,8 +1180,16 @@ export class ShellMcpGateway implements McpBridgeGateway {
   }
 
   private requirePermissions(): McpPermissionGate {
-    if (!this.permissions) throw new CapabilityError('permission_denied', 'MCP write permission is unavailable')
+    if (!this.permissions)
+      throw new CapabilityError('permission_denied', 'MCP write permission is unavailable')
     return this.permissions
+  }
+
+  private requireDocumentFactory(): McpDocumentFactory {
+    if (!this.documentFactory) {
+      throw new CapabilityError('internal_error', 'MCP document creation is unavailable')
+    }
+    return this.documentFactory
   }
 
   private async auditResult(

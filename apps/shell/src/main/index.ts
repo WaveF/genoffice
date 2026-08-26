@@ -196,6 +196,7 @@ import { FileMcpAuditLogger } from './mcp/audit'
 import { SlidesMcpAdapter } from '../../../slides/src/main/mcp-adapter'
 import { applyUpdateChannel, initAutoUpdater } from './updater'
 import { isUpdateChannel, type UpdateChannel } from '../shared/update-api'
+import type { DocumentKind, DocumentTarget } from '@genoffice/capabilities'
 
 /**
  * GenOffice unified shell: ONE Electron app, ONE BrowserWindow, hosting the
@@ -2745,6 +2746,51 @@ function newMarkdownTab(): void {
 }
 
 /**
+ * MCP may create only blank documents. It never receives a caller-supplied
+ * path or filename; file-backed kinds are written under the configured default
+ * save directory, just like the corresponding File > New action.
+ */
+async function createMcpDocument(kind: DocumentKind): Promise<DocumentTarget> {
+  const manager = tabManager
+  if (!manager) throw new Error('Shell tab manager is unavailable')
+  let tabId: string
+  switch (kind) {
+    case 'docs':
+      tabId = manager.openDocsTab(undefined, { newBlank: true })
+      break
+    case 'slides':
+      tabId = manager.openSlidesTab()
+      break
+    case 'markdown':
+      tabId = manager.openMarkdownTab()
+      break
+    case 'sheets': {
+      const filePath = uniquePathIn(defaultSaveDir(), `${tm('untitledSheet')}.xlsx`)
+      writeFileSync(filePath, await blankXlsxBuffer())
+      markSheetsUntitledPath(filePath)
+      tabId = manager.openSheetsTab(filePath)
+      startQueuedWorkbookNudge()
+      break
+    }
+    case 'pdf': {
+      const filePath = uniquePathIn(defaultSaveDir(), `${tm('untitledPdf')}.pdf`)
+      writeFileSync(filePath, await blankPdfBuffer())
+      markPdfUntitledPath(filePath)
+      applyPendingProject(filePath)
+      tabId = manager.openPdfTab(filePath)
+      break
+    }
+  }
+  const target = await manager.documentTargetForTab(tabId)
+  if (!target) throw new Error('Created document could not be resolved')
+  recordStarPromptDocOpen()
+  analytics.track('file_new', {
+    kind: kind === 'docs' ? 'docx' : kind === 'sheets' ? 'xlsx' : kind === 'slides' ? 'pptx' : kind,
+  })
+  return target
+}
+
+/**
  * "New PDF" creates a blank single-page .pdf in the default folder up front and
  * opens it as a regular file tab — the PDF module has no in-memory blank mode
  * (openPdfTab requires a path), same pattern as the blank workbook above.
@@ -4228,6 +4274,7 @@ app.whenReady().then(async () => {
           new AuthenticatedMcpPermissionGate(),
           new FileMcpAuditLogger(app.getPath('userData')),
           rendererMcpBridge,
+          { create: createMcpDocument },
         ),
       })
       await mcpBridge.start()

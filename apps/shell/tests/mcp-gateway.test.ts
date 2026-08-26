@@ -3,6 +3,7 @@ import { CapabilityError, type DocumentTarget } from '@genoffice/capabilities'
 import {
   ShellMcpGateway,
   type DocumentTargetSource,
+  type McpDocumentFactory,
   type RendererMcpReader,
   type SlidesMcpReader,
 } from '../src/main/mcp/gateway'
@@ -21,6 +22,7 @@ const target: DocumentTarget = {
 function gatewayWith(
   documents: DocumentTarget[] = [target],
   permissions: McpPermissionGate = { authorize: async () => undefined },
+  documentFactory?: McpDocumentFactory,
 ): ShellMcpGateway {
   const source: DocumentTargetSource = {
     listDocumentTargets: async () => documents,
@@ -44,19 +46,41 @@ function gatewayWith(
   const renderer: RendererMcpReader = {
     request: async (_webContentsId, action, input) => ({ action, input, blocks: [] }),
   }
-  return new ShellMcpGateway(source, {
-    ...slides,
-    opsRisk: () => 'write',
-    applyOps: (_webContentsId, _ops, expectedRevision, dryRun) => ({
-      applied: !dryRun,
-      revision: expectedRevision + (dryRun ? 0 : 1),
-    }),
-    undo: (_webContentsId, expectedRevision) => ({ applied: true, revision: expectedRevision + 1 }),
-    redo: (_webContentsId, expectedRevision) => ({ applied: true, revision: expectedRevision + 1 }),
-    save: async (_webContentsId, expectedRevision) => ({ saved: true, revision: expectedRevision }),
-    addSlide: (_webContentsId, _afterSlide, expectedRevision) => ({ applied: true, revision: expectedRevision + 1 }),
-    deleteSlide: (_webContentsId, _slide, expectedRevision) => ({ applied: true, revision: expectedRevision + 1 }),
-  }, permissions, undefined, renderer)
+  return new ShellMcpGateway(
+    source,
+    {
+      ...slides,
+      opsRisk: () => 'write',
+      applyOps: (_webContentsId, _ops, expectedRevision, dryRun) => ({
+        applied: !dryRun,
+        revision: expectedRevision + (dryRun ? 0 : 1),
+      }),
+      undo: (_webContentsId, expectedRevision) => ({
+        applied: true,
+        revision: expectedRevision + 1,
+      }),
+      redo: (_webContentsId, expectedRevision) => ({
+        applied: true,
+        revision: expectedRevision + 1,
+      }),
+      save: async (_webContentsId, expectedRevision) => ({
+        saved: true,
+        revision: expectedRevision,
+      }),
+      addSlide: (_webContentsId, _afterSlide, expectedRevision) => ({
+        applied: true,
+        revision: expectedRevision + 1,
+      }),
+      deleteSlide: (_webContentsId, _slide, expectedRevision) => ({
+        applied: true,
+        revision: expectedRevision + 1,
+      }),
+    },
+    permissions,
+    undefined,
+    renderer,
+    documentFactory,
+  )
 }
 
 function request(params: Record<string, unknown>) {
@@ -81,6 +105,7 @@ describe('ShellMcpGateway', () => {
     expect(result).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ name: 'list_open_documents' }),
+        expect.objectContaining({ name: 'create_document' }),
         expect.objectContaining({ name: 'slides.apply_ops' }),
         expect.objectContaining({ name: 'slides.render_preview' }),
         expect.objectContaining({ name: 'docs.get_context' }),
@@ -91,6 +116,32 @@ describe('ShellMcpGateway', () => {
         expect.objectContaining({ name: 'pdf.read_annotations' }),
       ]),
     )
+  })
+
+  it('creates only one blank supported document and returns its opaque handle', async () => {
+    const created = {
+      ...target,
+      documentId: 'doc-created',
+      kind: 'markdown' as const,
+      revision: 0,
+      dirty: false,
+      active: true,
+    }
+    const create = async (kind: DocumentTarget['kind']) => {
+      expect(kind).toBe('markdown')
+      return created
+    }
+    const result = await gatewayWith(
+      [target],
+      { authorize: async () => undefined },
+      { create },
+    ).handle(request({ name: 'create_document', input: { kind: 'markdown' } }))
+    expect(result).toEqual({ content: JSON.stringify(created), mutated: true, revision: 0 })
+    await expect(
+      gatewayWith([target], { authorize: async () => undefined }, { create }).handle(
+        request({ name: 'create_document', input: { kind: 'markdown', path: '/tmp/nope' } }),
+      ),
+    ).rejects.toMatchObject({ code: 'validation_error' })
   })
 
   it('lists opaque public document summaries without local paths', async () => {
@@ -117,7 +168,10 @@ describe('ShellMcpGateway', () => {
       request({ name: 'slides.read_slide', input: { documentId: 'doc-123', slide: 's_1' } }),
     )
     expect(context).toMatchObject({ revision: 3, mutated: false })
-    expect(JSON.parse((slide as { content: string }).content)).toEqual({ revision: 3, slide: 's_1' })
+    expect(JSON.parse((slide as { content: string }).content)).toEqual({
+      revision: 3,
+      slide: 's_1',
+    })
   })
 
   it('routes Docs and Markdown reads through the fixed renderer bridge', async () => {
@@ -150,16 +204,21 @@ describe('ShellMcpGateway', () => {
     const sheetsTarget = { ...target, kind: 'sheets' as const }
     const pdfTarget = { ...target, documentId: 'doc-pdf', kind: 'pdf' as const }
     const sheets = await gatewayWith([sheetsTarget, pdfTarget]).handle(
-      request({ name: 'sheets.read_range', input: { documentId: 'doc-123', sheetId: 'sheet-1', range: 'A1:B2' } }),
+      request({
+        name: 'sheets.read_range',
+        input: { documentId: 'doc-123', sheetId: 'sheet-1', range: 'A1:B2' },
+      }),
     )
     const pdf = await gatewayWith([sheetsTarget, pdfTarget]).handle(
       request({ name: 'pdf.read_page_context', input: { documentId: 'doc-pdf', page: 0 } }),
     )
     expect(JSON.parse((sheets as { content: string }).content)).toMatchObject({
-      action: 'sheets.read_range', input: { sheetId: 'sheet-1', range: 'A1:B2' },
+      action: 'sheets.read_range',
+      input: { sheetId: 'sheet-1', range: 'A1:B2' },
     })
     expect(JSON.parse((pdf as { content: string }).content)).toMatchObject({
-      action: 'pdf.read_page_context', input: { page: 0 },
+      action: 'pdf.read_page_context',
+      input: { page: 0 },
     })
     await expect(
       gatewayWith([sheetsTarget]).handle(
@@ -175,7 +234,8 @@ describe('ShellMcpGateway', () => {
     )
     expect(result).toMatchObject({ mutated: false, revision: 3 })
     expect(JSON.parse((result as { content: string }).content)).toMatchObject({
-      action: 'pdf.search', input: { query: 'revenue' },
+      action: 'pdf.search',
+      input: { query: 'revenue' },
     })
   })
 
@@ -185,7 +245,8 @@ describe('ShellMcpGateway', () => {
       request({ name: 'pdf.read_annotations', input: { documentId: 'doc-123', page: 0 } }),
     )
     expect(JSON.parse((result as { content: string }).content)).toMatchObject({
-      action: 'pdf.read_annotations', input: { page: 0 },
+      action: 'pdf.read_annotations',
+      input: { page: 0 },
     })
   })
 
@@ -211,14 +272,22 @@ describe('ShellMcpGateway', () => {
   it('requires a Sheets revision and sends operation batches through the renderer write queue', async () => {
     const sheetsTarget = { ...target, kind: 'sheets' as const }
     const result = await gatewayWith([sheetsTarget]).handle(
-      request({ name: 'sheets.apply_operations', input: {
-        documentId: 'doc-123', expectedRevision: 3, transactionId: 'tx-1', summary: 'Set B2',
-        operations: [{ op: 'set_cell', sheetId: 'sheet-1', address: 'B2', value: 4 }], dryRun: true,
-      } }),
+      request({
+        name: 'sheets.apply_operations',
+        input: {
+          documentId: 'doc-123',
+          expectedRevision: 3,
+          transactionId: 'tx-1',
+          summary: 'Set B2',
+          operations: [{ op: 'set_cell', sheetId: 'sheet-1', address: 'B2', value: 4 }],
+          dryRun: true,
+        },
+      }),
     )
     expect(result).toMatchObject({ mutated: false, revision: 3 })
     expect(JSON.parse((result as { content: string }).content)).toMatchObject({
-      action: 'sheets.apply_operations', input: { expectedRevision: 3, transactionId: 'tx-1', dryRun: true },
+      action: 'sheets.apply_operations',
+      input: { expectedRevision: 3, transactionId: 'tx-1', dryRun: true },
     })
   })
 
@@ -226,24 +295,38 @@ describe('ShellMcpGateway', () => {
     const sheetsTarget = { ...target, kind: 'sheets' as const }
     const requests: unknown[] = []
     const result = await gatewayWith([sheetsTarget], {
-      authorize: async (permission) => { requests.push(permission) },
-    }).handle(request({ name: 'sheets.undo', input: { documentId: 'doc-123', expectedRevision: 3 } }))
+      authorize: async (permission) => {
+        requests.push(permission)
+      },
+    }).handle(
+      request({ name: 'sheets.undo', input: { documentId: 'doc-123', expectedRevision: 3 } }),
+    )
 
     expect(result).toMatchObject({ mutated: true, revision: 3 })
-    expect(JSON.parse((result as { content: string }).content)).toMatchObject({ action: 'sheets.undo', input: { expectedRevision: 3 } })
+    expect(JSON.parse((result as { content: string }).content)).toMatchObject({
+      action: 'sheets.undo',
+      input: { expectedRevision: 3 },
+    })
     expect(requests).toEqual([expect.objectContaining({ toolName: 'sheets.undo', risk: 'write' })])
   })
 
   it('routes dry-run PDF annotations through the revision-checked renderer route', async () => {
     const pdfTarget = { ...target, kind: 'pdf' as const }
     const result = await gatewayWith([pdfTarget]).handle(
-      request({ name: 'pdf.apply_operations', input: {
-        documentId: 'doc-123', expectedRevision: 3, dryRun: true,
-        operations: [{ op: 'add_note', page: 0, x: 10, y: 10, contents: 'Review' }],
-      } }),
+      request({
+        name: 'pdf.apply_operations',
+        input: {
+          documentId: 'doc-123',
+          expectedRevision: 3,
+          dryRun: true,
+          operations: [{ op: 'add_note', page: 0, x: 10, y: 10, contents: 'Review' }],
+        },
+      }),
     )
     expect(result).toMatchObject({ mutated: false, revision: 3 })
-    expect(JSON.parse((result as { content: string }).content)).toMatchObject({ action: 'pdf.apply_operations' })
+    expect(JSON.parse((result as { content: string }).content)).toMatchObject({
+      action: 'pdf.apply_operations',
+    })
   })
 
   it('requires destructive permission when a PDF operation deletes a page', async () => {
@@ -254,18 +337,24 @@ describe('ShellMcpGateway', () => {
     const pdfTarget = { ...target, kind: 'pdf' as const }
 
     await gatewayWith([pdfTarget], { authorize }).handle(
-      request({ name: 'pdf.apply_operations', input: {
-        documentId: 'doc-123', expectedRevision: 3,
-        operations: [{ op: 'delete_page', page: 0 }],
-      } }),
+      request({
+        name: 'pdf.apply_operations',
+        input: {
+          documentId: 'doc-123',
+          expectedRevision: 3,
+          operations: [{ op: 'delete_page', page: 0 }],
+        },
+      }),
     )
 
-    expect(requests).toEqual([expect.objectContaining({
-      clientId: 'test-client',
-      toolName: 'pdf.apply_operations',
-      risk: 'destructive',
-      document: expect.objectContaining({ documentId: 'doc-123' }),
-    })])
+    expect(requests).toEqual([
+      expect.objectContaining({
+        clientId: 'test-client',
+        toolName: 'pdf.apply_operations',
+        risk: 'destructive',
+        document: expect.objectContaining({ documentId: 'doc-123' }),
+      }),
+    ])
   })
 
   it('renders a bounded Slides preview through the explicit document/slide route', async () => {
@@ -315,7 +404,10 @@ describe('ShellMcpGateway', () => {
     expect(result).toMatchObject({ mutated: false, revision: 3 })
     await expect(
       gatewayWith().handle(
-        request({ name: 'activate_document', input: { documentId: 'doc-123', expectedRevision: 2 } }),
+        request({
+          name: 'activate_document',
+          input: { documentId: 'doc-123', expectedRevision: 2 },
+        }),
       ),
     ).rejects.toMatchObject({ code: 'conflict' })
   })
@@ -333,10 +425,16 @@ describe('ShellMcpGateway', () => {
 
   it('routes explicit slide insertion and deletion with revisions', async () => {
     const added = await gatewayWith().handle(
-      request({ name: 'slides.add_slide', input: { documentId: 'doc-123', expectedRevision: 3, afterSlide: 0 } }),
+      request({
+        name: 'slides.add_slide',
+        input: { documentId: 'doc-123', expectedRevision: 3, afterSlide: 0 },
+      }),
     )
     const deleted = await gatewayWith().handle(
-      request({ name: 'slides.delete_slide', input: { documentId: 'doc-123', expectedRevision: 3, slide: 1 } }),
+      request({
+        name: 'slides.delete_slide',
+        input: { documentId: 'doc-123', expectedRevision: 3, slide: 1 },
+      }),
     )
     expect(added).toMatchObject({ mutated: true, revision: 4 })
     expect(deleted).toMatchObject({ mutated: true, revision: 4 })

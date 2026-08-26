@@ -31,6 +31,7 @@ node "<adapterPath from bridge.json>" --discovery "/absolute/path/to/GenOffice/m
 
 ## 安全与行为
 
+- `create_document` 只接受 `kind`（`docs`、`sheets`、`slides`、`markdown` 或 `pdf`），创建空白文档并返回其 `documentId`；不接受文件路径或名称。
 - 只可操作用户已经在 GenOffice 中打开的文档。
 - `documentId` 是临时、不透明标识；关闭 Tab 后立即失效。
 - bridge token 是 MCP 写入、保存和删除类操作的唯一授权凭据；认证成功后不会显示应用内确认对话框。应用每次启动都会轮换 token。

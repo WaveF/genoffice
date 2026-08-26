@@ -2,9 +2,9 @@
 
 这些决策用于解除 `mcp-external-ai-todo.md` 的 P0 前置阻塞；后续变更需通过新的 ADR 或更新本文件记录。
 
-## DEC-01：MCP 仅控制已打开文档
+## DEC-01：MCP 控制已打开文档，并可创建受控空白文档
 
-MVP 不提供任意本机路径的 `open_document`、`read_file` 或 `write_file`。外部 AI 只能枚举并操作用户已在 GenOffice 中打开的文档。这样避免让 MCP bridge 成为通用文件系统入口。
+MVP 不提供任意本机路径的 `open_document`、`read_file` 或 `write_file`。外部 AI 可创建指定类型的空白文档，或枚举并操作已打开文档；不接受路径、文件名、内容或模板来源。需要文件落盘的类型只写入 GenOffice 配置的默认保存目录。这样避免让 MCP bridge 成为通用文件系统入口。
 
 ## DEC-02：Slides-first
 

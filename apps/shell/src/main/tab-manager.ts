@@ -163,8 +163,9 @@ export class TabManager {
   async listDocumentTargets(): Promise<DocumentTarget[]> {
     return Promise.all(
       this.tabs
-        .filter((tab): tab is TabRecord & { view: WebContentsView; documentId: string } =>
-          tab.kind !== 'home' && tab.view !== null && typeof tab.documentId === 'string',
+        .filter(
+          (tab): tab is TabRecord & { view: WebContentsView; documentId: string } =>
+            tab.kind !== 'home' && tab.view !== null && typeof tab.documentId === 'string',
         )
         .map((tab) => this.toDocumentTarget(tab)),
     )
@@ -174,6 +175,18 @@ export class TabManager {
     const tab = this.tabs.find(
       (candidate): candidate is TabRecord & { view: WebContentsView; documentId: string } =>
         candidate.documentId === documentId && candidate.view !== null && candidate.kind !== 'home',
+    )
+    return tab ? this.toDocumentTarget(tab) : null
+  }
+
+  /** Resolve the shell-private tab handle returned by open*Tab to its public MCP document handle. */
+  async documentTargetForTab(tabId: string): Promise<DocumentTarget | null> {
+    const tab = this.tabs.find(
+      (candidate): candidate is TabRecord & { view: WebContentsView; documentId: string } =>
+        candidate.id === tabId &&
+        candidate.view !== null &&
+        candidate.kind !== 'home' &&
+        typeof candidate.documentId === 'string',
     )
     return tab ? this.toDocumentTarget(tab) : null
   }
@@ -225,7 +238,13 @@ export class TabManager {
 
   private documentRevision(tab: TabRecord & { view: WebContentsView; documentId: string }): number {
     if (tab.kind === 'slides') return slidesRevision(tab.view.webContents.id)
-    if (tab.kind === 'docs' || tab.kind === 'markdown' || tab.kind === 'sheets' || tab.kind === 'pdf') return rendererMcpRevision(tab.view.webContents.id)
+    if (
+      tab.kind === 'docs' ||
+      tab.kind === 'markdown' ||
+      tab.kind === 'sheets' ||
+      tab.kind === 'pdf'
+    )
+      return rendererMcpRevision(tab.view.webContents.id)
     return tab.revision ?? 0
   }
 
