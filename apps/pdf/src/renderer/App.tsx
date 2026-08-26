@@ -14,7 +14,6 @@ import {
   renderPageForOcr,
   type OcrPageData,
 } from './ocr-layer'
-import type { PdfAiDeps } from './ai/tools'
 import {
   MARKUP_COLORS,
   geomDispSize,
@@ -5197,7 +5196,7 @@ export default function App() {
     return `The document has ${bits.join(' and ')}; use read_annotations to read them.`
   }
 
-  const _aiApi: PdfAiDeps = {
+  const _aiApi: Record<string, (...args: any[]) => unknown> = {
     doc: () => doc,
     fileName: () => fileName,
     pageCount: () => sizes.length,
@@ -5264,7 +5263,12 @@ export default function App() {
       scrollToPage(visIdx + 1)
       return true
     },
-    addMarkup: (type, origIdx, rects, color) => {
+    addMarkup: (
+      type: MarkupType,
+      origIdx: number,
+      rects: Array<[number, number, number, number]>,
+      color?: [number, number, number],
+    ) => {
       pushUndo()
       const quads = rects.map((r) => [r[0], r[3], r[2], r[3], r[0], r[1], r[2], r[1]])
       setMarkups((prev) => [
