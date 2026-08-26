@@ -1156,7 +1156,7 @@ export function App() {
     [selectedIds, selectionRect],
   )
 
-  const openAskPopover = useCallback(() => {
+  const _openAskPopover = useCallback(() => {
     if (editing || editingCell || selectedIds.length === 0) return
     // Clicking the trigger while the popover is open dismisses it through
     // the capture-phase outside-click handler before onClick runs.
@@ -2626,7 +2626,6 @@ export function App() {
     setChartDataDialogOpen,
     setFindOpen,
     setPrintDlgOpen,
-    openAskPopover,
     setZoom,
     masterItems,
     recorderRef,
