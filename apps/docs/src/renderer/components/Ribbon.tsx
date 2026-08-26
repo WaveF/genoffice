@@ -2472,7 +2472,7 @@ function RibbonInner({
         ) : tab === 'home' ? (
           <>
             {/* ---- Genspark AI (first slot: entry + one-click AI actions) ---- */}
-            <div className="ribbon-group">
+            <div className="ribbon-group" hidden>
               <div className="ribbon-group-items">
                 <button
                   className={`rb-big ai-entry ${showAi ? 'active' : ''}`}
@@ -3488,8 +3488,6 @@ function RibbonInner({
             zoom={zoom}
             onZoom={onZoom}
             onZoomFit={onZoomFit}
-            showAi={showAi}
-            onToggleAi={onToggleAi}
             darkCanvas={darkCanvas}
             onDarkCanvas={onDarkCanvas}
             showRuler={showRuler}

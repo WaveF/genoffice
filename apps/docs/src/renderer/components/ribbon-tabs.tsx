@@ -24,7 +24,6 @@ import iconEditor from '../assets/icon-editor.png'
 import iconTranslate from '../assets/icon-translate.png'
 import {
   IconAccept,
-  IconAiPanel,
   IconCaret,
   IconComment,
   IconComments,
@@ -1035,8 +1034,6 @@ interface ViewTabProps {
   zoom: number
   onZoom: (zoom: number) => void
   onZoomFit: (mode: 'width' | 'page') => void
-  showAi: boolean
-  onToggleAi: () => void
   darkCanvas: boolean
   onDarkCanvas: (v: boolean) => void
   showRuler: boolean
@@ -1060,8 +1057,6 @@ export function ViewTab({
   zoom,
   onZoom,
   onZoomFit,
-  showAi,
-  onToggleAi,
   darkCanvas,
   onDarkCanvas,
   showRuler,
@@ -1228,16 +1223,6 @@ export function ViewTab({
 
       <div className="ribbon-group">
         <div className="ribbon-group-items">
-          <button
-            className={`rb-big ${showAi ? 'active' : ''}`}
-            data-tip={t('ribbonAiPanelTip')}
-            onClick={onToggleAi}
-          >
-            <span className="rb-big-icon">
-              <IconAiPanel size={BIG} />
-            </span>
-            <span>{t('ribbonAiPanel')}</span>
-          </button>
           <button
             className={`rb-big ${darkCanvas ? 'active' : ''}`}
             data-tip={t('ribbonDarkModeTip')}
