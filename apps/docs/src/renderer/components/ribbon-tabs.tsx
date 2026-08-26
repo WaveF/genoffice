@@ -688,7 +688,7 @@ export function ReviewTab({
   return (
     <>
       {/* Word: Proofing (Editor) sits leftmost */}
-      <div className="ribbon-group">
+      <div className="ribbon-group" hidden>
         <div className="ribbon-group-items">
           <button
             className="rb-big"
@@ -712,7 +712,7 @@ export function ReviewTab({
 
       <div className="ribbon-sep" />
 
-      <div className="ribbon-group">
+      <div className="ribbon-group" hidden>
         <div className="ribbon-group-items">
           <div className="rb-split-wrap">
             <button
@@ -782,6 +782,7 @@ export function ReviewTab({
           <button
             className="rb-big"
             disabled={!hasDoc || openCommentCount === 0}
+            hidden
             data-tip={`${t('ribbonAiCommentsTip', { count: openCommentCount })} — ${t('ribbonAiCreditNote')}`}
             onClick={() => onAiPreset(t('ribbonAiCommentsPrompt'))}
           >
@@ -953,6 +954,7 @@ export function ReviewTab({
           <button
             className="rb-big"
             disabled={!hasDoc || revisionCount === 0}
+            hidden
             data-tip={`${t('ribbonAiRevisionsTip', { count: revisionCount })} — ${t('ribbonAiCreditNote')}`}
             onClick={() => onAiPreset(t('ribbonAiRevisionsPrompt'))}
           >
