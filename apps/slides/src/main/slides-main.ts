@@ -224,7 +224,6 @@ import {
   type OpLogEntry,
   type Session,
 } from './session-state'
-import { registerAiIpc, registerSlidesOnlyAiIpc } from './ai-ipc'
 import { listPrivateFontFaces, getPrivateFontData } from './fonts'
 
 /** One slide, copied from any deck open in this process, waiting to be pasted into another. */
@@ -266,7 +265,6 @@ const gradientFillTo = (
   g: GradientFillSpec['gradient'],
 ): { l: number; t: number; r: number; b: number } | undefined =>
   g.center ? { l: g.center.x, t: g.center.y, r: 1 - g.center.x, b: 1 - g.center.y } : undefined
-export { registerAiIpc } from './ai-ipc'
 
 /** standalone: path queued before window creation (argv/open-file) */
 let pendingOpenPath: string | null = null
@@ -4267,7 +4265,6 @@ html, body { margin: 0; padding: 0; }
   // aggregate mode only calls this function) ──
   registerPresenterIpc()
 
-  registerSlidesOnlyAiIpc()
 }
 
 // ── project-store IPC (standalone mode) ───────────────────────────────────
@@ -4642,7 +4639,6 @@ export function startSlidesStandalone(): void {
   app.whenReady().then(async () => {
     setUiLang(normalizeLang(process.env.GENOFFICE_LANG ?? app.getLocale()))
     registerSlidesIpc()
-    registerAiIpc()
     registerProjectIpc()
     Menu.setApplicationMenu(buildSlidesMenu())
     const win = createSlidesWindow(pendingOpenPath)
