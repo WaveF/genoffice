@@ -587,35 +587,37 @@ export function ExcelShell({
         />
       </header>
 
-      {/* AI panel docks on the left, full height under the ribbon (unified with docs) */}
+      {/* The external MCP bridge replaces the retired built-in chat panel. */}
       <div className="sheet-body">
-        <AiChatPanel
-          isOpen={isCopilotOpen}
-          hasContent={sheetHasContent}
-          chat={chat}
-          {...(historicChat !== undefined ? { historicChat } : {})}
-          attachments={attachments}
-          attachNotice={attachNotice}
-          onPickAttachments={onPickAttachments}
-          onAddAttachmentPaths={onAddAttachmentPaths}
-          onAddPastedImage={onAddPastedImage}
-          onRemoveAttachment={onRemoveAttachment}
-          prompt={prompt}
-          preview={preview}
-          aiBusy={aiBusy}
-          onPromptChange={onPromptChange}
-          onSend={onSend}
-          onStop={onStop}
-          onNewChat={onNewChat}
-          onUndo={onUndo}
-          scopeRange={aiScopeRange}
-          scopeColumns={aiScopeColumns}
-          scopeLocked={aiScopeLocked}
-          onScopeDismiss={onAiScopeDismiss}
-          onCitation={onAiCitation}
-          onExpand={() => setIsCopilotOpen(true)}
-          onCollapse={() => setIsCopilotOpen(false)}
-        />
+        <div hidden>
+          <AiChatPanel
+            isOpen={isCopilotOpen}
+            hasContent={sheetHasContent}
+            chat={chat}
+            {...(historicChat !== undefined ? { historicChat } : {})}
+            attachments={attachments}
+            attachNotice={attachNotice}
+            onPickAttachments={onPickAttachments}
+            onAddAttachmentPaths={onAddAttachmentPaths}
+            onAddPastedImage={onAddPastedImage}
+            onRemoveAttachment={onRemoveAttachment}
+            prompt={prompt}
+            preview={preview}
+            aiBusy={aiBusy}
+            onPromptChange={onPromptChange}
+            onSend={onSend}
+            onStop={onStop}
+            onNewChat={onNewChat}
+            onUndo={onUndo}
+            scopeRange={aiScopeRange}
+            scopeColumns={aiScopeColumns}
+            scopeLocked={aiScopeLocked}
+            onScopeDismiss={onAiScopeDismiss}
+            onCitation={onAiCitation}
+            onExpand={() => setIsCopilotOpen(true)}
+            onCollapse={() => setIsCopilotOpen(false)}
+          />
+        </div>
         <div className="sheet-main">
           {/* Excel's formula-bar row, Name Box only for now (fx bar TBD). */}
           <div className="name-box-bar">
@@ -2465,7 +2467,7 @@ function Ribbon({
     : [...fontSizes, echoSize].sort((a, b) => a - b)
   return (
     <div className="ribbon">
-      <RibbonGroup label={t('appGroupAiAssistant')}>
+      <RibbonGroup label={t('appGroupAiAssistant')} hidden>
         <button
           className={`ribbon-tool as-button large ai-entry ${aiOpen ? 'active' : ''}`}
           data-tip={t('aiOpenAssistant')}
@@ -3339,13 +3341,15 @@ function NumberFormatSelect({
 function RibbonGroup({
   label,
   children,
+  hidden = false,
 }: {
   readonly label: string
   readonly children: React.ReactNode
+  readonly hidden?: boolean
 }): React.JSX.Element {
   // No visible group captions — the label stays for assistive tech.
   return (
-    <section className="ribbon-group" aria-label={label}>
+    <section className="ribbon-group" aria-label={label} hidden={hidden}>
       <div className="ribbon-group-content">{children}</div>
     </section>
   )
