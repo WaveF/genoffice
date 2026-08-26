@@ -285,7 +285,7 @@ export function Ribbon({
       </div>
 
       <div className="ribbon-body">
-        <div className="ribbon-group">
+        <div className="ribbon-group" hidden>
           <div className="ribbon-group-items">
             <button
               type="button"

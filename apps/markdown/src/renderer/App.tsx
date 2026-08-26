@@ -18,10 +18,6 @@ import { Ribbon } from './components/Ribbon'
 import { SlashMenu, type SlashMenuHandle } from './components/SlashMenu'
 import { TableMenu } from './components/TableMenu'
 import { FrontmatterPanel } from './components/FrontmatterPanel'
-import { AiAskPopover } from './components/AiAskPopover'
-import { AiPanel, GensparkMark, type AiPreset, type MarkdownAiDeps } from './ai/AiPanel'
-import { EDIT_QUEUE_MAX, selectionForAnchor, type EditQueueItem } from './ai/edit-queue'
-import { addQueueAnchor, clearQueueAnchors, removeQueueAnchors } from './editor/aiQueueAnchors'
 import { DOCX_MAX_IMAGE_PX, exportDocxBytes } from './export/docxExport'
 import { buildPrintHtml } from './export/printHtml'
 import { resolveImageSrc } from './editor/localImage'
@@ -119,13 +115,7 @@ export default function App() {
   const [slashState, setSlashState] = useState<SlashMenuState | null>(null)
   const [fmOpen, setFmOpen] = useState(false)
   const [fmText, setFmText] = useState('')
-  // Persisted so a closed AI panel stays closed on next launch (docs/slides parity)
-  const [aiOpen, setAiOpen] = useState(() => localStorage.getItem('mdapp.showAi') !== '0')
-  const [aiPreset, setAiPreset] = useState<AiPreset | null>(null)
-  const [editQueue, setEditQueue] = useState<EditQueueItem[]>([])
-  const editQueueRef = useRef(editQueue)
-  editQueueRef.current = editQueue
-  const queueSeqRef = useRef(0)
+  const [aiOpen, setAiOpen] = useState(false)
   const [autoSave, setAutoSave] = useState(() => localStorage.getItem('mdapp.autoSave') === '1')
   const [zoom, setZoom] = useState(100)
 
@@ -465,10 +455,6 @@ export default function App() {
     localStorage.setItem('mdapp.autoSave', autoSave ? '1' : '0')
   }, [autoSave])
 
-  useEffect(() => {
-    localStorage.setItem('mdapp.showAi', aiOpen ? '1' : '0')
-  }, [aiOpen])
-
   // autosave: every 30s and on window blur, silently persist pending changes
   // (same policy as the docs app; untitled documents are skipped — the first
   // save must go through the explicit save path that names the file)
@@ -486,90 +472,6 @@ export default function App() {
       window.removeEventListener('blur', tick)
     }
   }, [autoSave, filePath, doSave])
-
-  // ---- selection-scoped AI edit queue (anchors live in the editor as decorations) ----
-  const getQueueItem = useCallback(
-    (qid: string) => editQueueRef.current.find((item) => item.qid === qid),
-    [],
-  )
-  const queueAdd = useCallback((instruction: string): void => {
-    const current = editorRef.current
-    if (!current) return
-    const { from, to, empty } = current.state.selection
-    if (empty || editQueueRef.current.length >= EDIT_QUEUE_MAX) return
-    const qid = `q${++queueSeqRef.current}`
-    addQueueAnchor(current, qid, from, to)
-    const capturedText = current.state.doc
-      .textBetween(from, to, ' ', ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, 80)
-    setEditQueue((queue) => [...queue, { qid, instruction, capturedText }])
-  }, [])
-  const queueUpdate = useCallback(
-    (qid: string, instruction: string): void =>
-      setEditQueue((queue) => queue.map((i) => (i.qid === qid ? { ...i, instruction } : i))),
-    [],
-  )
-  const queueRemove = useCallback((qid: string): void => {
-    if (editorRef.current) removeQueueAnchors(editorRef.current, [qid])
-    setEditQueue((queue) => queue.filter((i) => i.qid !== qid))
-  }, [])
-  const queueClear = useCallback((): void => {
-    if (editorRef.current) clearQueueAnchors(editorRef.current)
-    setEditQueue([])
-  }, [])
-  /** a submission hands its items to the run and drops them from the queue */
-  const queueConsume = useCallback((qids: string[]): void => {
-    if (editorRef.current) removeQueueAnchors(editorRef.current, qids)
-    setEditQueue((queue) => queue.filter((i) => !qids.includes(i.qid)))
-  }, [])
-  const queueFocus = useCallback((qid: string): void => {
-    const current = editorRef.current
-    if (!current) return
-    const selection = selectionForAnchor(current, qid)
-    if (!selection) return
-    current.view.dispatch(current.state.tr.setSelection(selection).scrollIntoView())
-    current.view.focus()
-  }, [])
-  const askSendNow = useCallback((text: string): void => {
-    setAiOpen(true)
-    setAiPreset((prev) => ({ text, nonce: (prev?.nonce ?? 0) + 1 }))
-  }, [])
-
-  const aiDeps: MarkdownAiDeps = {
-    getEditor: () => editorRef.current,
-    // envelopeRef, not fmText state: a write-then-read within one AI run must
-    // see the new value before React commits
-    getFrontmatter: () => frontmatterInner(envelopeRef.current.frontmatter),
-    setFrontmatter: (inner) => {
-      onFrontmatterChange(inner)
-      setFmOpen(inner.trim() !== '')
-    },
-    // snapshots carry body + the raw frontmatter block (structured, no
-    // file-text round-trip) so a rollback also reverts set_frontmatter and
-    // an untouched block restores byte-for-byte
-    getSnapshot: () => ({
-      body: editorRef.current?.getMarkdown() ?? '',
-      frontmatter: envelopeRef.current.frontmatter,
-    }),
-    restoreSnapshot: (snapshot) => {
-      const current = editorRef.current
-      if (!current) return
-      envelopeRef.current.frontmatter = snapshot.frontmatter
-      const inner = frontmatterInner(snapshot.frontmatter)
-      setFmText(inner)
-      setFmOpen(inner !== '')
-      current.commands.setContent(snapshot.body, { contentType: 'markdown' })
-      markDirty()
-    },
-    onRunDone: (mutated) => {
-      // AI wrote into a never-saved document → name it from the content and save silently
-      if (!mutated || filePathRef.current || !editorRef.current) return
-      const name = deriveAutoFileName(editorRef.current)
-      if (name) void doSave('save', name)
-    },
-  }
 
   const fileName = filePath ? filePath.replace(/^.*[/\\]/, '') : null
   const statusText =
@@ -606,40 +508,10 @@ export default function App() {
         onToggleFrontmatter={() => setFmOpen((v) => !v)}
         aiOpen={aiOpen}
         onToggleAi={() => setAiOpen((v) => !v)}
-        onAiPreset={(text) => {
-          setAiOpen(true)
-          setAiPreset((prev) => ({ text, nonce: (prev?.nonce ?? 0) + 1 }))
-        }}
+        onAiPreset={() => {}}
       />
       {status === 'loading' && <div className="center-note">{t('loading')}</div>}
       <div className="app-main" style={status === 'ready' ? undefined : { display: 'none' }}>
-        <div className={`ai-dock${aiOpen ? '' : ' collapsed'}`}>
-          {!aiOpen && (
-            <button
-              className="ai-rail"
-              data-tip={t('aiOpenAssistant')}
-              aria-label={t('aiOpenAssistant')}
-              onClick={() => setAiOpen(true)}
-            >
-              <GensparkMark size={22} />
-            </button>
-          )}
-          {/* mounted only after the file is loaded so chat history resolves against the real path */}
-          {status === 'ready' && (
-            <AiPanel
-              deps={aiDeps}
-              filePath={filePath}
-              preset={aiPreset}
-              onCollapse={() => setAiOpen(false)}
-              editQueue={editQueue}
-              onQueueEditInstruction={queueUpdate}
-              onQueueRemove={queueRemove}
-              onQueueClear={queueClear}
-              onQueueFocus={queueFocus}
-              onQueueConsume={queueConsume}
-            />
-          )}
-        </div>
         <div className="app-content">
           <div className="editor-scroll" ref={scrollRef}>
             <div className="doc-page" style={{ zoom: zoom / 100 }}>
@@ -690,17 +562,6 @@ export default function App() {
       </div>
       <SlashMenu ref={slashMenuRef} state={slashState} onDismiss={() => setSlashState(null)} />
       <TableMenu editor={editor} scrollRef={scrollRef} zoom={zoom} />
-      {editor && status === 'ready' && (
-        <AiAskPopover
-          editor={editor}
-          queueFull={editQueue.length >= EDIT_QUEUE_MAX}
-          getItem={getQueueItem}
-          onSendNow={askSendNow}
-          onQueueAdd={queueAdd}
-          onQueueUpdate={queueUpdate}
-          onQueueRemove={queueRemove}
-        />
-      )}
     </div>
   )
 }
