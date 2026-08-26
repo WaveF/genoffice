@@ -16,8 +16,6 @@ import { Dropdown } from '@genoffice/ui'
 import { markdownPasteHtml } from './editor/markdown-paste'
 import { handleDocsMcpRequest } from './mcp-adapter'
 import {
-  BLANK_BULLET_NUM_ID,
-  BLANK_ORDERED_NUM_ID,
   DEFAULT_SECTION,
   applySectionSettings,
   verifyProtectionPassword,
@@ -388,7 +386,7 @@ export function App() {
     errorKey: '' | 'appDocPwdWrong'
   } | null>(null)
   const [_recent, setRecent] = useState<string[]>([])
-  const [settings, setSettings] = useState<AiSettings>(DEFAULT_SETTINGS)
+  const [_settings, setSettings] = useState<AiSettings>(DEFAULT_SETTINGS)
   const [showAi, setShowAi] = useState(() => localStorage.getItem('aidocs.showAi') !== '0')
   /** Increments on every open/new document: AiPanel remounts by key to reset the conversation and history (save path changes don't bump it, so the session continues) */
   const [aiPanelKey, setAiPanelKey] = useState(0)
@@ -658,7 +656,7 @@ export function App() {
   const [autoSave, setAutoSave] = useState(() => localStorage.getItem('aidocs.autoSave') === '1')
   // tab closed but this renderer kept alive (shell freeze workaround): go inert
   const [tornDown, setTornDown] = useState(false)
-  const [aiPreset, setAiPreset] = useState<{
+  const [_aiPreset, setAiPreset] = useState<{
     text: string
     nonce: number
     autoRun?: boolean
@@ -955,10 +953,10 @@ export function App() {
 
   useEffect(() => window.desktop.onTeardown?.(() => setTornDown(true)), [])
 
-  // keep the native View menu's checkmarks (AI Sidebar / Dark Mode) in sync
+  // keep the native View menu's dark-mode checkbox in sync
   useEffect(() => {
-    window.desktop.reportViewMenuState?.({ aiSidebar: showAi, darkCanvas })
-  }, [showAi, darkCanvas])
+    window.desktop.reportViewMenuState?.({ darkCanvas })
+  }, [darkCanvas])
 
   // Crash-recovery copy: while the document is dirty, push a serialized
   // copy to the main process every 30s; a normal save (or discarding on close) removes
@@ -3365,9 +3363,6 @@ export function App() {
         case 'zoom-whole-page':
           zoomFit('page')
           break
-        case 'toggle-ai':
-          setShowAi((v) => !v)
-          break
         case 'toggle-dark':
           setDarkCanvas((v) => !v)
           break
@@ -3576,11 +3571,11 @@ export function App() {
 
   /** every function prop of the memoized Ribbon, with stable identities (dispatches into the latest render's closures) */
   // ---- selection-scoped AI edit queue ----
-  const getQueueItem = useCallback(
+  const _getQueueItem = useCallback(
     (qid: string) => editQueueRef.current.find((item) => item.qid === qid),
     [],
   )
-  const queueAdd = (instruction: string): void => {
+  const _queueAdd = (instruction: string): void => {
     const { from, to, empty } = editor.state.selection
     if (empty || editQueueRef.current.length >= EDIT_QUEUE_MAX) return
     const qid = `q${++queueSeqRef.current}`
@@ -3592,34 +3587,34 @@ export function App() {
       .slice(0, 80)
     setEditQueue((queue) => [...queue, { qid, instruction, capturedText }])
   }
-  const queueUpdate = (qid: string, instruction: string): void =>
+  const _queueUpdate = (qid: string, instruction: string): void =>
     setEditQueue((queue) => queue.map((i) => (i.qid === qid ? { ...i, instruction } : i)))
-  const queueRemove = (qid: string): void => {
+  const _queueRemove = (qid: string): void => {
     removeQueueAnchors(editor, [qid])
     setEditQueue((queue) => queue.filter((i) => i.qid !== qid))
   }
-  const queueClear = (): void => {
+  const _queueClear = (): void => {
     clearQueueAnchors(editor)
     setEditQueue([])
   }
   /** a submission hands its items to the run and drops them from the queue */
-  const queueConsume = (qids: string[]): void => {
+  const _queueConsume = (qids: string[]): void => {
     removeQueueAnchors(editor, qids)
     setEditQueue((queue) => queue.filter((i) => !qids.includes(i.qid)))
   }
-  const queueFocus = (qid: string): void => {
+  const _queueFocus = (qid: string): void => {
     const selection = selectionForAnchor(editor, qid)
     if (!selection) return
     editor.view.dispatch(editor.state.tr.setSelection(selection).scrollIntoView())
     editor.view.focus()
   }
-  const askSendNow = (text: string): void => {
+  const _askSendNow = (text: string): void => {
     setShowAi(true)
     setAiPreset({ text, nonce: Date.now(), autoRun: true })
   }
 
   // AI comment tools run the same review-actions code paths as the comments pane
-  const aiCommentsAccess = useMemo<AiCommentsAccess>(
+  const _aiCommentsAccess = useMemo<AiCommentsAccess>(
     () => ({
       list: () => reviewCtxRef.current.comments,
       reply: (parentId, text) =>
@@ -3659,7 +3654,7 @@ export function App() {
   }
   const aiHfCtxRef = useRef(aiHfCtx)
   aiHfCtxRef.current = aiHfCtx
-  const aiHfAccess = useMemo<AiHeaderFooterAccess>(
+  const _aiHfAccess = useMemo<AiHeaderFooterAccess>(
     () => ({
       read: () => {
         const ctx = aiHfCtxRef.current

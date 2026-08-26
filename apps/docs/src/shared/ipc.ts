@@ -130,7 +130,6 @@ export type MenuCommand =
   | 'zoom-100'
   | 'zoom-page-width'
   | 'zoom-whole-page'
-  | 'toggle-ai'
   | 'toggle-dark'
   | 'insert-table'
   | 'insert-image'
@@ -224,11 +223,17 @@ export interface DesktopApi {
   onMcpRequest(
     handler: (request: {
       requestId: string
-      action: 'docs.get_context' | 'docs.read_blocks' | 'docs.insert_content' | 'docs.replace_blocks'
+      action:
+        'docs.get_context' | 'docs.read_blocks' | 'docs.insert_content' | 'docs.replace_blocks'
       input: Record<string, unknown>
     }) => void,
   ): () => void
-  respondMcpRequest(response: { requestId: string; ok: boolean; result?: unknown; error?: string }): void
+  respondMcpRequest(response: {
+    requestId: string
+    ok: boolean
+    result?: unknown
+    error?: string
+  }): void
   reportMcpRevision(revision: number): void
   /** auto=true marks an autosave: an externally modified file then fails with
    *  reason 'external-modified' instead of prompting (manual saves get an
@@ -359,5 +364,5 @@ export interface DesktopApi {
   onCloseSaveRequest(handler: () => void): () => void
   reportCloseSaveResult(ok: boolean): void
   /** keep the native View menu's checkbox items in sync with renderer state */
-  reportViewMenuState(state: { aiSidebar: boolean; darkCanvas: boolean }): void
+  reportViewMenuState(state: { darkCanvas: boolean }): void
 }

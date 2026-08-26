@@ -3666,20 +3666,19 @@ function sendCommand(command: MenuCommand, payload?: string): void {
 }
 
 /**
- * Per-tab View-menu toggle state (AI Sidebar / Dark Mode), reported by each
+ * Per-tab View-menu toggle state (Dark Mode), reported by each
  * renderer whenever it changes. The template can't hardcode `checked` — the
  * state lives in the renderer and differs per tab — so builds read the active
  * tab's last report, and reports from the active tab patch the built menu in
  * place (buildDocsMenu also re-runs on every tab focus switch).
- * Defaults mirror the renderer's initial state: sidebar shown, light canvas.
+ * Defaults mirror the renderer's initial state: light canvas.
  */
-const viewMenuStateByWebContents = new Map<number, { aiSidebar: boolean; darkCanvas: boolean }>()
+const viewMenuStateByWebContents = new Map<number, { darkCanvas: boolean }>()
 
-function activeViewMenuState(): { aiSidebar: boolean; darkCanvas: boolean } {
+function activeViewMenuState(): { darkCanvas: boolean } {
   const id = activeDocsWebContents()?.id
   return (
     (id !== undefined ? viewMenuStateByWebContents.get(id) : undefined) ?? {
-      aiSidebar: true,
       darkCanvas: false,
     }
   )
@@ -3827,13 +3826,6 @@ export function buildDocsMenu(): void {
         { label: tm('menuPageWidth'), click: () => sendCommand('zoom-page-width') },
         { label: tm('menuWholePage'), click: () => sendCommand('zoom-whole-page') },
         { type: 'separator' },
-        {
-          id: 'docs-menu-ai-sidebar',
-          type: 'checkbox',
-          checked: activeViewMenuState().aiSidebar,
-          label: tm('menuAiSidebar'),
-          click: () => sendCommand('toggle-ai'),
-        },
         {
           id: 'docs-menu-dark-mode',
           type: 'checkbox',
@@ -4018,8 +4010,8 @@ const closeCheckWaiters = new Map<number, (state: DocsCloseState) => void>()
 const closeSaveWaiters = new Map<number, (ok: boolean) => void>()
 
 ipcMain.on('docs:view-menu-state', (event, state: unknown) => {
-  const s = state as { aiSidebar?: unknown; darkCanvas?: unknown } | null
-  const next = { aiSidebar: s?.aiSidebar === true, darkCanvas: s?.darkCanvas === true }
+  const s = state as { darkCanvas?: unknown } | null
+  const next = { darkCanvas: s?.darkCanvas === true }
   if (!viewMenuStateByWebContents.has(event.sender.id)) {
     const id = event.sender.id
     event.sender.once('destroyed', () => viewMenuStateByWebContents.delete(id))
@@ -4029,8 +4021,6 @@ ipcMain.on('docs:view-menu-state', (event, state: unknown) => {
   // picked up by the buildDocsMenu run its next focus triggers
   if (event.sender.id !== activeDocsWebContents()?.id) return
   const menu = Menu.getApplicationMenu()
-  const ai = menu?.getMenuItemById('docs-menu-ai-sidebar')
-  if (ai) ai.checked = next.aiSidebar
   const dark = menu?.getMenuItemById('docs-menu-dark-mode')
   if (dark) dark.checked = next.darkCanvas
 })
