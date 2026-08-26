@@ -57,7 +57,6 @@ import {
   type InkTool,
 } from './editor/ink'
 import { t, getLang } from './i18n/locale'
-import { isBlankDocument } from './ai/protocol'
 import { isDocDirty } from './doc-dirty'
 import { createSaveSerializer } from './save-until-persisted'
 import { checkMissingFonts, collectDocFonts } from './font-check'
@@ -65,6 +64,14 @@ import { setDocFontTable } from './line-metrics'
 import { defaultEastAsiaFontFor } from './font-list'
 import { hasPrintableHeaderFooter } from './pagination'
 import { showToast } from './components/toast-bus'
+
+/** Blank = exactly one empty paragraph; image/chart-only documents are not blank. */
+function isBlankDocument(editor: Editor): boolean {
+  const doc = editor.state.doc
+  if (doc.childCount !== 1) return false
+  const first = doc.child(0)
+  return first.type.name === 'docParagraph' && first.content.size === 0
+}
 
 /** The App state the file actions need; built fresh per call. */
 export interface FileActionContext {
