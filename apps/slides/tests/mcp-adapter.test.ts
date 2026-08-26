@@ -8,7 +8,7 @@ vi.mock('electron', () => ({
 }))
 vi.mock('../src/main/fonts', () => ({ createSystemFontMetrics: () => ({}) }))
 
-import { SlidesMcpAdapter } from '../src/main/mcp-adapter'
+import { SlidesMcpAdapter, waitForSlidesMcpSession } from '../src/main/mcp-adapter'
 import { sessions, type Session } from '../src/main/session-state'
 
 const WEB_CONTENTS_ID = 901
@@ -75,7 +75,10 @@ describe('SlidesMcpAdapter', () => {
 
     const save = vi.fn(async () => ({ ok: true as const, path: '/not-exposed.pptx' }))
     const savingAdapter = new SlidesMcpAdapter(save)
-    await expect(savingAdapter.save(WEB_CONTENTS_ID, 2)).resolves.toEqual({ saved: true, revision: 2 })
+    await expect(savingAdapter.save(WEB_CONTENTS_ID, 2)).resolves.toEqual({
+      saved: true,
+      revision: 2,
+    })
     expect(save).toHaveBeenCalledWith(WEB_CONTENTS_ID)
   })
 
@@ -86,5 +89,13 @@ describe('SlidesMcpAdapter', () => {
     await expect(unavailable.renderSlidePreview(WEB_CONTENTS_ID, 0)).rejects.toMatchObject({
       code: 'renderer_unavailable',
     })
+  })
+
+  it('waits until a newly mounted Slides renderer registers its session', async () => {
+    const pendingWebContentsId = WEB_CONTENTS_ID + 1
+    const ready = waitForSlidesMcpSession(pendingWebContentsId)
+    queueMicrotask(() => sessions.set(pendingWebContentsId, session))
+    await expect(ready).resolves.toBeUndefined()
+    sessions.delete(pendingWebContentsId)
   })
 })

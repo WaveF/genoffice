@@ -193,7 +193,7 @@ import { RendererMcpBridge } from './mcp/renderer-bridge'
 import { ShellMcpGateway } from './mcp/gateway'
 import { AuthenticatedMcpPermissionGate } from './mcp/permissions'
 import { FileMcpAuditLogger } from './mcp/audit'
-import { SlidesMcpAdapter } from '../../../slides/src/main/mcp-adapter'
+import { SlidesMcpAdapter, waitForSlidesMcpSession } from '../../../slides/src/main/mcp-adapter'
 import { applyUpdateChannel, initAutoUpdater } from './updater'
 import { isUpdateChannel, type UpdateChannel } from '../shared/update-api'
 import type { DocumentKind, DocumentTarget } from '@genoffice/capabilities'
@@ -2783,6 +2783,7 @@ async function createMcpDocument(kind: DocumentKind): Promise<DocumentTarget> {
   }
   const target = await manager.documentTargetForTab(tabId)
   if (!target) throw new Error('Created document could not be resolved')
+  if (target.kind === 'slides') await waitForSlidesMcpSession(target.webContentsId)
   recordStarPromptDocOpen()
   analytics.track('file_new', {
     kind: kind === 'docs' ? 'docx' : kind === 'sheets' ? 'xlsx' : kind === 'slides' ? 'pptx' : kind,

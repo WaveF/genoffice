@@ -52,12 +52,32 @@ export interface SlidesMcpPreview {
 
 const MAX_READ_RESULT_BYTES = 512 * 1024
 const SENSITIVE_OUTPUT_FIELDS = new Set(['archive', 'bytes', 'data', 'mediapath', 'path', 'source'])
+const MCP_SESSION_READY_TIMEOUT_MS = 15_000
+const MCP_SESSION_READY_POLL_MS = 25
 
 function requireSession(webContentsId: number): Session {
   const session = sessions.get(webContentsId)
   if (!session)
     throw new CapabilityError('renderer_unavailable', 'Slides document is no longer available')
   return session
+}
+
+/**
+ * A blank Slides deck is created by the renderer's `slides:new-blank` IPC
+ * during mount. MCP document creation waits on this before returning its
+ * documentId so the caller can immediately read or edit the new deck.
+ */
+export async function waitForSlidesMcpSession(webContentsId: number): Promise<void> {
+  const deadline = Date.now() + MCP_SESSION_READY_TIMEOUT_MS
+  while (!sessions.has(webContentsId)) {
+    if (Date.now() >= deadline) {
+      throw new CapabilityError(
+        'renderer_unavailable',
+        'Slides document did not become ready in time',
+      )
+    }
+    await new Promise<void>((resolve) => setTimeout(resolve, MCP_SESSION_READY_POLL_MS))
+  }
 }
 
 function jsonSafe(value: unknown, label: string): unknown {
@@ -163,9 +183,13 @@ export class SlidesMcpAdapter {
     ) as SlidesMcpSlide
   }
 
-  async renderSlidePreview(webContentsId: number, slideRef: number | string): Promise<SlidesMcpPreview> {
+  async renderSlidePreview(
+    webContentsId: number,
+    slideRef: number | string,
+  ): Promise<SlidesMcpPreview> {
     const session = requireSession(webContentsId)
-    if (!this.renderPreview) throw new CapabilityError('not_running', 'Slides preview support is unavailable')
+    if (!this.renderPreview)
+      throw new CapabilityError('not_running', 'Slides preview support is unavailable')
     const index =
       typeof slideRef === 'number'
         ? slideRef
@@ -174,10 +198,19 @@ export class SlidesMcpAdapter {
     if (!slide) throw new CapabilityError('not_found', 'Slide is not present in this document')
     try {
       const { pngBase64 } = await this.renderPreview(webContentsId, index)
-      if (pngBase64.length > 384 * 1024) throw new Error('Preview exceeds the MCP response size limit')
-      return { revision: session.revision ?? 0, slideId: slideDurableId(slide), mimeType: 'image/png', base64: pngBase64 }
+      if (pngBase64.length > 384 * 1024)
+        throw new Error('Preview exceeds the MCP response size limit')
+      return {
+        revision: session.revision ?? 0,
+        slideId: slideDurableId(slide),
+        mimeType: 'image/png',
+        base64: pngBase64,
+      }
     } catch (error) {
-      throw new CapabilityError('renderer_unavailable', error instanceof Error ? error.message : 'Preview renderer is unavailable')
+      throw new CapabilityError(
+        'renderer_unavailable',
+        error instanceof Error ? error.message : 'Preview renderer is unavailable',
+      )
     }
   }
 
@@ -267,7 +300,10 @@ export class SlidesMcpAdapter {
     const session = requireSession(webContentsId)
     ensureExpectedRevision(session, expectedRevision)
     if (session.masterEdit) {
-      throw new CapabilityError('validation_error', 'Undo is unavailable while editing a master slide')
+      throw new CapabilityError(
+        'validation_error',
+        'Undo is unavailable while editing a master slide',
+      )
     }
     settleStaleHistoryBatch(session)
     const snapshot = session.undoStack.pop()
@@ -284,7 +320,10 @@ export class SlidesMcpAdapter {
     const session = requireSession(webContentsId)
     ensureExpectedRevision(session, expectedRevision)
     if (session.masterEdit) {
-      throw new CapabilityError('validation_error', 'Redo is unavailable while editing a master slide')
+      throw new CapabilityError(
+        'validation_error',
+        'Redo is unavailable while editing a master slide',
+      )
     }
     settleStaleHistoryBatch(session)
     const snapshot = session.redoStack.pop()
@@ -297,14 +336,18 @@ export class SlidesMcpAdapter {
     return { applied: true, revision: session.revision ?? 0 }
   }
 
-  async save(webContentsId: number, expectedRevision: number): Promise<{ saved: boolean; revision: number }> {
+  async save(
+    webContentsId: number,
+    expectedRevision: number,
+  ): Promise<{ saved: boolean; revision: number }> {
     const session = requireSession(webContentsId)
     ensureExpectedRevision(session, expectedRevision)
     if (!this.saveOpenDocument) {
       throw new CapabilityError('not_running', 'Slides save support is unavailable')
     }
     const result = await this.saveOpenDocument(webContentsId)
-    if (!result.ok) throw new CapabilityError('internal_error', `Slides save failed: ${result.error}`)
+    if (!result.ok)
+      throw new CapabilityError('internal_error', `Slides save failed: ${result.error}`)
     return { saved: true, revision: session.revision ?? 0 }
   }
 }
