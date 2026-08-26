@@ -10,7 +10,6 @@ import type {
   TableRenderNode,
 } from '@genoffice/pptx-render'
 import type {
-  AiSettings,
   AnimEffectKind,
   AnimTrigger,
   AnimationItem,
@@ -347,7 +346,6 @@ export function App() {
   const [showAi, setShowAi] = useState(() => localStorage.getItem('ai-slides-show-ai') !== '0')
   const [showFormat, setShowFormat] = useState(false)
   const [showBgFormat, setShowBgFormat] = useState(false)
-  const [, setAiSettings] = useState<AiSettings | null>(null)
   const [, setAiPreset] = useState<{
     text: string
     nonce: number
@@ -1084,10 +1082,6 @@ export function App() {
 
   // File renamed externally (shell Home list rename) → sync the title-bar path (content unchanged, dirty untouched)
   useEffect(() => window.slidesApi.onRenamed((p) => setPath(p)), [])
-
-  useEffect(() => {
-    void window.slidesApi.getAiSettings().then(setAiSettings)
-  }, [])
 
   // Recent files for the start screen
   useEffect(() => {
