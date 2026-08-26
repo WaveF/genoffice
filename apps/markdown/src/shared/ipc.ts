@@ -1,5 +1,4 @@
 import type { Lang } from '@genoffice/i18n'
-import type { AiSettings, AiStreamChunk, AiStreamRequest } from '@genoffice/ai-provider'
 
 export const MARKDOWN_CHANNELS = {
   consumePending: 'markdown:consume-pending',
@@ -18,7 +17,6 @@ export const MARKDOWN_CHANNELS = {
   exportDocx: 'markdown:export-docx',
   exportPdf: 'markdown:export-pdf',
   printRequest: 'markdown:print-request',
-  aiGenerateImage: 'markdown:ai-generate-image',
   getLanguage: 'app:get-language',
   languageChanged: 'app:language-changed',
   getTheme: 'app:get-theme',
@@ -52,32 +50,6 @@ export type SaveMarkdownResult =
     }
   | { ok: true; canceled: true }
   | { ok: false; error: string }
-
-/** AI channels are app-wide shared ipcMain handlers (shell registers via docs-main registerAiIpc); pass-through only */
-export const AI_CHANNELS = {
-  getSettings: 'ai:get-settings',
-  stream: 'ai:stream',
-  streamChunk: 'ai:stream-chunk',
-  streamCancel: 'ai:stream-cancel',
-  webSearch: 'ai:web-search',
-  imageSearch: 'ai:image-search',
-  fetchImage: 'ai:fetch-image',
-} as const
-
-export interface WebSearchResult {
-  answer?: string
-  results: Array<{ title: string; url: string; snippet: string }>
-  method: string
-  /** failure reason when method === 'error' */
-  error?: string
-}
-
-export interface ImageSearchResult {
-  images: Array<{ title?: string; imageUrl: string; width?: number; height?: number }>
-  method: string
-  /** failure reason when method === 'error' */
-  error?: string
-}
 
 export type ExportFormat = 'pdf' | 'docx' | 'docs'
 
@@ -170,19 +142,4 @@ export interface MarkdownApi {
   /** press on the shell chrome (tab strip is a sibling WebContentsView whose
    *  clicks produce no DOM event here) — dismiss open popovers */
   onChromePressed(handler: () => void): () => void
-  getAiSettings(): Promise<AiSettings>
-  aiStream(request: AiStreamRequest): Promise<void>
-  aiStreamCancel(requestId: string): Promise<void>
-  onAiStream(handler: (chunk: AiStreamChunk) => void): () => void
-  /** Main-process web search (Serper/DuckDuckGo via the shared ai:web-search handler) */
-  webSearch(query: string, maxResults?: number): Promise<WebSearchResult>
-  /** Main-process image search (shared ai:image-search handler) */
-  imageSearch(query: string, maxResults?: number): Promise<ImageSearchResult>
-  /** Download an image URL in the main process (CORS-free, scheme/target validated) */
-  fetchImage(url: string): Promise<{ base64: string; mime: string } | null>
-  /** Genspark cloud image generation (markdown-owned channel, gsk login required) */
-  aiGenerateImage(op: { prompt: string; aspectRatio?: string }): Promise<{
-    url?: string
-    error?: string
-  }>
 }

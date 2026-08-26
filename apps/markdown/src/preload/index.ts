@@ -1,8 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { Lang } from '@genoffice/i18n'
-import type { AiStreamChunk } from '@genoffice/ai-provider'
 import type { ProjectApi } from '@genoffice/project-store'
-import { AI_CHANNELS, MARKDOWN_CHANNELS } from '../shared/ipc'
+import { MARKDOWN_CHANNELS } from '../shared/ipc'
 import type { ExportFormat, MarkdownApi, SaveMode, UiTheme } from '../shared/ipc'
 
 const api: MarkdownApi = {
@@ -77,19 +76,6 @@ const api: MarkdownApi = {
     ipcRenderer.on('app:chrome-pressed', listener)
     return () => ipcRenderer.removeListener('app:chrome-pressed', listener)
   },
-  getAiSettings: () => ipcRenderer.invoke(AI_CHANNELS.getSettings),
-  aiStream: (request) => ipcRenderer.invoke(AI_CHANNELS.stream, request),
-  aiStreamCancel: (requestId) => ipcRenderer.invoke(AI_CHANNELS.streamCancel, requestId),
-  onAiStream: (handler) => {
-    const listener = (_e: Electron.IpcRendererEvent, chunk: AiStreamChunk) => handler(chunk)
-    ipcRenderer.on(AI_CHANNELS.streamChunk, listener)
-    return () => ipcRenderer.removeListener(AI_CHANNELS.streamChunk, listener)
-  },
-  webSearch: (query, maxResults) => ipcRenderer.invoke(AI_CHANNELS.webSearch, query, maxResults),
-  imageSearch: (query, maxResults) =>
-    ipcRenderer.invoke(AI_CHANNELS.imageSearch, query, maxResults),
-  fetchImage: (url) => ipcRenderer.invoke(AI_CHANNELS.fetchImage, url),
-  aiGenerateImage: (op) => ipcRenderer.invoke(MARKDOWN_CHANNELS.aiGenerateImage, op),
 }
 
 /** Chat persistence: the shared project:* handlers are registered once by the shell (docs-main registerProjectIpc) */
