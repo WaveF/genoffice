@@ -168,7 +168,7 @@ import {
   type FrozenSelection,
   type SheetsSkillDeps,
 } from './ai/tools'
-import type { AiChatMessage } from './ai/AiChatPanel'
+import type { AiChatMessage } from './ai/types'
 import { parseSheetNavHref } from './ai/sheet-nav'
 import {
   boundsToA1,

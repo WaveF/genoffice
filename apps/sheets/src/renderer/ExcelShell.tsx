@@ -27,7 +27,7 @@ import { shouldInterceptClearSelection } from './clear-selection-keyboard'
 import type { ChartSeriesVisualState } from '../domain/chart-visual'
 import type { ChangePlan } from '../domain/workbook.types'
 import type { AttachmentMeta } from '../shared/desktop-api'
-import type { AiChatMessage } from './ai/AiChatPanel'
+import type { AiChatMessage } from './ai/types'
 import type { SelectionAskAnchor } from './ai/selection-ask'
 import {
   PivotDialog,
