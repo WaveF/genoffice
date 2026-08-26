@@ -79,11 +79,9 @@ import { EquationDialog, HeaderFooterDialog, LinkDialog } from './components/Ins
 import { CutoutDialog } from './components/CutoutDialog'
 import type { WordArtPreset } from '@genoffice/ui'
 import type { ChartPresetDef, IconDef, SmartArtDef } from './insert-presets'
-import { GensparkMark } from './components/icons'
 import { ToastHost } from './components/toast'
 import { showToast } from './components/toast-bus'
 import { t, useI18n } from './i18n/locale'
-import { AiPanel } from './ai/AiPanel'
 import { ChartDataDialog } from './components/ChartDataDialog'
 import type { BrushFormat } from './format-brush'
 import { isTextUndoTarget, shouldRouteUndoToDeck } from './undo-routing'
@@ -273,7 +271,7 @@ export function App() {
   }, [slides])
   const [path, setPath] = useState<string | null>(null)
   /** AiPanel reset key: incremented only on applyOpen (open/new file), not on draft path updates */
-  const [aiPanelKey, setAiPanelKey] = useState(0)
+  const [, setAiPanelKey] = useState(0)
   /** Theme body default font (fallback for the font box when the selection has no text element) */
   const [defaultFont, setDefaultFont] = useState<string | null>(null)
   const [current, setCurrent] = useState(0)
@@ -354,8 +352,8 @@ export function App() {
   const [showAi, setShowAi] = useState(() => localStorage.getItem('ai-slides-show-ai') !== '0')
   const [showFormat, setShowFormat] = useState(false)
   const [showBgFormat, setShowBgFormat] = useState(false)
-  const [aiSettings, setAiSettings] = useState<AiSettings | null>(null)
-  const [aiPreset, setAiPreset] = useState<{
+  const [, setAiSettings] = useState<AiSettings | null>(null)
+  const [, setAiPreset] = useState<{
     text: string
     nonce: number
     autoRun?: boolean
@@ -1252,7 +1250,7 @@ export function App() {
     [askState, askTargets, current],
   )
 
-  const focusQueueItem = useCallback(
+  const _focusQueueItem = useCallback(
     (key: string) => {
       const item = editQueue.find((it) => it.key === key)
       if (!item) return
@@ -1342,7 +1340,7 @@ export function App() {
     [],
   )
 
-  const applyDeck = useCallback((all: RenderSlide[], goTo?: number) => {
+  const _applyDeck = useCallback((all: RenderSlide[], goTo?: number) => {
     setSlides(all)
     if (goTo != null) setCurrent(goTo)
     setSelectedIds([])
@@ -3067,56 +3065,6 @@ export function App() {
       />
 
       <div className="app-main">
-        {slide && viewMode !== 'reading' && viewMode !== 'sorter' && (
-          <div className={`ai-dock${showAi && aiSettings ? '' : ' collapsed'}`}>
-            {/* always mounted once settings load: collapse must not drop state or in-flight runs */}
-            {aiSettings ? (
-              <AiPanel
-                key={aiPanelKey}
-                slides={slides}
-                current={current}
-                selectedIds={selectedIds}
-                deckEmpty={deckEmpty}
-                images={images}
-                applySlide={applySlide}
-                applyDeck={applyDeck}
-                fitWidthPx={FIT_WIDTH}
-                settings={aiSettings}
-                preset={aiPreset}
-                open={showAi}
-                onExpand={toggleAi}
-                onCollapse={toggleAi}
-                onUndo={() => void undo()}
-                onPathChange={(p) => {
-                  setPath(p)
-                  setDirty(false)
-                }}
-                currentFilePath={path}
-                editQueue={editQueue}
-                onQueueEditInstruction={(key, instruction) =>
-                  setEditQueue((prev) =>
-                    prev.map((it) => (it.key === key ? { ...it, instruction } : it)),
-                  )
-                }
-                onQueueRemove={(key) => setEditQueue((prev) => prev.filter((it) => it.key !== key))}
-                onQueueClear={() => setEditQueue([])}
-                onQueueFocus={focusQueueItem}
-                onQueueConsume={(keys) =>
-                  setEditQueue((prev) => prev.filter((it) => !keys.includes(it.key)))
-                }
-              />
-            ) : (
-              <button
-                className="ai-rail"
-                onClick={toggleAi}
-                data-tip={t('appAiRailExpand')}
-                aria-label={t('appAiRailExpand')}
-              >
-                <GensparkMark size={22} />
-              </button>
-            )}
-          </div>
-        )}
         <div className="app-content">
           <div className="workspace">
             {!slide ? (
