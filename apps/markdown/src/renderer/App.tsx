@@ -115,7 +115,6 @@ export default function App() {
   const [slashState, setSlashState] = useState<SlashMenuState | null>(null)
   const [fmOpen, setFmOpen] = useState(false)
   const [fmText, setFmText] = useState('')
-  const [aiOpen, setAiOpen] = useState(false)
   const [autoSave, setAutoSave] = useState(() => localStorage.getItem('mdapp.autoSave') === '1')
   const [zoom, setZoom] = useState(100)
 
@@ -506,9 +505,6 @@ export default function App() {
         onInsertImage={insertImage}
         frontmatterOpen={fmOpen}
         onToggleFrontmatter={() => setFmOpen((v) => !v)}
-        aiOpen={aiOpen}
-        onToggleAi={() => setAiOpen((v) => !v)}
-        onAiPreset={() => {}}
       />
       {status === 'loading' && <div className="center-note">{t('loading')}</div>}
       <div className="app-main" style={status === 'ready' ? undefined : { display: 'none' }}>

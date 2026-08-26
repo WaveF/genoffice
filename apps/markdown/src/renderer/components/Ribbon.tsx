@@ -13,7 +13,6 @@ import {
   IconLink,
   IconNumbered,
   IconPicture,
-  IconProperties,
   IconRedo,
   IconSave,
   IconTable,
@@ -32,9 +31,6 @@ interface Props {
   onInsertImage: () => void
   frontmatterOpen: boolean
   onToggleFrontmatter: () => void
-  aiOpen: boolean
-  onToggleAi: () => void
-  onAiPreset: (instruction: string) => void
 }
 
 type BlockStyle = 'paragraph' | 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'quote' | 'codeBlock'
@@ -71,7 +67,7 @@ function applyBlockStyle(editor: Editor, style: BlockStyle): void {
 }
 
 /** doc + sparkle / pen + sparkle / lines + sparkle, same glyphs as the docs ribbon */
-function AiFeatureIcon({ kind }: { kind: 'summarize' | 'polish' | 'tidy' }) {
+function _AiFeatureIcon({ kind }: { kind: 'summarize' | 'polish' | 'tidy' }) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -151,9 +147,6 @@ export function Ribbon({
   onInsertImage,
   frontmatterOpen,
   onToggleFrontmatter,
-  aiOpen,
-  onToggleAi,
-  onAiPreset,
 }: Props) {
   const { t } = useI18n()
   const [linkOpen, setLinkOpen] = useState(false)
@@ -218,23 +211,6 @@ export function Ribbon({
   // (pinned stroke paints 1.5px at this size per the suite-wide icon rules)
   const ICON = 20
 
-  // polish/tidy act on the selection when one exists (read at click time; the
-  // mousedown preventDefault below keeps the selection alive); summarize stays whole-doc
-  const hasSelection = () => !(editor?.state.selection.empty ?? true)
-  const aiPresets = [
-    { kind: 'summarize', btn: 'aiSummarizeBtn', prompt: () => t('aiSummarizePrompt') },
-    {
-      kind: 'polish',
-      btn: 'aiPolishBtn',
-      prompt: () => t(hasSelection() ? 'aiPolishSelectionPrompt' : 'aiPolishPrompt'),
-    },
-    {
-      kind: 'tidy',
-      btn: 'aiTidyBtn',
-      prompt: () => t(hasSelection() ? 'aiTidySelectionPrompt' : 'aiTidyPrompt'),
-    },
-  ] as const
-
   return (
     <div className="ribbon">
       {/* quick-access row above the toolbar (save / undo / redo / autosave), same as the docs QAT row */}
@@ -284,44 +260,6 @@ export function Ribbon({
       </div>
 
       <div className="ribbon-body">
-        <div className="ribbon-group" hidden>
-          <div className="ribbon-group-items">
-            <button
-              type="button"
-              className={`rb-big ai-entry${aiOpen ? ' active' : ''}`}
-              data-tip={t('aiOpenAssistant')}
-              disabled={disabled}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={onToggleAi}
-            >
-              <span className="rb-big-icon">
-                <IconProperties size={26} />
-              </span>
-              <span>Genspark AI</span>
-            </button>
-            {aiPresets.map(({ kind, btn, prompt }) => (
-              <button
-                key={kind}
-                type="button"
-                className="rb-big ai-entry"
-                data-tip={t(btn)}
-                disabled={off || state?.empty}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => onAiPreset(prompt())}
-              >
-                <span className="rb-big-icon">
-                  <span className="ai-feature-icon" aria-hidden="true">
-                    <AiFeatureIcon kind={kind} />
-                  </span>
-                </span>
-                <span>{t(btn)}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="rb-sep" />
-
         <div className="ribbon-group">
           <div className="ribbon-group-items">
             <Dropdown
