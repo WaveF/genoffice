@@ -13,7 +13,6 @@ import type {
   AnimEffectKind,
   AnimTrigger,
   AnimationItem,
-  AttachmentMeta,
   EditChartOp,
   EditParagraph,
   EditStrokeOp,
@@ -343,17 +342,9 @@ export function App() {
     localStorage.setItem('ai-slides-auto-save', autoSave ? '1' : '0')
     window.slidesApi.setAutoSavePref?.(autoSave)
   }, [autoSave])
-  const [showAi, setShowAi] = useState(() => localStorage.getItem('ai-slides-show-ai') !== '0')
+  const [showAi] = useState(() => localStorage.getItem('ai-slides-show-ai') !== '0')
   const [showFormat, setShowFormat] = useState(false)
   const [showBgFormat, setShowBgFormat] = useState(false)
-  const [, setAiPreset] = useState<{
-    text: string
-    nonce: number
-    autoRun?: boolean
-    displayText?: string
-    attachments?: AttachmentMeta[]
-    slideShot?: boolean
-  } | null>(null)
   const [_recent, setRecent] = useState<string[]>([])
   const consumePendingRef = useRef<ReturnType<typeof window.slidesApi.consumePendingOpen> | null>(
     null,
@@ -1088,37 +1079,6 @@ export function App() {
     if (slides.length === 0) void window.slidesApi.getRecentFiles().then(setRecent)
   }, [slides.length])
 
-  const _toggleAi = useCallback(() => {
-    setShowAi((v) => {
-      localStorage.setItem('ai-slides-show-ai', v ? '0' : '1')
-      return !v
-    })
-  }, [])
-
-  const _pushAiPreset = useCallback(
-    (
-      text: string,
-      autoRun = true,
-      displayText?: string,
-      attachments?: AttachmentMeta[],
-      slideShot?: boolean,
-    ) => {
-      setShowAi(() => {
-        localStorage.setItem('ai-slides-show-ai', '1')
-        return true
-      })
-      setAiPreset({
-        text,
-        nonce: Date.now(),
-        autoRun,
-        displayText,
-        ...(attachments && attachments.length > 0 ? { attachments } : {}),
-        ...(slideShot ? { slideShot } : {}),
-      })
-    },
-    [],
-  )
-
   // ── AI element edit queue ──────────────────────────────────────────────
   // Session-only: annotations are a scratchpad for the next AI submission, not
   // document content, so nothing here is persisted with the file.
@@ -1229,11 +1189,6 @@ export function App() {
           status: 'pending',
         }
         return [...prev, item]
-      })
-      // The queue lives in the panel; annotating with it collapsed would look like nothing happened
-      setShowAi(() => {
-        localStorage.setItem('ai-slides-show-ai', '1')
-        return true
       })
     },
     [askState, askTargets, current],
