@@ -263,8 +263,6 @@ export function App() {
     if (slides.length) void syncPrivateFonts()
   }, [slides])
   const [path, setPath] = useState<string | null>(null)
-  /** AiPanel reset key: incremented only on applyOpen (open/new file), not on draft path updates */
-  const [, setAiPanelKey] = useState(0)
   /** Theme body default font (fallback for the font box when the selection has no text element) */
   const [defaultFont, setDefaultFont] = useState<string | null>(null)
   const [current, setCurrent] = useState(0)
@@ -691,10 +689,6 @@ export function App() {
       setEditing(null)
       setDirty(false)
       setInkTool('select')
-      setAiPanelKey((k) => k + 1)
-      // Queue anchors belong to the deck that was open; another file invalidates them all
-      setEditQueue([])
-      setAskState(null)
       needsFitRef.current = true
       setStatus(
         result.path
