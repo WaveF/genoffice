@@ -1476,9 +1476,7 @@ const sidecarOpenResultSchema = workbookFileSchema.omit({
   readOnly: true,
 })
 
-export async function createSheetsWindow(
-  options: { includeAiHandlers?: boolean } = {},
-): Promise<BrowserWindow> {
+export async function createSheetsWindow(): Promise<BrowserWindow> {
   const client = sidecar ?? new XlsxSidecarClient(resolveSidecarPath())
   sidecar = client
   client.start()
@@ -1501,7 +1499,7 @@ export async function createSheetsWindow(
   })
   mainWindow = window
   registerSheetsIpc()
-  if (options.includeAiHandlers ?? true) registerProjectIpc()
+  registerProjectIpc()
   registerSheetsSession(window.webContents, client)
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
   window.webContents.on('will-navigate', (event) => event.preventDefault())
@@ -1533,7 +1531,7 @@ export async function createSheetsWindow(
 }
 
 /** tab-mode equivalent of createSheetsWindow: same runtime/IPC wiring, no BrowserWindow of its own. */
-export function createSheetsView(options: { includeAiHandlers?: boolean } = {}): WebContentsView {
+export function createSheetsView(): WebContentsView {
   const client = sidecar ?? new XlsxSidecarClient(resolveSidecarPath())
   sidecar = client
   client.start()
