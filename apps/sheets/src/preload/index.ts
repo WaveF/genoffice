@@ -350,17 +350,6 @@ const desktopApi: DesktopApi = {
     }
     return result as unknown as WebSearchResult
   },
-  async fetchImage(url) {
-    if (typeof url !== 'string' || !/^https?:\/\//i.test(url) || url.length > 2048) {
-      throw new Error('Invalid image URL.')
-    }
-    const result: unknown = await ipcRenderer.invoke(IPC_CHANNELS.aiFetchImage, url)
-    if (result === null) return null
-    if (!isRecord(result) || typeof result.base64 !== 'string' || typeof result.mime !== 'string') {
-      throw new Error('Invalid image download response.')
-    }
-    return result as { base64: string; mime: string }
-  },
   async consumeNewBlankWorkbook() {
     const result: unknown = await ipcRenderer.invoke('sheets:consume-new-blank')
     return result === true

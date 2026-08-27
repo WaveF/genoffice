@@ -2507,15 +2507,7 @@ export function App(): React.JSX.Element {
         let dataUrl: string
         let mediaType: string
         if (/^https?:\/\//i.test(structural.op.path)) {
-          const fetched = await window.desktopApi.fetchImage(structural.op.path)
-          if (!fetched) throw new Error(t('appCannotReadImage'))
-          // Trust the bytes, not the Content-Type header the handler echoed
-          const sniffed = sniffImageMime(fetched.base64)
-          if (!sniffed) {
-            throw new Error('The downloaded image is not PNG/JPEG/GIF — pick another image URL.')
-          }
-          dataUrl = `data:${sniffed};base64,${fetched.base64}`
-          mediaType = sniffed
+          throw new Error(t('appCannotReadImage'))
         } else {
           const image = await window.desktopApi.readLocalImage({ path: structural.op.path })
           dataUrl = `data:${image.mediaType};base64,${image.base64}`

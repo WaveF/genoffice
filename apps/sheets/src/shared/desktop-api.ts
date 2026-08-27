@@ -2377,8 +2377,6 @@ export interface DesktopApi {
   hasQueuedWorkbook(): Promise<boolean>
   /// Web search (main-process Serper/DuckDuckGo, shared with docs/slides)
   webSearch(query: string, maxResults?: number): Promise<WebSearchResult>
-  /// Downloads an image URL in the main process (SSRF-guarded); null on failure
-  fetchImage(url: string): Promise<{ base64: string; mime: string } | null>
   /// Chat attachments: multi-select file dialog (returns null on cancel)
   pickAttachments(): Promise<AttachmentAddResult | null>
   /// Validates dropped paths and returns attachment metadata
