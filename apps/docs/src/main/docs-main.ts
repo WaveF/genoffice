@@ -2567,61 +2567,17 @@ async function extractAttachmentText(filePath: string): Promise<string> {
 
 const TWIPS_PER_INCH = 1440
 
-// ---- AI settings + chat proxy (main process avoids renderer CORS) ----
-// provider metadata, settings defaults/migration, and per-provider streaming/chat
-// implementations live in @genoffice/ai-provider, shared with apps/sheets.
-
 const SETTINGS_PATH = () => userDataPath('ai-settings.json')
 
-/** live read: the shell settings pane writes the file; every tool call re-checks */
 function gskCloudToolsOn(): boolean {
   return cloudToolsEnabled(readJson<Partial<AiSettings>>(SETTINGS_PATH(), {}))
 }
 
 const activeAiStreams = new Map<string, AbortController>()
 
-/**
- * AI settings + chat/stream proxy handlers. Split out so the shell can
- * register them exactly once for all window types (docs, sheets, home) —
- * sheets' standalone AI handlers use the same channel names.
- */
+/** Remaining legacy handlers; removed incrementally while keeping ordinary
+ * document paste behavior isolated from the former AI namespace. */
 export function registerAiIpc(): void {
-  ipcMain.handle('ai:get-settings', (): AiSettings => {
-    const stored = readJson<Partial<AiSettings> & LegacyAiSettings>(SETTINGS_PATH(), {})
-    // pre-lock legacy file: genspark selected with cloud tools opted out. The
-    // settings UI locks the tools switch on with genspark and apps read this
-    // file live, so heal the stored flag once. Judged on the *stored* provider
-    // — never the activeProvider fallback below, which must not leak into the
-    // file and clobber a saved (half-configured) BYOK selection.
-    if ((stored.provider ?? 'genspark') === 'genspark' && stored.gskToolsEnabled === false) {
-      stored.gskToolsEnabled = true
-      writeJson(SETTINGS_PATH(), stored)
-    }
-    const settings = resolveAiSettings(stored, defaultAiSettings())
-    // a stored BYOK provider is honored when usable; half-filled configs fall back to genspark
-    settings.provider = activeProvider(settings)
-    return settings
-  })
-
-  // Genspark account (gsk login state): auth source for AI features; the frontend uses it to prompt login when logged out
-  ipcMain.handle(
-    'ai:gsk-status',
-    async (_event, withEmail?: boolean): Promise<GenSparkAccountStatus> => {
-      if (!hasGskAuth()) return { loggedIn: false }
-      if (!withEmail) return { loggedIn: true }
-      const info = await gskLoginInfo()
-      return info?.email ? { loggedIn: true, email: info.email } : { loggedIn: true }
-    },
-  )
-
-  ipcMain.handle('ai:gsk-login', () => {
-    ensureGenofficeLogin((url) => void shell.openExternal(url))
-  })
-
-  ipcMain.handle('ai:set-settings', (_event, settings: AiSettings) => {
-    writeJson(SETTINGS_PATH(), settings)
-  })
-
   ipcMain.handle('ai:stream', async (event, request: AiStreamRequest) => {
     const { requestId, settings, system, messages } = request
     const tools = request.tools ?? []
