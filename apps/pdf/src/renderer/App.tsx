@@ -7569,7 +7569,6 @@ export default function App() {
                     >
                       <span className="sel-swatch sel-swatch-st">S</span>
                     </button>
-                    <span className="pdf-sel-popup-sep" aria-hidden />
                   </>
                 )}
               </div>
