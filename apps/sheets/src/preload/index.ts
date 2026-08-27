@@ -350,24 +350,6 @@ const desktopApi: DesktopApi = {
     }
     return result as unknown as WebSearchResult
   },
-  async imageSearch(query, maxResults) {
-    if (typeof query !== 'string' || !query.trim() || query.length > 512) {
-      throw new Error('Invalid search query.')
-    }
-    const result: unknown = await ipcRenderer.invoke(IPC_CHANNELS.aiImageSearch, query, maxResults)
-    if (!isRecord(result) || !Array.isArray(result.images) || typeof result.method !== 'string') {
-      throw new Error('Invalid image search response.')
-    }
-    return result as unknown as ImageSearchResponse
-  },
-  async generateImage(op) {
-    if (!isRecord(op) || typeof op.prompt !== 'string' || !op.prompt.trim()) {
-      throw new Error('Invalid image generation request.')
-    }
-    const result: unknown = await ipcRenderer.invoke(IPC_CHANNELS.aiGenerateImage, op)
-    if (!isRecord(result)) throw new Error('Invalid image generation response.')
-    return result as unknown as GenerateImageResult
-  },
   async fetchImage(url) {
     if (typeof url !== 'string' || !/^https?:\/\//i.test(url) || url.length > 2048) {
       throw new Error('Invalid image URL.')
