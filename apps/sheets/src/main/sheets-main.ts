@@ -1501,7 +1501,6 @@ export async function createSheetsWindow(
   })
   mainWindow = window
   registerSheetsIpc()
-  if (options.includeAiHandlers ?? true) registerSheetsAiIpc()
   if (options.includeAiHandlers ?? true) registerProjectIpc()
   registerSheetsSession(window.webContents, client)
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
@@ -1548,7 +1547,6 @@ export function createSheetsView(options: { includeAiHandlers?: boolean } = {}):
     },
   })
   registerSheetsIpc()
-  if (options.includeAiHandlers ?? true) registerSheetsAiIpc()
   registerSheetsSession(view.webContents, client)
   view.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
   view.webContents.on('will-navigate', (event) => event.preventDefault())
