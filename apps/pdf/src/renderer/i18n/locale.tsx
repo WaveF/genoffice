@@ -37,7 +37,7 @@ export function aiLangDirective(lang: Lang): string {
 
 const LocaleContext = createContext<Lang>('zh')
 
-/** Module-level current language: for code outliving render closures (AgentLoop events etc.), kept in sync with the Provider */
+/** Module-level current language, kept in sync with the Provider for callbacks outliving render closures. */
 let moduleLang: Lang = 'zh'
 
 export function t(key: StringKey, params?: Params): string {
