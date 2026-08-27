@@ -386,62 +386,6 @@ button {
   background: var(--active-bg);
 }
 
-/* AI button: brand logo only — no accent plate behind the icon, label stays black (same as docs) */
-.rb-big.rb-ai {
-  font-size: 11px;
-  font-weight: 500;
-}
-
-.rb-big.rb-ai > span:not(.rb-big-icon) {
-  margin-top: -1px;
-}
-
-.rb-big.rb-ai.active,
-.rb-big.rb-ai:hover:not(:disabled) {
-  background: none;
-  color: var(--color-text-primary);
-}
-
-.rb-big.rb-ai.active .rb-big-icon,
-.rb-big.rb-ai:hover:not(:disabled) .rb-big-icon {
-  background: none;
-}
-
-/* The AI entry buttons read as one piece: hover/press tint the whole button
-   (icon + label together), unlike the other tall buttons where only the icon
-   row is painted. Same treatment as the docs ribbon. */
-.rb-big.ai-entry {
-  border-radius: 4px;
-}
-
-.rb-big.ai-entry:hover:not(:disabled) {
-  background: var(--hover);
-}
-
-.rb-big.ai-entry.active {
-  background: var(--active-bg);
-  color: var(--text);
-}
-
-.rb-big.ai-entry:hover:not(:disabled) .rb-big-icon,
-.rb-big.ai-entry.active .rb-big-icon {
-  background: transparent;
-}
-
-.ai-feature-icon {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  color: var(--color-brand-secondary);
-}
-
-.ai-feature-icon svg {
-  /* 24px renders the 24-unit viewBox 1:1, so the 1.5 stroke paints 1.5px */
-  width: 24px;
-  height: 24px;
-}
-
 .rb-col {
   display: flex;
   flex-direction: column;
