@@ -200,7 +200,6 @@ import {
   BLOCKED_COMMAND_PATTERN,
   CF_MUTATIONS,
   CF_RULE_COMMAND_PATTERN,
-  CHAT_STORAGE_KEY,
   COPY_SHEET_COMMAND,
   DEFINED_NAME_MUTATIONS,
   DV_EDIT_COMMAND_PATTERN,
@@ -806,8 +805,6 @@ export function App(): React.JSX.Element {
   // Display history survives restarts via localStorage; the AgentLoop's model
   // context does not, so restored turns are read-only transcript.
   const [chat, setChat] = useState<readonly AiChatMessage[]>([])
-  /** History loaded from project-store (read-only transcript, not fed to the model) */
-  const [historicChat, setHistoricChat] = useState<readonly AiChatMessage[]>([])
   // ── Chat attachments (same structure as docs/slides: text types go through the
   // read_attachment tool, images go multimodal) ──
   const [attachments, setAttachments] = useState<readonly AttachmentMeta[]>([])
@@ -824,9 +821,6 @@ export function App(): React.JSX.Element {
       seen.has(a.path) ? false : (seen.add(a.path), true),
     )
   }
-  /** Synchronous re-entrancy guard between runAgent trigger and loop.run
-   * (loop.busy is still false while attachment images load asynchronously) */
-  const runStartingRef = useRef(false)
   /** The shell can repeat its queued-open nudge while the renderer starts.
    * Only one picker/open request may own the workbook session at a time. */
   const workbookOpeningRef = useRef(false)
