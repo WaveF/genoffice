@@ -19,7 +19,6 @@
   },
   "devDependencies": {
     "@genoffice/i18n": "*",
-    "@genoffice/ai-provider": "*",
     "@genoffice/ai-search": "*",
     "@genoffice/docx-engine": "*",
     "@genoffice/file-parse": "*",
