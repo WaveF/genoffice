@@ -12,7 +12,7 @@
 | --- | --- | --- | --- |
 | SUN7-01 | Slides 下线验收 | 待手工回归 | renderer/runtime 已删除；需手工验证编辑、保存、undo。 |
 | SUN7-02 | Docs/Markdown UI 与 renderer 收尾 | 进行中 | renderer 面板已删；Docs Ribbon 残留、Docs main/shared IPC 仍须物理删除。 |
-| SUN7-03 | Sheets 运行时与 IPC 收尾 | 进行中 | AgentLoop、transport、skills、`ai:stream` 已删除；仍有 `registerSheetsAiIpc` 本体、schema、`ai/tools.ts`、选区/自动应用残留。 |
+| SUN7-03 | Sheets 运行时与 IPC 收尾 | 进行中 | 已删除 AgentLoop、transport、`registerSheetsAiIpc`、请求 schema、图片/网页搜索 IPC、预加载 API 与选区工作流；MCP 惰性读取仍可用。剩余 `ai/tools.ts` 及其仅供 Agent 使用的辅助模块须在保留 MCP 读取依赖后迁移/删除。 |
 | SUN7-04 | PDF renderer 与 IPC 收尾 | 进行中 | AI 面板/stream/image bridge 已删；`_aiApi` 死能力对象仍须整体删除。 |
 | SUN7-05 | Shell 全局设置与 provider 表面 | 未开始 | SettingsModal、preload、home-api 仍引用 `ai-provider`。 |
 | SUN7-06 | 全局 IPC 删除 | 未开始 | Docs `registerAiIpc`、Sheets 未注册 handler、相关 shared/preload 必须物理删除。 |
@@ -31,3 +31,4 @@
 
 - `MED-01`：外部 Agent 生成图片的安全导入不应复用旧内置 AI URL 下载。后续采用受控 media handle、MIME/大小校验、SSRF 防护和审计；不阻塞第 7 阶段下线。
 - 进度不能依据已移除面板估算；必须按“UI、运行时、IPC、依赖、验证”五层均关闭才可标记完成。
+- `SUN7-03`：Sheets 的惰性 MCP 读取复用了原 `ai/workbook-readers.ts`。清理时应把该模块迁至 MCP/通用读取域，不能因目录名直接删除，避免回退已交付的 `sheets.read_range` 能力。
