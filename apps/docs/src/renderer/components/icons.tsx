@@ -1163,20 +1163,6 @@ export function IconWholePage(props: IconProps) {
   )
 }
 
-export function IconAiPanel(props: IconProps) {
-  return (
-    <Svg {...props}>
-      <rect x="3" y="3.76" width="10.01" height="8.47" rx="0.62" />
-      <path d="M 9.39 3.76 v 8.47" />
-      <path
-        d="M 10.31 6.61 l 0.39 1 1 0.39 -1 0.39 -0.38 1 -0.38 -1 -1 -0.38 1 -0.38 z"
-        fill="currentColor"
-        stroke="none"
-      />
-    </Svg>
-  )
-}
-
 export function IconMoon(props: IconProps) {
   return (
     <Svg {...props}>
