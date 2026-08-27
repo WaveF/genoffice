@@ -256,22 +256,15 @@ export function EditorContextMenu({
       disabled?: boolean
       onClick?: () => void
       submenuKey?: string
-      ai?: boolean
     },
   ) => (
     <button
       className="ctx-item"
       disabled={opts.disabled}
-      data-tip={opts.ai ? t('appAiBadgeTip') : undefined}
       onMouseEnter={() => setSubmenu(opts.submenuKey ?? null)}
       onClick={opts.submenuKey ? undefined : opts.onClick}
     >
       <span className="ctx-label">{label}</span>
-      {opts.ai && (
-        <span className="copilot-badge copilot-badge-menu">
-          <IconSparkle size={10} />
-        </span>
-      )}
       {opts.key && <span className="ctx-key">{platformShortcuts(opts.key)}</span>}
       {opts.submenuKey && <span className="ctx-arrow">›</span>}
     </button>
