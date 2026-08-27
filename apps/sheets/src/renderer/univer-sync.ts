@@ -5083,10 +5083,9 @@ export function columnLetter(index: number): string {
   return label
 }
 
-/// Magic-byte check for downloaded images: the ai:fetch-image handler labels
-/// bytes from the Content-Type header (JPEG fallback), so a WebP or other
-/// unsupported payload could otherwise land in the xlsx as a mislabeled media
-/// part that Excel cannot display.
+/// Magic-byte check for imported images. A WebP or other unsupported payload
+/// must not land in the xlsx as a mislabeled media part that Excel cannot
+/// display.
 export function sniffImageMime(base64: string): 'image/png' | 'image/jpeg' | 'image/gif' | null {
   let bytes: Uint8Array
   try {

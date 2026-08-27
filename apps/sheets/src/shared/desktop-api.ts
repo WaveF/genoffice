@@ -2,15 +2,6 @@ import { z } from 'zod'
 
 import { MAX_SAVE_EDITS, MAX_SAVE_EDITS_TOTAL, SAVE_EDITS_CHUNK_MAX } from './ipc-channels'
 import { ADDABLE_SHAPE_TYPES } from './shape-types'
-import type {
-  AiChatRequest,
-  AiChatResponse,
-  AiSettings,
-  AiStreamChunk,
-  AiStreamRequest,
-  GenSparkAccountStatus,
-} from '@genoffice/ai-provider'
-
 const MAX_RANGE_CELLS = 20_000
 const cellScalarSchema = z.union([z.string(), z.number().finite(), z.boolean(), z.null()])
 const cellAreaSchema = z
