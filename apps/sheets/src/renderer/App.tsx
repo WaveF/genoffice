@@ -161,7 +161,6 @@ import {
   type SheetsSkillDeps,
 } from './ai/tools'
 import { parseSheetNavHref } from './ai/sheet-nav'
-import type { AiChatMessage } from './ai/types'
 import {
   boundsToA1,
   clampBoundsToExtent,
@@ -764,7 +763,7 @@ export function App(): React.JSX.Element {
     return runDeterministicPlanImpl(planContext(), instruction)
   }
 
-  function patchLastAssistant(_patch: (entry: AiChatMessage) => AiChatMessage): void {}
+  function patchLastAssistant(_patch: (entry: any) => any): void {}
 
   const [aiBusy, setAiBusy] = useState(false)
   // Display history survives restarts via localStorage; the AgentLoop's model
