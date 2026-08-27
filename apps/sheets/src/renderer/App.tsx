@@ -922,62 +922,6 @@ export function App(): React.JSX.Element {
     }
   }, [])
 
-  // ── project-store: resolve chatId and load history when a workbook opens ──
-  useEffect(() => {
-    const api = (window as Window & { projectApi?: typeof window.projectApi }).projectApi
-    if (!api) return
-    // Reset (new workbook or new session)
-    chatRefIdsRef.current = null
-    setHistoricChat([])
-    const tempChatId = `unsaved-${Date.now()}`
-    const sessionId = workbookFile?.sessionId
-    const resolveArgs: Parameters<typeof api.resolveChat>[0] = { filePath: null, tempChatId }
-    if (sessionId !== undefined) resolveArgs.sessionId = sessionId
-    void api
-      .resolveChat(resolveArgs)
-      .then(async (ids) => {
-        chatRefIdsRef.current = ids
-        const msgs = await api.loadChat({
-          projectId: ids.projectId,
-          chatId: ids.chatId,
-          limit: 200,
-        })
-        if (msgs.length === 0) return
-        setHistoricChat(
-          msgs.map((m) => ({
-            role: m.role,
-            text: m.text,
-            tools:
-              m.tools?.map((t) => ({
-                summary: t.summary,
-                isError: !!t.isError,
-                ...(t.name ? { name: t.name } : {}),
-                ...(t.output ? { output: t.output.slice(0, 2000) } : {}),
-              })) ?? [],
-            // stored metadata only: no thumbnail read for history, the chips render name/size
-            ...(m.attachments && m.attachments.length > 0
-              ? {
-                  attachments: m.attachments
-                    .filter((a) => a.path)
-                    .map((a) => ({
-                      name: a.name,
-                      path: a.path ?? '',
-                      ext: a.ext ?? '',
-                      sizeBytes: a.sizeBytes ?? 0,
-                    })),
-                }
-              : {}),
-          })),
-        )
-        // Restore model context: follow-ups after reopening the file continue the
-        // previous conversation (only when the loop is idle and has no history)
-        agentLoopRef.current?.restore(msgs.map((m) => ({ role: m.role, text: m.text })))
-      })
-      .catch(() => {
-        /* silent */
-      })
-  }, [workbookFile?.sessionId])
-
   const persistChatMessage = (
     role: 'user' | 'assistant',
     text: string,
@@ -1216,9 +1160,6 @@ export function App(): React.JSX.Element {
     })
   }
 
-  /** Image attachments read as base64 and sent multimodal with this user message
-   * (≤5MB each, max 20; same structure as docs/slides) */
-  const MAX_IMAGES_PER_MESSAGE = 20
   /** DSL context the AgentSkill reads/writes through — reuses the exact same
    * preview-then-apply path handlePlan/handleLazyPlan already exercise. */
   /** App-scope refs bundle for the extracted workbook readers (ai/workbook-readers.ts). */
@@ -1265,10 +1206,6 @@ export function App(): React.JSX.Element {
       proposeOperations,
     }
   }
-
-  useEffect(() => {
-    void window.desktopApi.getAiSettings().then(setAiSettingsState)
-  }, [])
 
   useEffect(() => {
     // Univer paints the grid on canvas, so it can't follow the CSS tokens —
