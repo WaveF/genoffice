@@ -5348,7 +5348,6 @@ export default function App() {
       ])
     },
     searchImages: (query, maxResults) => window.pdfApi.imageSearch(query, maxResults),
-    generateImage: (op) => window.pdfApi.generateImage(op),
     fetchImage: async (url) => {
       const fetched = await window.pdfApi.fetchImage(url)
       if (!fetched) return null
