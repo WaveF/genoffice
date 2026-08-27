@@ -1046,49 +1046,6 @@ export function App(): React.JSX.Element {
           setAiRunScope(undefined)
           void autoSaveCompletedAiRun().finally(() => setAiBusy(false))
         },
-        onError: (error) => {
-          setMessage(error)
-          setChat((previous) => {
-            const next = [...previous]
-            // the loop rolled this run's user message out of the model context — surface that
-            for (let i = next.length - 1; i >= 0; i--) {
-              const entry = next[i]!
-              if (entry.role === 'user') {
-                next[i] = { ...entry, undelivered: true }
-                break
-              }
-            }
-            const last = next.at(-1)
-            if (last?.role === 'assistant') {
-              next[next.length - 1] = {
-                ...last,
-                text: error,
-                isError: true,
-                streaming: false,
-                tools: last.tools.filter((tl) => !tl.running),
-              }
-            }
-            return next
-          })
-          // Signed-out failures get an inline sign-in button; detected via
-          // gsk status rather than matching the localized error text
-          void window.desktopApi
-            .aiGskStatus()
-            .then((status) => {
-              if (status.loggedIn) return
-              setChat((previous) => {
-                const next = [...previous]
-                const last = next.at(-1)
-                if (last?.role === 'assistant' && last.isError) {
-                  next[next.length - 1] = { ...last, loginRequired: true }
-                }
-                return next
-              })
-            })
-            .catch(() => {})
-          setAiRunScope(undefined)
-          void autoSaveCompletedAiRun().finally(() => setAiBusy(false))
-        },
       },
     })
   }
