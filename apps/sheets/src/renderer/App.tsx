@@ -116,13 +116,6 @@ import { greenTheme } from '@univerjs/themes'
 import { createUniver } from './create-univer'
 
 import {
-  AgentLoop,
-  COMPLETED_VIA_TOOLS_TEXT,
-  composeSkills,
-  type AgentImage,
-} from '@genoffice/agent-core'
-import type { AiSettings } from '@genoffice/ai-provider'
-import {
   copyTargetBounds,
   replaceOccurrences,
   type WorkbookOperation,
@@ -161,7 +154,6 @@ import {
   type CrossHighlightHandle,
 } from './cross-highlight'
 import type { ApplyOutcome, ChangePlan } from '../domain/workbook.types'
-import { createElectronTransport } from './ai/transport'
 import {
   MAX_READ_RANGE_CELLS,
   type ActiveSheetInfo,
@@ -178,12 +170,8 @@ import {
   type DataExtent,
 } from './ai/selection-scope'
 import { isSelectionDrag, type Point, type SelectionAskAnchor } from './ai/selection-ask'
-import { createWorkbookSkill } from './ai/workbook-skill'
 import { findWorkbookCells, selectWorkbookRange } from './ai/workbook-search'
 import { traceWorkbookDependents, traceWorkbookPrecedents } from './ai/formula-audit'
-import { createFilesSkill } from './ai/files-skill'
-import { createSearchSkill } from './ai/search-skill'
-import { createImageSkill } from './ai/image-skill'
 import { ATTACHMENT_IMAGE_EXTS } from '../shared/desktop-api'
 import type {
   AttachmentAddResult,
@@ -776,31 +764,6 @@ export function App(): React.JSX.Element {
     return runDeterministicPlanImpl(planContext(), instruction)
   }
 
-  // ---- AI: real LLM agent (falls back to the deterministic planner above
-  // when no provider is configured — see isAgentConfigured/handleSend) ----
-  const [aiSettings, setAiSettingsState] = useState<AiSettings | null>(null)
-  const aiSettingsRef = useRef<AiSettings | null>(null)
-  aiSettingsRef.current = aiSettings
-
-  /** gsk login state for the cloud-tools gate (refreshed on mount and window focus) */
-  const gskLoggedInRef = useRef(false)
-  useEffect(() => {
-    let alive = true
-    const refresh = () => {
-      void window.desktopApi
-        ?.aiGskStatus()
-        .then((s) => {
-          if (alive) gskLoggedInRef.current = !!s?.loggedIn
-        })
-        .catch(() => {})
-    }
-    refresh()
-    window.addEventListener('focus', refresh)
-    return () => {
-      alive = false
-      window.removeEventListener('focus', refresh)
-    }
-  }, [])
   const [aiBusy, setAiBusy] = useState(false)
   // Display history survives restarts via localStorage; the AgentLoop's model
   // context does not, so restored turns are read-only transcript.
