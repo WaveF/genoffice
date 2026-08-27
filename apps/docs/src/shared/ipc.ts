@@ -33,34 +33,9 @@ export interface PickImageResult {
   name: string
 }
 
-// ---- AI provider settings/config/streaming: canonical types live in @genoffice/ai-provider ----
-
-import type {
-  AiChatRequest,
-  AiChatResponse,
-  AiSettings,
-  AiStreamChunk,
-  AiStreamRequest,
-  GenSparkAccountStatus,
-} from '@genoffice/ai-provider'
 import type { FaceVerticalMetrics } from '@genoffice/font-metrics'
 
 export type { FaceVerticalMetrics }
-
-export type {
-  AiChatRequest,
-  AiChatResponse,
-  AiProviderConfig,
-  AiProviderId,
-  AiProviderMeta,
-  AiSettings,
-  AiStreamChunk,
-  AiStreamRequest,
-  GenSparkAccountStatus,
-} from '@genoffice/ai-provider'
-export { AI_PROVIDERS } from '@genoffice/ai-provider'
-
-// ---- chat attachments (local files fed to the agent via tools) ----
 
 /** Image attachment extensions: no text extraction; read as base64 on send and passed to the model as a multimodal image with the user message */
 export const ATTACHMENT_IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp'])
