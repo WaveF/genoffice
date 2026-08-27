@@ -996,56 +996,6 @@ export function App(): React.JSX.Element {
             }
           })
         },
-        onDone: ({ text, cancelled, turnLimit }) => {
-          // Prefer tool summaries when the model finished via tools with no prose
-          // (agent-core fills history with COMPLETED_VIA_TOOLS_TEXT so follow-ups
-          // stay provider-safe; the UI can show the real work that ran).
-          const toolSummaries = (() => {
-            const lines: string[] = []
-            const seen = new Set<string>()
-            for (const tool of runToolsRef.current) {
-              if (!tool.summary || tool.isError || seen.has(tool.summary)) continue
-              seen.add(tool.summary)
-              lines.push(tool.summary)
-              if (lines.length >= 8) break
-            }
-            return lines.join('\n')
-          })()
-          // A cancelled run must keep the "stopped" notice: earlier narration or
-          // tool summaries would make an aborted run read as completed.
-          const prose =
-            text && text !== COMPLETED_VIA_TOOLS_TEXT
-              ? text
-              : cancelled
-                ? ''
-                : runLastTextRef.current || toolSummaries || text
-          // A final empty turn must not claim completion: reuse the model's last
-          // streamed text; with none, only a mutating run gets the "done" phrasing.
-          const fallback = cancelled
-            ? t('appAiStopped')
-            : runLastTextRef.current ||
-              toolSummaries ||
-              (runMutatedRef.current ? t('appAiNoSummary') : t('appAiNoAction'))
-          const finalText = turnLimit
-            ? [prose, t('appAiTurnLimit')].filter(Boolean).join('\n\n')
-            : prose || fallback
-          setMessage(cancelled ? t('appAiStopped') : t('appAiDone'))
-          patchLastAssistant((entry) => ({
-            ...entry,
-            text: finalText,
-            streaming: false,
-            isError: false,
-            // A stop mid-tool can leave a running placeholder behind — drop it
-            tools: entry.tools.filter((tl) => !tl.running),
-          }))
-          // Persist the assistant message (side effect outside the updater;
-          // tools stores the run's complete activity)
-          if (!cancelled && finalText) {
-            persistChatMessage('assistant', finalText, runToolsRef.current)
-          }
-          setAiRunScope(undefined)
-          void autoSaveCompletedAiRun().finally(() => setAiBusy(false))
-        },
       },
     })
   }
