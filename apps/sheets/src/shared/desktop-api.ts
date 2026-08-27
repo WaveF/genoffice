@@ -2276,8 +2276,6 @@ export interface DesktopApi {
   /// Is a shell-queued workbook path still waiting to be opened? (The shell's
   /// 'open' nudge loop can time out on slow cold starts; the renderer pulls.)
   hasQueuedWorkbook(): Promise<boolean>
-  /// Web search (main-process Serper/DuckDuckGo, shared with docs/slides)
-  webSearch(query: string, maxResults?: number): Promise<WebSearchResult>
   /// Chat attachments: multi-select file dialog (returns null on cancel)
   pickAttachments(): Promise<AttachmentAddResult | null>
   /// Validates dropped paths and returns attachment metadata
@@ -2294,30 +2292,3 @@ export interface DesktopApi {
 }
 
 export type MenuAction = 'open' | 'save' | 'save-as' | 'export-pdf' | 'undo' | 'redo'
-
-export interface WebSearchResult {
-  results: Array<{ title: string; url: string; snippet: string }>
-  answer?: string
-  method: string
-  /** failure reason when method === 'error' */
-  error?: string
-}
-
-export interface ImageSearchResponse {
-  images: Array<{
-    title: string
-    imageUrl: string
-    sourceUrl: string
-    source: string
-    width?: number
-    height?: number
-  }>
-  method: string
-  /** failure reason when method === 'error' */
-  error?: string
-}
-
-export interface GenerateImageResult {
-  url?: string
-  error?: string
-}

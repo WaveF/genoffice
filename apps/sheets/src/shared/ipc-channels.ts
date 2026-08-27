@@ -42,8 +42,6 @@ export const IPC_CHANNELS = {
   exportPdf: 'workbook:export-pdf',
   openExternal: 'shell:open-external',
   menuAction: 'menu:action',
-  // sheets: prefix — slides' ai:generate-image only registers once a slides view exists
-  aiGenerateImage: 'sheets:ai-generate-image',
   // Chat attachments (sheets: prefix — docs already registers global files:* in
   // the shell; avoids collisions)
   captureScreenSources: 'sheets:capture-screen-sources',

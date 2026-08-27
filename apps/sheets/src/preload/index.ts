@@ -34,9 +34,6 @@ import type {
   WorkbookSaveRequest,
   WorkbookSaveResult,
   WorkbookVisualObject,
-  WebSearchResult,
-  ImageSearchResponse,
-  GenerateImageResult,
 } from '../shared/desktop-api'
 import {
   IPC_CHANNELS,
@@ -339,16 +336,6 @@ const desktopApi: DesktopApi = {
   },
   replyRecoveryPrompt(restore) {
     ipcRenderer.send(IPC_CHANNELS.recoveryPromptReply, restore === true)
-  },
-  async webSearch(query, maxResults) {
-    if (typeof query !== 'string' || !query.trim() || query.length > 512) {
-      throw new Error('Invalid search query.')
-    }
-    const result: unknown = await ipcRenderer.invoke('ai:web-search', query, maxResults)
-    if (!isRecord(result) || !Array.isArray(result.results) || typeof result.method !== 'string') {
-      throw new Error('Invalid web search response.')
-    }
-    return result as unknown as WebSearchResult
   },
   async consumeNewBlankWorkbook() {
     const result: unknown = await ipcRenderer.invoke('sheets:consume-new-blank')

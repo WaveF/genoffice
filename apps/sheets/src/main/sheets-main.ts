@@ -51,29 +51,7 @@ import {
 import { createI18n, getUiLang, type Lang, normalizeLang, setUiLang } from '@genoffice/i18n'
 import { ProjectStore } from '@genoffice/project-store'
 
-import {
-  chatForProvider,
-  defaultAiSettings,
-  activeProvider,
-  cloudToolsEnabled,
-  resolveAiSettings,
-  setRescueFetch,
-  type AiProviderId,
-  type AiSettings,
-  type GenSparkAccountStatus,
-  type LegacyAiSettings,
-} from '@genoffice/ai-provider'
 import { csvToXlsxBuffer, decodeCsvBuffer } from '../gateway/csv-import'
-import {
-  ensureGenofficeLogin,
-  gskApiKey,
-  gskLoginInfo,
-  hasGskAuth,
-  setGskProxyUrl,
-  webSearch,
-  imageSearch,
-  gskGenerateImage,
-} from '@genoffice/ai-search'
 import { parseFileToText } from '@genoffice/file-parse'
 import type { CellEdit, SheetStructuralOps } from '../gateway/xlsx-gateway'
 import { readArchiveEntryText, saveWorkbookViaSidecar } from '../gateway/xlsx-package-io'
@@ -1377,13 +1355,6 @@ function writeJson(path: string, value: unknown): void {
   writeFileSync(path, JSON.stringify(value, null, 2))
 }
 
-const SETTINGS_PATH = () => userDataPath('ai-settings.json')
-
-/** live read: the shell settings pane writes the file; every tool call re-checks */
-function gskCloudToolsOn(): boolean {
-  return cloudToolsEnabled(readJson<Partial<AiSettings>>(SETTINGS_PATH(), {}))
-}
-
 // Dev-only automation hooks: a fixed CDP port for driving the app from test
 // scripts, and a workbook path that bypasses the native file dialog.
 const debugPort = app.isPackaged ? undefined : process.env.XLSX_DEBUG_PORT
@@ -1783,35 +1754,6 @@ let coreIpcRegistered = false
 export function registerSheetsIpc(): void {
   if (coreIpcRegistered) return
   coreIpcRegistered = true
-
-  // Registered here (not in registerSheetsAiIpc, skipped in shell mode):
-  // slides' ai:generate-image only exists once a slides view opens, so sheets
-  // owns its channel the way pdf does.
-  ipcMain.handle(
-    IPC_CHANNELS.aiGenerateImage,
-    async (_event, op: { prompt?: unknown; aspectRatio?: unknown }) => {
-      if (!hasGskAuth())
-        return {
-          error: 'Genspark account is not logged in on this machine; ask the user to log in first',
-        }
-      if (!gskCloudToolsOn())
-        return {
-          error:
-            'Genspark cloud tools are turned off in Settings (AI Model); enable them to use this tool',
-        }
-      const prompt = String(op?.prompt ?? '').trim()
-      if (!prompt) return { error: 'prompt must not be empty' }
-      try {
-        const r = await gskGenerateImage({
-          prompt,
-          ...(op?.aspectRatio ? { aspectRatio: String(op.aspectRatio) } : {}),
-        })
-        return { url: r.url }
-      } catch (err) {
-        return { error: err instanceof Error ? err.message : String(err) }
-      }
-    },
-  )
 
   ipcMain.on(IPC_CHANNELS.recoveryPromptReply, (event, restore: unknown) => {
     recoveryPromptWaiters.get(event.sender.id)?.(restore === true ? 'restore' : 'discard')
@@ -3037,9 +2979,6 @@ export {
  */
 async function applyMainProcessProxy(): Promise<void> {
   const setDispatcher = async (proxyUrl: string) => {
-    // spawned gsk CLI children do their own fetch and never see the
-    // dispatcher below — forward the proxy to them via env
-    setGskProxyUrl(proxyUrl)
     try {
       const { ProxyAgent, setGlobalDispatcher } = await import('undici')
       setGlobalDispatcher(new ProxyAgent(proxyUrl))
