@@ -62,7 +62,6 @@ import {
 import {
   lazyGateError,
   proposeOperations as proposeOperationsImpl,
-  runDeterministicPlan as runDeterministicPlanImpl,
   type PlanContext,
 } from './plan-operations'
 import { isNumericIdentifierText } from './cell-warning'
@@ -160,8 +159,6 @@ import {
 import type { ApplyOutcome, ChangePlan } from '../domain/workbook.types'
 import { ATTACHMENT_IMAGE_EXTS } from '../shared/desktop-api'
 import type {
-  AttachmentAddResult,
-  AttachmentMeta,
   MenuAction,
   RecoveryPromptPayload,
   WorkbookFile,
@@ -716,36 +713,9 @@ export function App(): React.JSX.Element {
     return proposeOperationsImpl(planContext(), operations, summary)
   }
 
-  function runDeterministicPlan(instruction: string): { text: string; isError?: boolean } {
-    return runDeterministicPlanImpl(planContext(), instruction)
-  }
-
-  function patchLastAssistant(_patch: (entry: any) => any): void {}
-
-  const [aiBusy, setAiBusy] = useState(false)
-  // Display history survives restarts via localStorage; the AgentLoop's model
-  // context does not, so restored turns are read-only transcript.
-  // ── Chat attachments (same structure as docs/slides: text types go through the
-  // read_attachment tool, images go multimodal) ──
-  const [attachments, setAttachments] = useState<readonly AttachmentMeta[]>([])
-  const [attachNotice, setAttachNotice] = useState<string | null>(null)
-  const attachmentsRef = useRef(attachments)
-  attachmentsRef.current = attachments
-  /** Attachments consumed by earlier sends this session: sending clears the composer, but the
-      files skill must keep reading them mid-run and in follow-up turns. Deduped by path. */
-  const sentAttachmentsRef = useRef<readonly AttachmentMeta[]>([])
-  /** composer attachments plus everything already sent this session (deduped by path) */
-  const availableAttachments = (): AttachmentMeta[] => {
-    const seen = new Set<string>()
-    return [...sentAttachmentsRef.current, ...attachmentsRef.current].filter((a) =>
-      seen.has(a.path) ? false : (seen.add(a.path), true),
-    )
-  }
   /** The shell can repeat its queued-open nudge while the renderer starts.
    * Only one picker/open request may own the workbook session at a time. */
   const workbookOpeningRef = useRef(false)
-  /** Current session's projectId/chatId (resolved when the workbook opens) */
-  const chatRefIdsRef = useRef<{ projectId: string; chatId: string } | null>(null)
 
   // File renamed externally (in the shell Home list) → sync the title-bar file
   // name (the save path is synced by the main process)
@@ -774,60 +744,6 @@ export function App(): React.JSX.Element {
   useEffect(() => {
     if (!selectedVisual) setChartDialog(null)
   }, [selectedVisual])
-
-  const persistChatMessage = (
-    role: 'user' | 'assistant',
-    text: string,
-    tools?: Array<{
-      name?: string
-      summary: string
-      isError?: boolean
-      input?: string
-      output?: string
-    }>,
-    attachments?: readonly AttachmentMeta[],
-  ) => {
-    const ids = chatRefIdsRef.current
-    const api = (window as Window & { projectApi?: typeof window.projectApi }).projectApi
-    if (!ids || !api) return
-    void api
-      .appendChat({
-        projectId: ids.projectId,
-        chatId: ids.chatId,
-        role,
-        text,
-        ...(tools && tools.length > 0
-          ? { tools: tools.map((t) => ({ ...t, name: t.name ?? '' })) }
-          : {}),
-        ...(attachments && attachments.length > 0
-          ? {
-              attachments: attachments.map((a) => ({
-                name: a.name,
-                path: a.path,
-                ext: a.ext,
-                sizeBytes: a.sizeBytes,
-              })),
-            }
-          : {}),
-      })
-      .catch(() => {
-        /* silent */
-      })
-  }
-
-  /** Tool activity for the whole run (args/output included, accumulated across
-   * turns) — for full transcript persistence */
-  const runToolsRef = useRef<
-    Array<{ name: string; summary: string; isError?: boolean; input?: string; output?: string }>
-  >([])
-  /** AI plans apply asynchronously after propose_operations returns. Run
-   * completion waits for these before doing the run's single auto-save. */
-  const aiApplyPromisesRef = useRef<Promise<boolean>[]>([])
-  /** Last non-empty streamed text of the run: a final empty turn falls back to
-   * it instead of wiping the model's own summary from the tool-call turn. */
-  const runLastTextRef = useRef('')
-  /** true once any tool of the run mutated the workbook */
-  const runMutatedRef = useRef(false)
 
   useEffect(() => {
     // Univer paints the grid on canvas, so it can't follow the CSS tokens —
@@ -2022,49 +1938,6 @@ export function App(): React.JSX.Element {
     if (runtime) queueDemoVisualInstall(runtime)
   }
 
-  /** Default worksheet names carry no content signal, so they never name the file. */
-  const DEFAULT_SHEET_NAME_RE = /^(sheet|工作表|ワークシート|シート)\s*\d*$/i
-
-  /** Waits for every plan submitted during one AI run, then persists all
-   * successful writes in one save. A canceled/failed Save As leaves both the
-   * journal and inline undo available. */
-  async function autoSaveCompletedAiRun(): Promise<void> {
-    const applies = aiApplyPromisesRef.current
-    aiApplyPromisesRef.current = []
-    if (applies.length === 0) return
-    const results = await Promise.all(applies)
-    if (!results.some(Boolean)) return
-    const state = lazyWorkbookRef.current
-    if (!state || journalSize(state.editJournal) === 0) return
-    // AutoSave off = the user decides when the file is written: the
-    // run's edits stay pending in the journal, so the offered Undo / ⌘Z keeps
-    // working (saving would reopen the session and reset the undo stack).
-    if (!autoSaveRef.current) {
-      setMessage(t('appAiChangesNotSaved'))
-      return
-    }
-    // AutoSave-driven write after an AI run: silent like the interval autosave.
-    await handleSave('save', true)
-    const after = lazyWorkbookRef.current
-    if (after && journalSize(after.editJournal) === 0) {
-      // Saving reopens the sidecar session and resets Univer's undo stack.
-      patchLastAssistant(({ autoApplied: _autoApplied, ...entry }) => entry)
-      // Sheets' analog of slides' deckName: propose the first AI-named sheet as
-      // the file name. The main process no-ops unless the file still carries the
-      // shell's auto-created untitled name, so user-chosen names are never touched.
-      const candidate = after.file.sheets
-        .map((sheet) => sheet.name.trim())
-        .find((name) => name.length > 0 && !DEFAULT_SHEET_NAME_RE.test(name))
-      if (candidate) {
-        try {
-          await window.desktopApi.autoRenameWorkbook(after.file.sessionId, candidate)
-        } catch {
-          // naming is best-effort; the save itself already succeeded
-        }
-      }
-    }
-  }
-
   /**
    * Auto-apply a just-proposed plan without the manual Apply click.
    *
@@ -2077,28 +1950,12 @@ export function App(): React.JSX.Element {
    * When apply fails, the preview card stays up as a manual fallback.
    */
   function autoApplySafePlan(plan: ChangePlan): Promise<ApplyOutcome> {
-    const opCount =
-      plan.cellChanges.length +
-      plan.formatChanges.length +
-      plan.sheetRenames.length +
-      plan.structuralChanges.length
     const state = lazyWorkbookRef.current
     if (state) {
-      const undoDepthBefore = undoStackDepth(univerRef.current)
       // Lazy path reads lazyPreviewRef (a ref, already set by the caller) —
       // safe to invoke synchronously right after propose.
       const apply = handleLazyApply(state).then((outcome) => {
-        if (outcome.ok) {
-          const undoSteps = Math.max(0, undoStackDepth(univerRef.current) - undoDepthBefore)
-          // Patch last assistant message with inline undo button.
-          patchLastAssistant((entry) => ({
-            ...entry,
-            autoApplied: {
-              opCount: (entry.autoApplied?.opCount ?? 0) + opCount,
-              undoSteps: (entry.autoApplied?.undoSteps ?? 0) + undoSteps,
-            },
-          }))
-        } else {
+        if (!outcome.ok) {
           // No manual-apply entry point: the failure reason is already in the
           // chat/status bar, and the preview card just collapses.
           lazyPreviewRef.current = null
@@ -2106,7 +1963,6 @@ export function App(): React.JSX.Element {
         }
         return outcome
       })
-      aiApplyPromisesRef.current.push(apply.then((outcome) => outcome.ok))
       return apply
     }
     // Non-lazy path: apply the passed plan directly (setPreview is async, so we
@@ -2170,14 +2026,6 @@ export function App(): React.JSX.Element {
       commitMcpRevision(revision)
       setPreview(null)
       setMessage(t('appAppliedRevision', { revision }))
-      // Patch last assistant message to show inline undo button.
-      patchLastAssistant((entry) => ({
-        ...entry,
-        autoApplied: {
-          opCount: (entry.autoApplied?.opCount ?? 0) + opCount,
-          undoSteps: (entry.autoApplied?.undoSteps ?? 0) + 1,
-        },
-      }))
       return Promise.resolve({ ok: true })
     } catch (error: unknown) {
       // Fall back to leaving the preview up so the user can Apply manually.
@@ -2317,11 +2165,6 @@ export function App(): React.JSX.Element {
     } catch (error: unknown) {
       const reason = error instanceof Error ? error.message : t('appCannotReadImage')
       setMessage(reason)
-      patchLastAssistant((entry) => ({
-        ...entry,
-        text: `${entry.text}\n\n${t('appApplyFailed', { reason })}`,
-        isError: true,
-      }))
       return { ok: false, reason }
     }
     if (lazyPreviewRef.current !== stored || lazyWorkbookRef.current !== state) {
@@ -2338,11 +2181,6 @@ export function App(): React.JSX.Element {
     if (!stillMatches) {
       const reason = t('appWorkbookChangedSincePreview')
       setMessage(reason)
-      patchLastAssistant((entry) => ({
-        ...entry,
-        text: `${entry.text}\n\n${t('appApplyFailed', { reason })}`,
-        isError: true,
-      }))
       return { ok: false, reason }
     }
     // All commands of one propose merge into a single undo item (⌘Z / [Undo]
@@ -3062,17 +2900,6 @@ export function App(): React.JSX.Element {
     } catch (error: unknown) {
       const reason = error instanceof Error ? error.message : t('appApplyTxFailed')
       setMessage(reason)
-      // The chat answer already promised the change — surface the failure
-      // there too, or it silently never lands on the canvas.
-      patchLastAssistant((entry) =>
-        entry.text.includes(reason)
-          ? entry
-          : {
-              ...entry,
-              text: `${entry.text}\n\n${t('appApplyFailed', { reason })}`,
-              isError: true,
-            },
-      )
       return anyApplied ? { ok: false, reason, partiallyApplied: true } : { ok: false, reason }
     } finally {
       undoBatching?.dispose()
@@ -3082,11 +2909,6 @@ export function App(): React.JSX.Element {
   function handleUndo(steps?: number): void {
     const count =
       typeof steps === 'number' && Number.isFinite(steps) ? Math.max(1, Math.floor(steps)) : 1
-    const fromAiBatch = typeof steps === 'number'
-    const clearInlineUndo = () => {
-      if (!fromAiBatch) return
-      patchLastAssistant(({ autoApplied: _autoApplied, ...entry }) => entry)
-    }
     // Mirror ⌘Z: interactive grid edits live on Univer's undo stack even in a
     // blank in-memory workbook, so drain that stack first; the adapter's
     // revision history (AI plan applies) is the fallback once it is empty.
@@ -3095,7 +2917,6 @@ export function App(): React.JSX.Element {
       if (!api) return
       void (async () => {
         for (let step = 0; step < count; step += 1) await api.undo()
-        clearInlineUndo()
       })()
       return
     }
@@ -3114,7 +2935,6 @@ export function App(): React.JSX.Element {
       commitMcpRevision(receipt.revision)
       setPreview(null)
       setMessage(t('appUndoCommitted', { revision: receipt.revision }))
-      clearInlineUndo()
     } catch (error: unknown) {
       setMessage(error instanceof Error ? error.message : t('appUndoFailed'))
     }
