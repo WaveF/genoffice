@@ -5131,71 +5131,6 @@ export default function App() {
     }
   }
 
-  /** Capability surface for AI tools; rebuilt each render (AiPanel mirrors it via refs to get the latest) */
-  /** One context line about edits queued but unsaved — the model cannot see them in the file */
-  const aiPendingSummary = (): string => {
-    const parts: string[] = []
-    const add = (n: number, label: string) => {
-      if (n > 0) parts.push(`${label}: ${n}`)
-    }
-    add(textEdits.length, 'text edits')
-    add(textInserts.length, 'text inserts')
-    add(imageEdits.length, 'image edits')
-    add(markups.length, 'markups')
-    add(annotDeletes.length, 'annotation deletions')
-    add(noteEdits.length, 'note edits')
-    add(drawings.length, 'drawings')
-    add(formEdits.size, 'form field changes')
-    add(rotations.size, 'page rotations')
-    add(deleted.size, 'page deletions')
-    return parts.length > 0
-      ? `Unsaved changes queued this session (pending until the user saves, not yet visible in the file): ${parts.join(', ')}.`
-      : ''
-  }
-
-  /** One context line about the document's annotations; '' when there are none.
-      Deleted pages and per-annotation deletions are excluded, matching what
-      read_annotations actually returns. */
-  const aiAnnotationSummary = (): string => {
-    const pendingRoots = drawings.filter(
-      (d) =>
-        d.input.kind === 'note' &&
-        !d.input.replyToSaved &&
-        d.input.replyToLocalId === undefined &&
-        !deleted.has(d.input.pageIndex),
-    ).length
-    let deletedThreads = 0
-    let deletedMarkups = 0
-    for (const d of annotDeletes) {
-      if (deleted.has(d.annot.pageIndex)) continue // its whole page is already excluded
-      if (d.annot.type === 'note') {
-        if (d.annot.inReplyTo === null) deletedThreads++
-      } else deletedMarkups++
-    }
-    // scan still running: "unknown" must not read as "none" — a run started right
-    // after open would otherwise never hear the file carries review feedback
-    if (!aiAnnotCounts) {
-      return 'Whether the file contains notes/markups has not been determined yet; use read_annotations to check when the user asks about review feedback.'
-    }
-    let savedThreads = 0
-    let savedMarkups = 0
-    aiAnnotCounts.threads.forEach((n, i) => {
-      if (!deleted.has(i)) savedThreads += n
-    })
-    aiAnnotCounts.markups.forEach((n, i) => {
-      if (!deleted.has(i)) savedMarkups += n
-    })
-    const threads = Math.max(0, savedThreads - deletedThreads) + pendingRoots
-    const markupCount =
-      Math.max(0, savedMarkups - deletedMarkups) +
-      markups.filter((m) => !deleted.has(m.pageIndex)).length
-    if (threads + markupCount === 0) return ''
-    const bits: string[] = []
-    if (threads > 0) bits.push(`${threads} note thread(s)`)
-    if (markupCount > 0) bits.push(`${markupCount} text markup(s)`)
-    return `The document has ${bits.join(' and ')}; use read_annotations to read them.`
-  }
-
   const _aiApi: Record<string, (...args: any[]) => unknown> = {
     doc: () => doc,
     fileName: () => fileName,
@@ -5204,8 +5139,6 @@ export default function App() {
     readOnly: () => readOnly,
     ocrText: (origIdx) => ocrPages.get(origIdx)?.entry.text ?? null,
     selection: () => aiSelection,
-    pendingSummary: aiPendingSummary,
-    annotationSummary: aiAnnotationSummary,
     annotationsOn: async (origIdx) => {
       // one pdf.js pass per uncached page: notes and markups come from the same load
       let notes = savedNotes.get(origIdx)
