@@ -3,12 +3,36 @@ import type { Lang } from '@genoffice/i18n'
 import { PDF_CHANNELS } from '../shared/ipc'
 import type { PdfApi, UiTheme } from '../shared/ipc'
 
+type PdfMcpRequest = {
+  requestId: string
+  action:
+    | 'pdf.get_document_context'
+    | 'pdf.read_page_context'
+    | 'pdf.search'
+    | 'pdf.read_annotations'
+    | 'pdf.apply_operations'
+  input: Record<string, unknown>
+}
+
+let pdfMcpHandler: ((request: PdfMcpRequest) => void) | null = null
+const pendingPdfMcpRequests: PdfMcpRequest[] = []
+
+ipcRenderer.on('mcp:renderer-request', (_event, request: PdfMcpRequest) => {
+  if (pdfMcpHandler) pdfMcpHandler(request)
+  else pendingPdfMcpRequests.push(request)
+})
+ipcRenderer.send('mcp:renderer-ready')
+
+function registerPdfMcpHandler(handler: (request: PdfMcpRequest) => void): () => void {
+  pdfMcpHandler = handler
+  for (const request of pendingPdfMcpRequests.splice(0)) handler(request)
+  return () => {
+    if (pdfMcpHandler === handler) pdfMcpHandler = null
+  }
+}
+
 const api: PdfApi = {
-  onMcpRequest: (handler) => {
-    const listener = (_event: Electron.IpcRendererEvent, request: { requestId: string; action: 'pdf.get_document_context' | 'pdf.read_page_context' | 'pdf.search' | 'pdf.read_annotations' | 'pdf.apply_operations'; input: Record<string, unknown> }) => handler(request)
-    ipcRenderer.on('mcp:renderer-request', listener)
-    return () => ipcRenderer.removeListener('mcp:renderer-request', listener)
-  },
+  onMcpRequest: registerPdfMcpHandler,
   respondMcpRequest: (response) => ipcRenderer.send('mcp:renderer-response', response),
   reportMcpRevision: (revision) => ipcRenderer.send('mcp:renderer-revision', revision),
   consumePending: () => ipcRenderer.invoke(PDF_CHANNELS.consumePending),

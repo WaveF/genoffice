@@ -13,6 +13,7 @@ import {
   IconLink,
   IconNumbered,
   IconPicture,
+  IconProperties,
   IconRedo,
   IconSave,
   IconTable,

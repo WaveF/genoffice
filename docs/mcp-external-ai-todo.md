@@ -103,31 +103,31 @@
 
 此部分只能在正式支持的 MCP tools 达到等价验收后开始。每个 App 单独移除，避免一次性大范围删除。
 
-| ID     | 任务                                                                                   | 优先级 | 依赖               | 状态   | 负责人 | 代码落点                                   | 验收标准                                                | PR                                             |
-| ------ | -------------------------------------------------------------------------------------- | ------ | ------------------ | ------ | ------ | ------------------------------------------ | ------------------------------------------------------- | ---------------------------------------------- |
-| SUN-01 | 隐藏并移除 Slides 的 AiPanel、Ask AI、AI 菜单/Ribbon 入口。                            | P1     | SLD-08             | 已完成 | Codex  | `apps/slides/src/renderer/ai/`、App/Ribbon | Slides UI/runtime 已删除；MCP 回归与本机“新建→修改→撤销”已通过。 | `712ebc1`..`0e1d9c7` |
-| SUN-02 | 隐藏并移除 Docs/Markdown 的 AI 面板与快捷入口。                                        | P1     | DOC-03, MD-03      | 已完成 | Codex | 对应 renderer/App/Ribbon                   | Docs/Markdown 内置 AI runtime、面板、菜单与可达提示均已删除；MCP 与本机回归通过。 | `bdcf1c2`..`0e1d9c7` |
-| SUN-03 | 隐藏并移除 Sheets/PDF 的 AI 面板。                                                     | P2     | SHT-04, PDF-04     | 已完成 | Codex | 对应 renderer                              | AgentLoop/transport、`_aiApi`、可达 AI UI/IPC 与残留 dock 布局均已删除；MCP 与本机回归通过。 | `d10a948`..`0e1d9c7` |
-| SUN-04 | 删除内部 `ai:stream`、`ai:chat`、provider settings 和相关 preload IPC。                | P1     | SUN-01..03, DEC-04 | 已完成 | Codex | docs/shell/main、各 preload/shared IPC     | 全局 `ai:*` IPC、Shell provider settings 和 preload 暴露已删除。 | `70fbd2d`..`0e1d9c7` |
-| SUN-05 | 删除 `packages/ai-provider`、`packages/agent-core` 和仅用于聊天的 project-store 逻辑。 | P2     | SUN-04             | 已完成 | Codex | workspaces/package manifests               | 包、workspace/lockfile 条目和聊天专用逻辑已删除；全量类型检查与 MCP 回归通过。 | `8a7f489` |
-| SUN-06 | 清理 AI 专属 i18n、图片、测试和文档；更新 README/隐私/安全说明。                       | P1     | SUN-04             | 已完成 | Codex | 全仓                                       | 无可达内置 AI 文案、资源或文档误导；完整验收记录在 `internal-ai-sunset-execution.md`。 | `a6c6641`..`0e1d9c7` |
+| ID     | 任务                                                                                   | 优先级 | 依赖               | 状态   | 负责人 | 代码落点                                   | 验收标准                                                                                     | PR                   |
+| ------ | -------------------------------------------------------------------------------------- | ------ | ------------------ | ------ | ------ | ------------------------------------------ | -------------------------------------------------------------------------------------------- | -------------------- |
+| SUN-01 | 隐藏并移除 Slides 的 AiPanel、Ask AI、AI 菜单/Ribbon 入口。                            | P1     | SLD-08             | 已完成 | Codex  | `apps/slides/src/renderer/ai/`、App/Ribbon | Slides UI/runtime 已删除；MCP 回归与本机“新建→修改→撤销”已通过。                             | `712ebc1`..`0e1d9c7` |
+| SUN-02 | 隐藏并移除 Docs/Markdown 的 AI 面板与快捷入口。                                        | P1     | DOC-03, MD-03      | 已完成 | Codex  | 对应 renderer/App/Ribbon                   | Docs/Markdown 内置 AI runtime、面板、菜单与可达提示均已删除；MCP 与本机回归通过。            | `bdcf1c2`..`0e1d9c7` |
+| SUN-03 | 隐藏并移除 Sheets/PDF 的 AI 面板。                                                     | P2     | SHT-04, PDF-04     | 已完成 | Codex  | 对应 renderer                              | AgentLoop/transport、`_aiApi`、可达 AI UI/IPC 与残留 dock 布局均已删除；MCP 与本机回归通过。 | `d10a948`..`0e1d9c7` |
+| SUN-04 | 删除内部 `ai:stream`、`ai:chat`、provider settings 和相关 preload IPC。                | P1     | SUN-01..03, DEC-04 | 已完成 | Codex  | docs/shell/main、各 preload/shared IPC     | 全局 `ai:*` IPC、Shell provider settings 和 preload 暴露已删除。                             | `70fbd2d`..`0e1d9c7` |
+| SUN-05 | 删除 `packages/ai-provider`、`packages/agent-core` 和仅用于聊天的 project-store 逻辑。 | P2     | SUN-04             | 已完成 | Codex  | workspaces/package manifests               | 包、workspace/lockfile 条目和聊天专用逻辑已删除；全量类型检查与 MCP 回归通过。               | `8a7f489`            |
+| SUN-06 | 清理 AI 专属 i18n、图片、测试和文档；更新 README/隐私/安全说明。                       | P1     | SUN-04             | 已完成 | Codex  | 全仓                                       | 无可达内置 AI 文案、资源或文档误导；完整验收记录在 `internal-ai-sunset-execution.md`。       | `a6c6641`..`0e1d9c7` |
 
 ## 7.1 MCP 能力缺口（不阻塞下线）
 
-| ID | 任务 | 优先级 | 依赖 | 状态 | 负责人 | 记录 | 验收标准 | PR |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| MED-01 | 受控导入外部 Agent 生成的图片，并向各文档类型提供 handle-based 插入能力。 | P1 | SUN-04 | 未开始 | TBD | `mcp-capability-gaps.md` | 禁止任意路径；满足 MIME/大小/SSRF/审计约束；至少覆盖 Slides。 | |
+| ID     | 任务                                                                      | 优先级 | 依赖   | 状态   | 负责人 | 记录                     | 验收标准                                                      | PR  |
+| ------ | ------------------------------------------------------------------------- | ------ | ------ | ------ | ------ | ------------------------ | ------------------------------------------------------------- | --- |
+| MED-01 | 受控导入外部 Agent 生成的图片，并向各文档类型提供 handle-based 插入能力。 | P1     | SUN-04 | 未开始 | TBD    | `mcp-capability-gaps.md` | 禁止任意路径；满足 MIME/大小/SSRF/审计约束；至少覆盖 Slides。 |     |
 
 ## 8. 持续质量门禁
 
-| ID     | 任务                                                                                               | 优先级 | 依赖            | 状态   | 负责人 | 验收标准                                                                                         | PR  |
-| ------ | -------------------------------------------------------------------------------------------------- | ------ | --------------- | ------ | ------ | ------------------------------------------------------------------------------------------------ | --- |
-| QLT-01 | 为 MCP adapter 建立协议级测试（握手、tools/list、tools/call、错误、取消）。                        | P0     | INF-01..05      | 进行中 | Codex  | 已新增 adapter/bridge Vitest 用例；待依赖恢复后纳入 CI 执行。                                    |     |
-| QLT-02 | 为 gateway 建立安全回归测试。                                                                      | P0     | SEC-01..05      | 进行中 | Codex  | 已覆盖 bridge 伪造 clientId 隔离、写授权缓存/拒绝、越权文档和参数校验；待 payload/危险操作覆盖。 |     |
-| QLT-03 | 新增 Shell + Slides 端到端 MCP smoke test，并接入 CI。                                             | P0     | SLD-08          | 已完成 | Codex | `e2e/mcp-shell-slides.spec.ts` | 真实启动 Shell 与 stdio adapter，经本地 bridge 完成 Slides 创建、写入、读取、undo 与保存；纳入既有 E2E CI job。 | 待本轮提交 |
-| QLT-04 | 为 Docs/Markdown/Sheets/PDF 逐步增加相同 smoke test。                                              | P1     | 各 App MCP 测试 | 未开始 | TBD    | 每个已声明支持的文档类型都有 CI 覆盖。                                                           |     |
-| QLT-05 | 在 CI 中运行 `npm run typecheck`、受影响 workspace tests、`npm run lint`、`npm run format:check`。 | P0     | INF-01          | 未开始 | TBD    | MCP PR 的 required checks 可阻止未通过合并。                                                     |     |
-| QLT-06 | 执行 macOS、Windows、Linux 打包冒烟验证。                                                          | P1     | INF-07, QLT-03  | 未开始 | TBD    | 三个平台都能启动 Shell 和 adapter，且能完成授权与 Slides 基础调用。                              |     |
+| ID     | 任务                                                                                               | 优先级 | 依赖            | 状态   | 负责人 | 验收标准                                                            | PR                                                                                                                    |
+| ------ | -------------------------------------------------------------------------------------------------- | ------ | --------------- | ------ | ------ | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| QLT-01 | 为 MCP adapter 建立协议级测试（握手、tools/list、tools/call、错误、取消）。                        | P0     | INF-01..05      | 已完成 | Codex  | `packages/genoffice-mcp/tests/server.test.ts`                       | 覆盖握手、tools/list、tools/call、结构化工具错误与 stdio 断开取消；通过既有 unit-test CI job 运行。                   | 待本轮提交    |
+| QLT-02 | 为 gateway 建立安全回归测试。                                                                      | P0     | SEC-01..05      | 已完成 | Codex  | `apps/shell/tests/mcp-*.test.ts`                                    | 覆盖私有 discovery 权限与 token、连接身份隔离、输入上限、权限、审计轮转和写队列取消；通过既有 unit-test CI job 运行。 | 待本轮提交    |
+| QLT-03 | 新增 Shell + Slides 端到端 MCP smoke test，并接入 CI。                                             | P0     | SLD-08          | 已完成 | Codex  | `e2e/mcp-shell-slides.spec.ts`                                      | 真实启动 Shell 与 stdio adapter，经本地 bridge 完成 Slides 创建、写入、读取、undo 与保存；纳入既有 E2E CI job。       | 待本轮提交    |
+| QLT-04 | 为 Docs/Markdown/Sheets/PDF 逐步增加相同 smoke test。                                              | P1     | 各 App MCP 测试 | 已完成 | Codex  | 每个已声明支持的文档类型都有 CI 覆盖。                              | 真实 stdio smoke 覆盖四类文档的新建、状态读取、renderer bridge 就绪与上下文读取；已修复 Markdown 启动崩溃。           |
+| QLT-05 | 在 CI 中运行 `npm run typecheck`、受影响 workspace tests、`npm run lint`、`npm run format:check`。 | P0     | INF-01          | 已完成 | Codex  | `.github/workflows/ci.yml`                                          | 现有 PR/push CI 已运行 format、lint、typecheck、全量 unit tests 与 Electron E2E；新增 MCP E2E 自动纳入该 job。        | 既有 workflow |
+| QLT-06 | 执行 macOS、Windows、Linux 打包冒烟验证。                                                          | P1     | INF-07, QLT-03  | 未开始 | TBD    | 三个平台都能启动 Shell 和 adapter，且能完成授权与 Slides 基础调用。 |                                                                                                                       |
 
 ## 9. MVP 完成定义
 
@@ -136,7 +136,7 @@
 - [ ] DEC-01、DEC-02、DEC-03 已记录。
 - [ ] INF-01 至 INF-06、CAP-01 至 CAP-07、SEC-01 至 SEC-05 已完成。
 - [ ] SLD-01 至 SLD-08 已完成。
-- [ ] QLT-01、QLT-02、QLT-03、QLT-05 已完成并在 CI 运行。
+- [ ] QLT-01 至 QLT-05 已完成并在 CI 运行。
 - [ ] 外部 MCP 客户端可列出、读取并编辑指定的已打开 Slides 文档。
 - [ ] 写入具备权限确认、revision 冲突保护、原子回滚、UI undo/redo 和显式保存。
 - [ ] 内置 Slides AI UI 仍可保留作为迁移期回退，但不得与 MCP 写操作绕过同一 revision/权限边界。

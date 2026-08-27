@@ -4,6 +4,33 @@ import type { ProjectApi } from '@genoffice/project-store'
 import { MARKDOWN_CHANNELS } from '../shared/ipc'
 import type { ExportFormat, MarkdownApi, SaveMode, UiTheme } from '../shared/ipc'
 
+type MarkdownMcpRequest = {
+  requestId: string
+  action:
+    | 'markdown.get_context'
+    | 'markdown.read_blocks'
+    | 'markdown.insert_content'
+    | 'markdown.replace_blocks'
+  input: Record<string, unknown>
+}
+
+let markdownMcpHandler: ((request: MarkdownMcpRequest) => void) | null = null
+const pendingMarkdownMcpRequests: MarkdownMcpRequest[] = []
+
+ipcRenderer.on('mcp:renderer-request', (_event, request: MarkdownMcpRequest) => {
+  if (markdownMcpHandler) markdownMcpHandler(request)
+  else pendingMarkdownMcpRequests.push(request)
+})
+ipcRenderer.send('mcp:renderer-ready')
+
+function registerMarkdownMcpHandler(handler: (request: MarkdownMcpRequest) => void): () => void {
+  markdownMcpHandler = handler
+  for (const request of pendingMarkdownMcpRequests.splice(0)) handler(request)
+  return () => {
+    if (markdownMcpHandler === handler) markdownMcpHandler = null
+  }
+}
+
 const api: MarkdownApi = {
   consumePending: () => ipcRenderer.invoke(MARKDOWN_CHANNELS.consumePending),
   readFile: (path) => ipcRenderer.invoke(MARKDOWN_CHANNELS.readFile, path),
@@ -26,22 +53,7 @@ const api: MarkdownApi = {
     ipcRenderer.on(MARKDOWN_CHANNELS.fileRenamed, listener)
     return () => ipcRenderer.removeListener(MARKDOWN_CHANNELS.fileRenamed, listener)
   },
-  onMcpRequest: (handler) => {
-    const listener = (
-      _e: Electron.IpcRendererEvent,
-      request: {
-        requestId: string
-        action:
-          | 'markdown.get_context'
-          | 'markdown.read_blocks'
-          | 'markdown.insert_content'
-          | 'markdown.replace_blocks'
-        input: Record<string, unknown>
-      },
-    ) => handler(request)
-    ipcRenderer.on('mcp:renderer-request', listener)
-    return () => ipcRenderer.removeListener('mcp:renderer-request', listener)
-  },
+  onMcpRequest: registerMarkdownMcpHandler,
   respondMcpRequest: (response) => ipcRenderer.send('mcp:renderer-response', response),
   reportMcpRevision: (revision) => ipcRenderer.send('mcp:renderer-revision', revision),
   pickImage: () => ipcRenderer.invoke(MARKDOWN_CHANNELS.pickImage),

@@ -1,11 +1,30 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { IpcRendererEvent } from 'electron'
-import type {
-  DesktopApi,
-  MenuCommand,
-  UiTheme,
-} from '../shared/ipc'
+import type { DesktopApi, MenuCommand, UiTheme } from '../shared/ipc'
 import type { ProjectApi } from '@genoffice/project-store'
+
+type DocsMcpRequest = {
+  requestId: string
+  action: 'docs.get_context' | 'docs.read_blocks' | 'docs.insert_content' | 'docs.replace_blocks'
+  input: Record<string, unknown>
+}
+
+let docsMcpHandler: ((request: DocsMcpRequest) => void) | null = null
+const pendingDocsMcpRequests: DocsMcpRequest[] = []
+
+ipcRenderer.on('mcp:renderer-request', (_event, request: DocsMcpRequest) => {
+  if (docsMcpHandler) docsMcpHandler(request)
+  else pendingDocsMcpRequests.push(request)
+})
+ipcRenderer.send('mcp:renderer-ready')
+
+function registerDocsMcpHandler(handler: (request: DocsMcpRequest) => void): () => void {
+  docsMcpHandler = handler
+  for (const request of pendingDocsMcpRequests.splice(0)) handler(request)
+  return () => {
+    if (docsMcpHandler === handler) docsMcpHandler = null
+  }
+}
 
 const api: DesktopApi = {
   getLanguage: () => ipcRenderer.invoke('app:get-language'),
@@ -56,19 +75,7 @@ const api: DesktopApi = {
     ipcRenderer.on('docs:renamed', listener)
     return () => ipcRenderer.removeListener('docs:renamed', listener)
   },
-  onMcpRequest: (handler) => {
-    const listener = (
-      _event: IpcRendererEvent,
-      request: {
-        requestId: string
-        action:
-          'docs.get_context' | 'docs.read_blocks' | 'docs.insert_content' | 'docs.replace_blocks'
-        input: Record<string, unknown>
-      },
-    ) => handler(request)
-    ipcRenderer.on('mcp:renderer-request', listener)
-    return () => ipcRenderer.removeListener('mcp:renderer-request', listener)
-  },
+  onMcpRequest: registerDocsMcpHandler,
   respondMcpRequest: (response) => ipcRenderer.send('mcp:renderer-response', response),
   reportMcpRevision: (revision) => ipcRenderer.send('mcp:renderer-revision', revision),
   saveDocx: (path: string, data: ArrayBuffer, auto?: boolean) =>

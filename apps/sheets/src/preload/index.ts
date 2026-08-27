@@ -36,12 +36,38 @@ import {
   SAVE_EDITS_CHUNK_MAX,
 } from '../shared/ipc-channels'
 
+type SheetsMcpRequest = {
+  requestId: string
+  action:
+    | 'sheets.get_workbook_context'
+    | 'sheets.read_range'
+    | 'sheets.find'
+    | 'sheets.aggregate'
+    | 'sheets.trace_formula'
+    | 'sheets.apply_operations'
+    | 'sheets.undo'
+  input: Record<string, unknown>
+}
+
+let sheetsMcpHandler: ((request: SheetsMcpRequest) => void) | null = null
+const pendingSheetsMcpRequests: SheetsMcpRequest[] = []
+
+ipcRenderer.on('mcp:renderer-request', (_event, request: SheetsMcpRequest) => {
+  if (sheetsMcpHandler) sheetsMcpHandler(request)
+  else pendingSheetsMcpRequests.push(request)
+})
+ipcRenderer.send('mcp:renderer-ready')
+
+function registerSheetsMcpHandler(handler: (request: SheetsMcpRequest) => void): () => void {
+  sheetsMcpHandler = handler
+  for (const request of pendingSheetsMcpRequests.splice(0)) handler(request)
+  return () => {
+    if (sheetsMcpHandler === handler) sheetsMcpHandler = null
+  }
+}
+
 const desktopApi: DesktopApi = {
-  onMcpRequest(handler) {
-    const listener = (_event: Electron.IpcRendererEvent, request: { requestId: string; action: 'sheets.get_workbook_context' | 'sheets.read_range' | 'sheets.find' | 'sheets.aggregate' | 'sheets.trace_formula' | 'sheets.apply_operations' | 'sheets.undo'; input: Record<string, unknown> }) => handler(request)
-    ipcRenderer.on('mcp:renderer-request', listener)
-    return () => ipcRenderer.removeListener('mcp:renderer-request', listener)
-  },
+  onMcpRequest: registerSheetsMcpHandler,
   respondMcpRequest: (response) => ipcRenderer.send('mcp:renderer-response', response),
   reportMcpRevision: (revision) => ipcRenderer.send('mcp:renderer-revision', revision),
   getLanguage: () => ipcRenderer.invoke('app:get-language'),

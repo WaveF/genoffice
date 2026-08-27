@@ -19,7 +19,11 @@ describe('StdioMcpServer', () => {
       output,
       backend: {
         listTools: async () => [
-          { name: 'slides.read_slide', description: 'Read one slide', inputSchema: { type: 'object' } },
+          {
+            name: 'slides.read_slide',
+            description: 'Read one slide',
+            inputSchema: { type: 'object' },
+          },
         ],
         callTool: async (name, input) => ({
           content: `${name}:${String(input.slideId)}`,
@@ -29,11 +33,18 @@ describe('StdioMcpServer', () => {
       },
     })
     server.start()
-    input.write('{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","clientInfo":{"name":"test-client"}}}\n')
+    input.write(
+      '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","clientInfo":{"name":"test-client"}}}\n',
+    )
     input.write('{"jsonrpc":"2.0","id":2,"method":"tools/list"}\n')
-    input.write('{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"slides.read_slide","arguments":{"slideId":"s1"}}}\n')
+    input.write(
+      '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"slides.read_slide","arguments":{"slideId":"s1"}}}\n',
+    )
     await tick()
-    const responses = response.trim().split('\n').map((line) => JSON.parse(line) as Record<string, unknown>)
+    const responses = response
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line) as Record<string, unknown>)
     expect(responses).toHaveLength(3)
     expect((responses[0]!.result as Record<string, unknown>).protocolVersion).toBe('2025-06-18')
     expect(((responses[1]!.result as Record<string, unknown>).tools as Array<unknown>)[0]).toEqual(
@@ -67,12 +78,45 @@ describe('StdioMcpServer', () => {
     })
     server.start()
     input.write('{"jsonrpc":"2.0","id":1,"method":"initialize"}\n')
-    input.write('{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"slides.apply_ops"}}\n')
+    input.write(
+      '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"slides.apply_ops"}}\n',
+    )
     await tick()
     const result = JSON.parse(response.trim().split('\n')[1]!).result as Record<string, unknown>
     expect(result.isError).toBe(true)
     expect(result.content).toEqual([
       { type: 'text', text: JSON.stringify({ code: 'conflict', message: 'Document changed' }) },
     ])
+  })
+
+  it('aborts an in-flight bridge request when the stdio client disconnects', async () => {
+    const input = new PassThrough()
+    const output = new PassThrough()
+    let aborted = false
+    const server = new StdioMcpServer({
+      input,
+      output,
+      backend: {
+        listTools: async (context) =>
+          new Promise((resolve) => {
+            context.signal.addEventListener(
+              'abort',
+              () => {
+                aborted = true
+                resolve([])
+              },
+              { once: true },
+            )
+          }),
+        callTool: async () => ({ content: '', mutated: false }),
+      },
+    })
+    server.start()
+    input.write('{"jsonrpc":"2.0","id":1,"method":"initialize"}\n')
+    input.write('{"jsonrpc":"2.0","id":2,"method":"tools/list"}\n')
+    await tick()
+    server.close()
+    await tick()
+    expect(aborted).toBe(true)
   })
 })

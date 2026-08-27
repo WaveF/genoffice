@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { ipcMain, webContents } from 'electron'
+import type { WebContents } from 'electron'
 import { CapabilityError } from '@genoffice/capabilities'
 
 const REQUEST_CHANNEL = 'mcp:renderer-request'
@@ -8,6 +9,36 @@ const REVISION_CHANNEL = 'mcp:renderer-revision'
 const MAX_RENDERER_RESULT_BYTES = 512 * 1024
 const RENDERER_TIMEOUT_MS = 15_000
 const revisions = new Map<number, number>()
+
+async function waitForRendererLoad(contents: WebContents): Promise<void> {
+  if (!contents.isLoadingMainFrame()) return
+  await new Promise<void>((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      cleanup()
+      reject(
+        new CapabilityError(
+          'renderer_unavailable',
+          'Document renderer did not finish loading in time',
+        ),
+      )
+    }, RENDERER_TIMEOUT_MS)
+    const onLoad = () => {
+      cleanup()
+      resolve()
+    }
+    const onDestroyed = () => {
+      cleanup()
+      reject(new CapabilityError('renderer_unavailable', 'Document renderer is unavailable'))
+    }
+    const cleanup = () => {
+      clearTimeout(timeout)
+      contents.removeListener('did-finish-load', onLoad)
+      contents.removeListener('destroyed', onDestroyed)
+    }
+    contents.once('did-finish-load', onLoad)
+    contents.once('destroyed', onDestroyed)
+  })
+}
 
 export function rendererMcpRevision(webContentsId: number): number {
   return revisions.get(webContentsId) ?? 0
@@ -52,13 +83,23 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  */
 export class RendererMcpBridge {
   private readonly pending = new Map<string, PendingRequest>()
+  private readonly readyWebContents = new Set<number>()
+  private readonly readyWaiters = new Map<number, Set<() => void>>()
 
   constructor() {
-    ipcMain.on(RESPONSE_CHANNEL, (event, response: unknown) => this.receive(event.sender.id, response))
+    ipcMain.on(RESPONSE_CHANNEL, (event, response: unknown) =>
+      this.receive(event.sender.id, response),
+    )
     ipcMain.on(REVISION_CHANNEL, (event, revision: unknown) => {
       if (typeof revision === 'number' && Number.isSafeInteger(revision) && revision >= 0) {
         revisions.set(event.sender.id, revision)
       }
+    })
+    ipcMain.on('mcp:renderer-ready', (event) => {
+      const webContentsId = event.sender.id
+      this.readyWebContents.add(webContentsId)
+      for (const resolve of this.readyWaiters.get(webContentsId) ?? []) resolve()
+      this.readyWaiters.delete(webContentsId)
     })
   }
 
@@ -73,11 +114,21 @@ export class RendererMcpBridge {
     if (!contents || contents.isDestroyed()) {
       throw new CapabilityError('renderer_unavailable', 'Document renderer is unavailable')
     }
+    await waitForRendererLoad(contents)
+    await this.waitUntilReady(contents, signal)
+    if (contents.isDestroyed()) {
+      throw new CapabilityError('renderer_unavailable', 'Document renderer is unavailable')
+    }
     const requestId = randomUUID()
     return new Promise<unknown>((resolve, reject) => {
       const abort = () => this.reject(requestId, 'cancelled', 'MCP request was cancelled')
       const timer = setTimeout(
-        () => this.reject(requestId, 'renderer_unavailable', 'Document renderer did not respond in time'),
+        () =>
+          this.reject(
+            requestId,
+            'renderer_unavailable',
+            'Document renderer did not respond in time',
+          ),
         RENDERER_TIMEOUT_MS,
       )
       this.pending.set(requestId, {
@@ -101,6 +152,39 @@ export class RendererMcpBridge {
     })
   }
 
+  private async waitUntilReady(contents: WebContents, signal: AbortSignal): Promise<void> {
+    if (this.readyWebContents.has(contents.id)) return
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(
+        () =>
+          cleanup(
+            new CapabilityError(
+              'renderer_unavailable',
+              'Document renderer did not become MCP-ready in time',
+            ),
+          ),
+        RENDERER_TIMEOUT_MS,
+      )
+      const onAbort = () => cleanup(new CapabilityError('cancelled', 'MCP request was cancelled'))
+      const onDestroyed = () =>
+        cleanup(new CapabilityError('renderer_unavailable', 'Document renderer is unavailable'))
+      const onReady = () => cleanup()
+      const cleanup = (error?: CapabilityError) => {
+        clearTimeout(timeout)
+        signal.removeEventListener('abort', onAbort)
+        contents.removeListener('destroyed', onDestroyed)
+        this.readyWaiters.get(contents.id)?.delete(onReady)
+        if (error) reject(error)
+        else resolve()
+      }
+      const waiters = this.readyWaiters.get(contents.id) ?? new Set<() => void>()
+      waiters.add(onReady)
+      this.readyWaiters.set(contents.id, waiters)
+      signal.addEventListener('abort', onAbort, { once: true })
+      contents.once('destroyed', onDestroyed)
+    })
+  }
+
   private receive(senderId: number, response: unknown): void {
     if (!isRecord(response) || typeof response.requestId !== 'string') return
     const request = this.pending.get(response.requestId)
@@ -109,7 +193,9 @@ export class RendererMcpBridge {
       this.reject(
         response.requestId,
         'renderer_unavailable',
-        typeof response.error === 'string' ? response.error : 'Document renderer rejected the request',
+        typeof response.error === 'string'
+          ? response.error
+          : 'Document renderer rejected the request',
       )
       return
     }
@@ -117,14 +203,27 @@ export class RendererMcpBridge {
     try {
       encoded = JSON.stringify(response.result)
     } catch {
-      this.reject(response.requestId, 'validation_error', 'Document renderer returned an invalid result')
+      this.reject(
+        response.requestId,
+        'validation_error',
+        'Document renderer returned an invalid result',
+      )
       return
     }
     if (Buffer.byteLength(encoded, 'utf8') > MAX_RENDERER_RESULT_BYTES) {
-      this.reject(response.requestId, 'validation_error', 'Document renderer response exceeds the MCP size limit')
+      this.reject(
+        response.requestId,
+        'validation_error',
+        'Document renderer response exceeds the MCP size limit',
+      )
       return
     }
-    if (isRecord(response.result) && typeof response.result.revision === 'number' && Number.isSafeInteger(response.result.revision) && response.result.revision >= 0) {
+    if (
+      isRecord(response.result) &&
+      typeof response.result.revision === 'number' &&
+      Number.isSafeInteger(response.result.revision) &&
+      response.result.revision >= 0
+    ) {
       revisions.set(senderId, response.result.revision)
     }
     this.pending.delete(response.requestId)

@@ -3,7 +3,7 @@ import { access, mkdtemp, readdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { expect, test } from '@playwright/test'
-import { closeAndSaveVideo, launchShell } from './helpers'
+import { closeAndSaveVideo, launchShell, waitForPageWithUrl } from './helpers'
 
 const MCP_ADAPTER = resolve(__dirname, '../packages/genoffice-mcp/dist/genoffice-mcp.mjs')
 
@@ -90,6 +90,22 @@ function resultText(response: JsonRpcResponse): string {
   return text
 }
 
+async function requestUntilRendererReady(
+  client: StdioMcpClient,
+  name: string,
+  arguments_: Record<string, unknown>,
+): Promise<JsonRpcResponse> {
+  const deadline = Date.now() + 15_000
+  for (;;) {
+    const response = await client.request('tools/call', { name, arguments: arguments_ })
+    const result = response.result as { isError?: boolean } | undefined
+    if (!result?.isError) return response
+    const detail = JSON.parse(resultText(response)) as { code?: string }
+    if (detail.code !== 'renderer_unavailable' || Date.now() >= deadline) return response
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 100))
+  }
+}
+
 test.describe('MCP stdio adapter + Shell bridge', () => {
   test('creates, edits, undoes, and saves a Slides deck through the real local bridge', async () => {
     const saveDir = await mkdtemp(join(tmpdir(), 'genoffice-mcp-slides-save-'))
@@ -163,6 +179,82 @@ test.describe('MCP stdio adapter + Shell bridge', () => {
     } finally {
       client?.close()
       await closeAndSaveVideo(launched, 'mcp-shell-slides')
+    }
+  })
+
+  test('routes each other declared document type through the real stdio adapter', async () => {
+    const saveDir = await mkdtemp(join(tmpdir(), 'genoffice-mcp-documents-save-'))
+    const launched = await launchShell({
+      onboardingSeen: true,
+      defaultSaveDir: saveDir,
+      videoDir: 'mcp-shell-documents',
+    })
+    const discoveryPath = join(launched.userDataDir, 'mcp', 'bridge.json')
+    let client: StdioMcpClient | undefined
+    const rendererErrors: string[] = []
+    launched.app.on('window', (page) => {
+      page.on('pageerror', (error) => rendererErrors.push(error.message))
+    })
+    try {
+      await waitForFile(discoveryPath)
+      client = new StdioMcpClient(discoveryPath)
+      await client.request('initialize', {
+        protocolVersion: '2025-06-18',
+        clientInfo: { name: 'genoffice-e2e-document-types' },
+      })
+
+      const checks = [
+        ['docs', 'docs.get_context', 'docs/out'],
+        ['markdown', 'markdown.get_context', 'markdown/out'],
+        ['sheets', 'sheets.get_workbook_context', 'sheets/out'],
+        ['pdf', 'pdf.get_document_context', 'pdf/out'],
+      ] as const
+      for (const [kind, toolName, urlPart] of checks) {
+        const created = JSON.parse(
+          resultText(
+            await client.request('tools/call', {
+              name: 'create_document',
+              arguments: { kind },
+            }),
+          ),
+        ) as { documentId: string; kind: string }
+        expect(created).toMatchObject({ documentId: expect.any(String), kind })
+
+        const status = await client.request('tools/call', {
+          name: 'get_document_status',
+          arguments: { documentId: created.documentId },
+        })
+        expect(JSON.parse(resultText(status))).toMatchObject({
+          documentId: created.documentId,
+          kind,
+        })
+
+        const renderer = await waitForPageWithUrl(launched.app, urlPart)
+        await expect(renderer.locator('body')).toBeVisible()
+        if (kind === 'markdown') {
+          try {
+            await expect(renderer.locator('.doc-editor')).toBeVisible()
+          } catch {
+            throw new Error(
+              `Markdown editor did not mount: ${JSON.stringify({
+                body: await renderer.locator('body').innerText(),
+                rendererErrors,
+              })}`,
+            )
+          }
+        }
+
+        const context = await requestUntilRendererReady(client, toolName, {
+          documentId: created.documentId,
+        })
+        if ((context.result as { isError?: boolean } | undefined)?.isError) {
+          throw new Error(`${kind} context request failed: ${resultText(context)}`)
+        }
+        expect(JSON.parse(resultText(context))).toEqual(expect.any(Object))
+      }
+    } finally {
+      client?.close()
+      await closeAndSaveVideo(launched, 'mcp-shell-documents')
     }
   })
 })
