@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import type { AgentToolCall, AgentToolDef } from '@genoffice/agent-core'
 import {
   copyTargetBounds,
   workbookOperationSchema,
@@ -21,6 +20,19 @@ import type {
 import { t } from '../i18n/locale'
 import { formatRangeAggregate, type RangeAggregate } from './aggregate'
 import { guideCatalogSummary, loadGuides } from './guides'
+
+/** Legacy internal-tool shapes kept temporarily while MCP reader helpers are
+ * moved out of this directory. They no longer depend on agent-core. */
+interface AgentToolCall {
+  id: string
+  name: string
+  input: Record<string, unknown>
+}
+interface AgentToolDef {
+  name: string
+  description: string
+  inputSchema: Record<string, unknown>
+}
 
 /**
  * The workbook DSL as an AgentSkill tool set: read-only context/reader tools
