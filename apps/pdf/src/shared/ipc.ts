@@ -725,10 +725,6 @@ export interface PdfApi {
   convertOffice(format: PdfConvertFormat): Promise<void>
   /** AI create_document: build a new standalone file in the default folder and open it in a new tab */
   createDocument(request: CreateDocumentRequest): Promise<CreateDocumentResult>
-  /** Web image search for AI tools (app-wide ai:image-search handler) */
-  imageSearch(query: string, maxResults?: number): Promise<ImageSearchResponse>
-  /** Download an image URL in the main process (SSRF-guarded, avoids CORS); null on failure */
-  fetchImage(url: string): Promise<{ base64: string; mime: string } | null>
   /** Saved signatures reusable across documents (persisted in userData), newest first */
   listSavedSignatures(): Promise<SavedSignature[]>
   /** Persist a signature for reuse; returns the updated list (capped, deduplicated) */

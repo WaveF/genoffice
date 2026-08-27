@@ -39,9 +39,6 @@ const api: PdfApi = {
   exportImages: (request) => ipcRenderer.invoke(PDF_CHANNELS.exportImages, request),
   convertOffice: (format) => ipcRenderer.invoke(PDF_CHANNELS.convertOffice, format),
   createDocument: (request) => ipcRenderer.invoke(PDF_CHANNELS.createDocument, request),
-  imageSearch: (query, maxResults) =>
-    ipcRenderer.invoke(AI_CHANNELS.imageSearch, query, maxResults),
-  fetchImage: (url) => ipcRenderer.invoke(AI_CHANNELS.fetchImage, url),
   listSavedSignatures: () => ipcRenderer.invoke(PDF_CHANNELS.listSignatures),
   addSavedSignature: (data) => ipcRenderer.invoke(PDF_CHANNELS.addSignature, data),
   removeSavedSignature: (id) => ipcRenderer.invoke(PDF_CHANNELS.removeSignature, id),

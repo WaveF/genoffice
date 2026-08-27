@@ -5347,22 +5347,6 @@ export default function App() {
         },
       ])
     },
-    searchImages: (query, maxResults) => window.pdfApi.imageSearch(query, maxResults),
-    fetchImage: async (url) => {
-      const fetched = await window.pdfApi.fetchImage(url)
-      if (!fetched) return null
-      try {
-        const bytes = Uint8Array.from(atob(fetched.base64), (c) => c.charCodeAt(0))
-        const canvas = await fileToCanvas(
-          new File([bytes], 'ai-image', { type: fetched.mime }),
-          2400,
-        )
-        const png = canvas?.toDataURL('image/png').split(',')[1]
-        return canvas && png ? { png, width: canvas.width, height: canvas.height } : null
-      } catch {
-        return null
-      }
-    },
     createDocument: (request) => window.pdfApi.createDocument(request),
   }
 
