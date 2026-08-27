@@ -48,33 +48,6 @@ import type {
   WebContents,
 } from 'electron'
 import { parseFileToText } from '@genoffice/file-parse'
-import {
-  AiCreditsError,
-  AiTimeoutError,
-  isAiNetworkError,
-  chatForProvider,
-  defaultAiSettings,
-  activeProvider,
-  cloudToolsEnabled,
-  resolveAiSettings,
-  setRescueFetch,
-  streamForProvider,
-  type AiChatRequest,
-  type AiSettings,
-  type AiStreamChunk,
-  type AiStreamRequest,
-  type GenSparkAccountStatus,
-  type LegacyAiSettings,
-} from '@genoffice/ai-provider'
-import {
-  ensureGenofficeLogin,
-  gskApiKey,
-  gskGenerateImage,
-  gskLoginInfo,
-  hasGskAuth,
-  webSearch,
-  imageSearch,
-} from '@genoffice/ai-search'
 import type {
   AiDocContent,
   AttachmentAddResult,
@@ -2801,8 +2774,6 @@ export function registerProjectIpc(): void {
 /** document/attachment/window IPC (everything except the AI proxy above) */
 export function registerDocsIpc(): void {
   registerDocsImagePasteIpc()
-  // Node fetch (undici) direct connections get reset under VPN/tun setups; retry over Chromium's stack
-  setRescueFetch((url, init) => net.fetch(url, init))
 
   // shared with the other editor modules — last (identical) registration wins
   ipcMain.removeHandler('app:get-language')
