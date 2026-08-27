@@ -861,67 +861,6 @@ export function App(): React.JSX.Element {
     if (!selectedVisual) setChartDialog(null)
   }, [selectedVisual])
 
-  // ── One-time migration: import legacy localStorage history into project-store ──
-  useEffect(() => {
-    const api = (window as Window & { projectApi?: typeof window.projectApi }).projectApi
-    if (!api) return
-    const raw = localStorage.getItem(CHAT_STORAGE_KEY)
-    if (!raw) return
-    try {
-      const parsed: unknown = JSON.parse(raw)
-      if (!Array.isArray(parsed) || parsed.length === 0) {
-        localStorage.removeItem(CHAT_STORAGE_KEY)
-        return
-      }
-      const msgs = parsed.filter(
-        (
-          e,
-        ): e is {
-          role: 'user' | 'assistant'
-          text: string
-          tools?: Array<{ summary: string; isError?: boolean }>
-        } =>
-          !!e &&
-          typeof e === 'object' &&
-          ((e as { role: string }).role === 'user' ||
-            (e as { role: string }).role === 'assistant') &&
-          typeof (e as { text: string }).text === 'string',
-      )
-      if (msgs.length === 0) {
-        localStorage.removeItem(CHAT_STORAGE_KEY)
-        return
-      }
-      // Get the default project's chatId (unsaved-0 marks the file-less default chat)
-      const tempChatId = 'unsaved-legacy'
-      void api
-        .resolveChat({ filePath: null, tempChatId })
-        .then(async (ids) => {
-          for (const m of msgs) {
-            const appendArgs: Parameters<typeof api.appendChat>[0] = {
-              projectId: ids.projectId,
-              chatId: ids.chatId,
-              role: m.role,
-              text: m.text,
-            }
-            if (m.tools && m.tools.length > 0) {
-              appendArgs.tools = m.tools.map((t) => ({
-                name: '',
-                summary: t.summary,
-                isError: !!t.isError,
-              }))
-            }
-            await api.appendChat(appendArgs)
-          }
-          localStorage.removeItem(CHAT_STORAGE_KEY)
-        })
-        .catch(() => {
-          // A failed migration doesn't affect normal use; retried on next launch
-        })
-    } catch {
-      localStorage.removeItem(CHAT_STORAGE_KEY)
-    }
-  }, [])
-
   const persistChatMessage = (
     role: 'user' | 'assistant',
     text: string,
