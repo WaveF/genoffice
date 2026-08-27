@@ -24,10 +24,6 @@ import { fontFamilyGroups, useSystemFontFamilies } from './system-fonts'
 import { shouldInterceptClearSelection } from './clear-selection-keyboard'
 
 import type { ChartSeriesVisualState } from '../domain/chart-visual'
-import type { ChangePlan } from '../domain/workbook.types'
-import type { AttachmentMeta } from '../shared/desktop-api'
-import type { AiChatMessage } from './ai/types'
-import type { SelectionAskAnchor } from './ai/selection-ask'
 import {
   PivotDialog,
   type PivotEditSeed,
@@ -128,44 +124,9 @@ function ToolSymbol({ symbol }: { readonly symbol: string }): React.JSX.Element 
 }
 
 interface ExcelShellProps {
-  readonly prompt: string
-  readonly preview: ChangePlan | null
   readonly selectionFormat: SelectionFormat | null
-  /// True when the workbook has any cell content (the one-click AI action
-  /// buttons are greyed out on an empty sheet).
   readonly sheetHasContent: boolean
-  /// true while the real LLM agent is running (composer disabled meanwhile).
-  readonly aiBusy: boolean
-  readonly chat: readonly AiChatMessage[]
-  readonly historicChat?: readonly AiChatMessage[]
-  /// Chat attachments (chips + 📎 button + drag-and-drop), same structure as the
-  /// docs/slides AI panels.
-  readonly attachments: readonly AttachmentMeta[]
-  readonly attachNotice: string | null
-  readonly onPickAttachments: () => void
-  readonly onAddAttachmentPaths: (paths: readonly string[]) => void
-  readonly onAddPastedImage: (data: ArrayBuffer, ext: string) => void
-  readonly onRemoveAttachment: (path: string) => void
-  readonly onPromptChange: (prompt: string) => void
-  /** Send the composer text, or the given instruction when provided (Retry also
-   *  resends that message's original attachments) */
-  readonly onStop: () => void
-  readonly onNewChat: () => void
   readonly onUndo: (steps?: number) => void
-  /// A1 notation of the multi-cell selection the AI composer offers as this
-  /// run's scope, or null when the resting single-cell selection carries none.
-  readonly aiScopeRange: string | null
-  /// Header names when that scope covers whole columns: they label the chip in
-  /// place of the range, because a column is a name to the user, not a letter.
-  readonly aiScopeColumns: readonly string[] | null
-  /// The range above belongs to a run in flight and can no longer be dropped.
-  readonly aiScopeLocked: boolean
-  /// Drag endpoint and viewport bounds used to place the localized trigger.
-  readonly aiSelectionAskAnchor: SelectionAskAnchor | null
-  readonly onAiSelectionAskDismiss: () => void
-  readonly onAiScopeDismiss: () => void
-  /// Citation link in an AI answer: jumps the grid to the cited cell/range.
-  readonly onAiCitation: (href: string) => void
   readonly onCommand: (command: string) => void
   /// True while Univer's in-cell editor is open (Backspace must delete
   /// characters, not clear the selection).
@@ -271,19 +232,8 @@ export interface PageLayoutEcho {
 }
 
 export function ExcelShell({
-  prompt,
-  preview,
   selectionFormat,
   sheetHasContent,
-  aiBusy,
-  chat,
-  historicChat,
-  attachments,
-  attachNotice,
-  onPickAttachments,
-  onAddAttachmentPaths,
-  onAddPastedImage,
-  onRemoveAttachment,
   onGetSortColumns,
   onGetSheetProtection,
   onGetWorkbookProtection,
@@ -310,17 +260,7 @@ export function ExcelShell({
   onCreateConsolidate,
   onGetConsolidateDefault,
   onApplyHeaderFooter,
-  onPromptChange,
-  onStop,
-  onNewChat,
   onUndo,
-  aiScopeRange,
-  aiScopeColumns,
-  aiScopeLocked,
-  aiSelectionAskAnchor: _aiSelectionAskAnchor,
-  onAiSelectionAskDismiss: _onAiSelectionAskDismiss,
-  onAiScopeDismiss,
-  onAiCitation,
   onCommand,
   onIsCellEditing,
   statusMessage,

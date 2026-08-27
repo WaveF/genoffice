@@ -4619,8 +4619,6 @@ export function App(): React.JSX.Element {
         />
       )}
       <ExcelShell
-        prompt={prompt}
-        preview={preview}
         sheetHasContent={sheetHasContent}
         pageLayout={activePageLayout}
         calcManual={calcManual}
@@ -4631,29 +4629,7 @@ export function App(): React.JSX.Element {
         }}
         selectionFormat={selectionFormat}
         statusMessage={message}
-        aiBusy={aiBusy}
-        chat={chat}
-        historicChat={historicChat}
-        attachments={attachments}
-        attachNotice={attachNotice}
-        onPickAttachments={() => void handlePickAttachments()}
-        onAddAttachmentPaths={(paths) => void handleAddAttachmentPaths(paths)}
-        onAddPastedImage={(data, ext) => void handleAddPastedImage(data, ext)}
-        onRemoveAttachment={handleRemoveAttachment}
-        onPromptChange={setPrompt}
-        onStop={handleStopAgent}
-        onNewChat={handleNewChat}
         onUndo={handleUndo}
-        aiScopeRange={aiScopeChip.range}
-        aiScopeColumns={aiScopeChip.columns ?? null}
-        aiScopeLocked={aiScopeChip.locked}
-        aiSelectionAskAnchor={aiSelectionAskAnchor}
-        onAiSelectionAskDismiss={() => setAiSelectionAskAnchor(null)}
-        onAiScopeDismiss={() => {
-          setAiScopeDismissed(true)
-          setAiSelectionAskAnchor(null)
-        }}
-        onAiCitation={handleAiCitation}
         canUndo={univerHist.canUndo || (!lazyWorkbookRef.current && adapterRef.current.canUndo)}
         canRedo={univerHist.canRedo}
         onCommand={handleRibbonCommand}
