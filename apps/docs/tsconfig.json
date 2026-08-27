@@ -11,7 +11,6 @@
       "@genoffice/docx-engine": ["../../packages/docx-engine/src/index.ts"],
       "@genoffice/font-metrics": ["../../packages/font-metrics/src/index.ts"],
       "@genoffice/electron-utils": ["../../packages/electron-utils/src/index.ts"],
-      "@genoffice/ai-provider": ["../../packages/ai-provider/src/index.ts"],
       "@genoffice/i18n": ["../../packages/i18n/src/index.ts"],
       "@genoffice/ui": ["../../packages/ui/src/index.ts"]
     }
