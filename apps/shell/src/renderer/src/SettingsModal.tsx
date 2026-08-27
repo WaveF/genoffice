@@ -148,7 +148,7 @@ function Field({
 
 /** AI model pane: provider / model / key / base URL, saved to userData/ai-settings.json */
 function AiModelPane({ t }: { t: TFunc }) {
-  const [catalog] = useState<AiCatalogEntry[]>(() => window.aiOffice.getAiProviders?.() ?? [])
+  const [catalog] = useState<AiCatalogEntry[]>(() => [])
   const [settings, setSettings] = useState<AiSettings | null>(null)
   const [dirty, setDirty] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -157,7 +157,7 @@ function AiModelPane({ t }: { t: TFunc }) {
 
   useEffect(() => {
     let alive = true
-    void window.aiOffice.getAiSettings?.().then((s) => {
+    void Promise.resolve<AiSettings | undefined>(undefined).then((s) => {
       if (!alive || !s) return
       // The switch is disabled with genspark, so never present it stranded
       // off. Display-only: s.provider may be the activeProvider fallback for
@@ -205,7 +205,7 @@ function AiModelPane({ t }: { t: TFunc }) {
     touch()
   }
   const save = () => {
-    void window.aiOffice.setAiSettings?.(settings as never).then(() => {
+    void Promise.resolve().then(() => {
       setDirty(false)
       setSaved(true)
     })
@@ -213,8 +213,7 @@ function AiModelPane({ t }: { t: TFunc }) {
   const test = () => {
     setTesting(true)
     setTestResult(null)
-    void window.aiOffice
-      .testAiSettings?.(settings as never)
+    void Promise.resolve({ ok: false, error: 'Internal AI is unavailable.' })
       .then((r) => setTestResult(r ?? { ok: false }))
       .finally(() => setTesting(false))
   }
