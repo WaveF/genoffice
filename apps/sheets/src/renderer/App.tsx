@@ -350,7 +350,7 @@ import {
   recordSparklineAdd,
 } from './edit-journal'
 import { shiftPinnedCells } from './formula-closure'
-import { getLang, t, aiLangDirective } from './i18n/locale'
+import { getLang, t } from './i18n/locale'
 import { planStillMatches } from './lazy-plan'
 import { netAxisDelta, screenToFile } from './view-transform'
 import { selectionFormatEquals, toSelectionFormat, type SelectionFormat } from './selection-format'
