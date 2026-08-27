@@ -340,31 +340,6 @@ const desktopApi: DesktopApi = {
   replyRecoveryPrompt(restore) {
     ipcRenderer.send(IPC_CHANNELS.recoveryPromptReply, restore === true)
   },
-  async getAiSettings() {
-    const result: unknown = await ipcRenderer.invoke(IPC_CHANNELS.aiGetSettings)
-    if (!isRecord(result)) throw new Error('Invalid AI settings response.')
-    return result as unknown as AiSettings
-  },
-  async setAiSettings(settings) {
-    await ipcRenderer.invoke(IPC_CHANNELS.aiSetSettings, settings)
-  },
-  async aiChat(request) {
-    const result: unknown = await ipcRenderer.invoke(IPC_CHANNELS.aiChat, request)
-    if (!isRecord(result) || typeof result.ok !== 'boolean') {
-      throw new Error('Invalid AI chat response.')
-    }
-    return result as unknown as AiChatResponse
-  },
-  async aiGskStatus(withEmail) {
-    const result: unknown = await ipcRenderer.invoke(IPC_CHANNELS.aiGskStatus, withEmail)
-    if (!isRecord(result) || typeof result.loggedIn !== 'boolean') {
-      throw new Error('Invalid Genspark account status response.')
-    }
-    return result as unknown as GenSparkAccountStatus
-  },
-  async aiGskLogin() {
-    await ipcRenderer.invoke(IPC_CHANNELS.aiGskLogin)
-  },
   async webSearch(query, maxResults) {
     if (typeof query !== 'string' || !query.trim() || query.length > 512) {
       throw new Error('Invalid search query.')
