@@ -1523,13 +1523,10 @@ button.check-item:hover {
   opacity: 0.45;
 }
 
-/* AI panel on the left, spanning from the ribbon to the status bar (unified with docs);
- * its column is drag-resizable: driven by --copilot-width (updated by the AiChatPanel resizer) */
 .sheet-body {
   display: grid;
-  grid-template-columns: var(--copilot-width, 360px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   min-height: 0;
-  transition: grid-template-columns 180ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* formula-bar row + spreadsheet */
@@ -1608,10 +1605,6 @@ button.check-item:hover {
 .zoom-value {
   min-width: 38px;
   text-align: right;
-}
-
-.app-shell.copilot-collapsed .sheet-body {
-  grid-template-columns: 34px minmax(0, 1fr);
 }
 
 .spreadsheet {
@@ -1983,12 +1976,6 @@ textarea:focus {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .sheet-body {
-    transition: none;
-  }
 }
 
 .xlsx-chart,
