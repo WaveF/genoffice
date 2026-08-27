@@ -5283,25 +5283,6 @@ export default function App() {
     createDocument: (request) => window.pdfApi.createDocument(request),
   }
 
-  /**
-   * After an AI run that mutated a shell-created blank still carrying its untitled
-   * name, silently save once: the save's auto-rename then derives the file name from
-   * the inserted text — mirrors docs/sheets, where AI generation names the draft.
-   * PDFs the user merely opened keep the pending-until-⌘S contract (isUntitled is
-   * false for them, and the main process would refuse the rename anyway).
-   */
-  const _autoSaveAfterAiRun = async () => {
-    if (!filePath || readOnly) return
-    try {
-      if (!(await window.pdfApi.isUntitled(filePath))) return
-    } catch {
-      return
-    }
-    // A file we created ourselves is safe to keep autosaving from here on
-    savedOnceRef.current = true
-    void save(true)
-  }
-
   /** Internal destination of a Link annotation → jump to that page */
   const goToDest = async (dest: unknown) => {
     if (!doc) return
