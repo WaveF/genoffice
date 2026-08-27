@@ -160,8 +160,8 @@ import {
   type FrozenSelection,
   type SheetsSkillDeps,
 } from './ai/tools'
-import type { AiChatMessage } from './ai/types'
 import { parseSheetNavHref } from './ai/sheet-nav'
+import type { AiChatMessage } from './ai/types'
 import {
   boundsToA1,
   clampBoundsToExtent,
@@ -764,10 +764,11 @@ export function App(): React.JSX.Element {
     return runDeterministicPlanImpl(planContext(), instruction)
   }
 
+  function patchLastAssistant(_patch: (entry: AiChatMessage) => AiChatMessage): void {}
+
   const [aiBusy, setAiBusy] = useState(false)
   // Display history survives restarts via localStorage; the AgentLoop's model
   // context does not, so restored turns are read-only transcript.
-  const [chat, setChat] = useState<readonly AiChatMessage[]>([])
   // ── Chat attachments (same structure as docs/slides: text types go through the
   // read_attachment tool, images go multimodal) ──
   const [attachments, setAttachments] = useState<readonly AttachmentMeta[]>([])
@@ -856,21 +857,6 @@ export function App(): React.JSX.Element {
       .catch(() => {
         /* silent */
       })
-  }
-
-  function appendChat(entry: AiChatMessage): void {
-    setChat((previous) => [...previous, entry])
-  }
-
-  function patchLastAssistant(patch: (entry: AiChatMessage) => AiChatMessage): void {
-    setChat((previous) => {
-      const index = previous.length - 1
-      const last = previous[index]
-      if (!last || last.role !== 'assistant') return previous
-      const next = previous.slice()
-      next[index] = patch(last)
-      return next
-    })
   }
 
   /** Tool activity for the whole run (args/output included, accumulated across
