@@ -1,7 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { Lang } from '@genoffice/i18n'
-import type { AiStreamChunk } from '@genoffice/ai-provider'
-import { AI_CHANNELS, PDF_CHANNELS } from '../shared/ipc'
+import { PDF_CHANNELS } from '../shared/ipc'
 import type { PdfApi, UiTheme } from '../shared/ipc'
 
 const api: PdfApi = {
@@ -82,15 +81,6 @@ const api: PdfApi = {
     const listener = () => handler()
     ipcRenderer.on('app:chrome-pressed', listener)
     return () => ipcRenderer.removeListener('app:chrome-pressed', listener)
-  },
-  getAiSettings: () => ipcRenderer.invoke(AI_CHANNELS.getSettings),
-  gskStatus: () => ipcRenderer.invoke(AI_CHANNELS.gskStatus),
-  aiStream: (request) => ipcRenderer.invoke(AI_CHANNELS.stream, request),
-  aiStreamCancel: (requestId) => ipcRenderer.invoke(AI_CHANNELS.streamCancel, requestId),
-  onAiStream: (handler) => {
-    const listener = (_e: Electron.IpcRendererEvent, chunk: AiStreamChunk) => handler(chunk)
-    ipcRenderer.on(AI_CHANNELS.streamChunk, listener)
-    return () => ipcRenderer.removeListener(AI_CHANNELS.streamChunk, listener)
   },
 }
 

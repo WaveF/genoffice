@@ -1,5 +1,4 @@
 import type { Lang } from '@genoffice/i18n'
-import type { AiSettings, AiStreamChunk, AiStreamRequest } from '@genoffice/ai-provider'
 
 export const PDF_CHANNELS = {
   consumePending: 'pdf:consume-pending',
@@ -641,31 +640,6 @@ export type ExportImagesResult =
   | { ok: true; canceled: true }
   | { ok: false; error: string }
 
-/** AI channels are app-wide shared ipcMain handlers (shell registers via docs-main registerAiIpc); pass-through only */
-export const AI_CHANNELS = {
-  getSettings: 'ai:get-settings',
-  gskStatus: 'ai:gsk-status',
-  stream: 'ai:stream',
-  streamChunk: 'ai:stream-chunk',
-  streamCancel: 'ai:stream-cancel',
-  imageSearch: 'ai:image-search',
-  fetchImage: 'ai:fetch-image',
-} as const
-
-export interface ImageSearchResponse {
-  images: Array<{
-    title: string
-    imageUrl: string
-    sourceUrl: string
-    source: string
-    width?: number
-    height?: number
-  }>
-  method: string
-  /** failure reason when method === 'error' */
-  error?: string
-}
-
 /** API exposed by preload to the renderer (window.pdfApi) */
 export interface PdfApi {
   onMcpRequest(handler: (request: { requestId: string; action: 'pdf.get_document_context' | 'pdf.read_page_context' | 'pdf.search' | 'pdf.read_annotations' | 'pdf.apply_operations'; input: Record<string, unknown> }) => void): () => void
@@ -752,10 +726,4 @@ export interface PdfApi {
   /** press on the shell chrome (tab strip is a sibling WebContentsView whose
    *  clicks produce no DOM event here) — dismiss open popovers */
   onChromePressed(handler: () => void): () => void
-  getAiSettings(): Promise<AiSettings>
-  /** Genspark login state (gsk); gates the cloud-only generate_image tool */
-  gskStatus(): Promise<{ loggedIn: boolean }>
-  aiStream(request: AiStreamRequest): Promise<void>
-  aiStreamCancel(requestId: string): Promise<void>
-  onAiStream(handler: (chunk: AiStreamChunk) => void): () => void
 }
