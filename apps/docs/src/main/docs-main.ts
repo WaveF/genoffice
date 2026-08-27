@@ -2569,6 +2569,7 @@ const TWIPS_PER_INCH = 1440
 
 /** Register safe image retrieval used only for bitmap-less web-image paste. */
 export function registerDocsImagePasteIpc(): void {
+  ipcMain.removeHandler('docs:fetch-pasted-image')
   ipcMain.handle(
     'docs:fetch-pasted-image',
     async (_event, url: string): Promise<{ base64: string; mime: string } | null> => {
@@ -2799,6 +2800,7 @@ export function registerProjectIpc(): void {
 
 /** document/attachment/window IPC (everything except the AI proxy above) */
 export function registerDocsIpc(): void {
+  registerDocsImagePasteIpc()
   // Node fetch (undici) direct connections get reset under VPN/tun setups; retry over Chromium's stack
   setRescueFetch((url, init) => net.fetch(url, init))
 
