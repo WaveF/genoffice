@@ -98,7 +98,7 @@ const api: DesktopApi = {
     ipcRenderer.invoke('docs:print-pdf-buffer', pageWidthTwips, pageHeightTwips),
   saveMergedPdf: (defaultName: string, base64Parts: string[], outPath?: string) =>
     ipcRenderer.invoke('docs:save-merged-pdf', defaultName, base64Parts, outPath),
-  fetchImage: (url: string) => ipcRenderer.invoke('ai:fetch-image', url),
+  fetchImage: (url: string) => ipcRenderer.invoke('docs:fetch-pasted-image', url),
   copyImageToClipboard: (dataUrl: string, metaJson?: string) =>
     ipcRenderer.invoke('docs:copy-image-to-clipboard', dataUrl, metaJson),
   getPathForFile: (file: File) => webUtils.getPathForFile(file),

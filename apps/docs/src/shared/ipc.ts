@@ -278,6 +278,7 @@ export interface DesktopApi {
     base64Parts: string[],
     outPath?: string,
   ): Promise<{ ok: boolean; path?: string; error?: string }>
+  /** Safe, SSRF-guarded fetch for a bitmap-less web-image paste. */
   fetchImage(url: string): Promise<{ base64: string; mime: string } | null>
   /** copy an embedded picture to the OS clipboard as a real bitmap + <img>
    *  html (r136: copying an image exported only the protected placeholder) */

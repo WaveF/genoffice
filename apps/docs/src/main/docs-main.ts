@@ -2721,7 +2721,7 @@ export function registerAiIpc(): void {
 
   // download image from URL → base64+mime (download in the main process avoids CORS; the renderer builds the image node and measures size itself)
   ipcMain.handle(
-    'ai:fetch-image',
+    'docs:fetch-pasted-image',
     async (_event, url: string): Promise<{ base64: string; mime: string } | null> => {
       try {
         // the URL originates from AI tool calls (prompt-injectable via web search
