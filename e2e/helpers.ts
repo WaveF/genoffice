@@ -29,6 +29,8 @@ interface LaunchOptions {
   videoDir: string
   /** absolute document path passed as argv, opened in an editor tab on launch */
   openFile?: string
+  /** isolated directory used for first-save drafts created during an E2E run */
+  defaultSaveDir?: string
 }
 
 export interface LaunchedApp {
@@ -42,10 +44,13 @@ export async function launchShell(options: LaunchOptions): Promise<LaunchedApp> 
     throw new Error(`Missing build output at ${SHELL_MAIN} — run \`npm run build:all\` first`)
   }
   const userDataDir = options.userDataDir ?? (await mkdtemp(join(tmpdir(), 'genoffice-e2e-')))
-  if (options.onboardingSeen) {
+  if (options.onboardingSeen || options.defaultSaveDir) {
     await writeFile(
       join(userDataDir, 'app-settings.json'),
-      JSON.stringify({ onboardingSeen: true }),
+      JSON.stringify({
+        ...(options.onboardingSeen ? { onboardingSeen: true } : {}),
+        ...(options.defaultSaveDir ? { defaultSaveDir: options.defaultSaveDir } : {}),
+      }),
     )
   }
   const require = createRequire(join(SHELL_DIR, 'package.json'))

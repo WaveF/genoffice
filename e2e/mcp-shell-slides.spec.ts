@@ -1,0 +1,168 @@
+import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import { access, mkdtemp, readdir } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
+import { expect, test } from '@playwright/test'
+import { closeAndSaveVideo, launchShell } from './helpers'
+
+const MCP_ADAPTER = resolve(__dirname, '../packages/genoffice-mcp/dist/genoffice-mcp.mjs')
+
+interface JsonRpcResponse {
+  jsonrpc: '2.0'
+  id: number
+  result?: unknown
+  error?: { code: number; message: string }
+}
+
+class StdioMcpClient {
+  private readonly process: ChildProcessWithoutNullStreams
+  private readonly pending = new Map<
+    number,
+    { resolve: (response: JsonRpcResponse) => void; reject: (error: Error) => void }
+  >()
+  private buffer = ''
+  private nextId = 1
+
+  constructor(discoveryPath: string) {
+    this.process = spawn(process.execPath, [MCP_ADAPTER, '--discovery', discoveryPath], {
+      stdio: 'pipe',
+    })
+    this.process.stdout.setEncoding('utf8')
+    this.process.stdout.on('data', (chunk: string) => this.receive(chunk))
+    this.process.once('error', (error) => this.rejectAll(error))
+    this.process.once('close', () => this.rejectAll(new Error('MCP adapter closed')))
+  }
+
+  async request(method: string, params: Record<string, unknown>): Promise<JsonRpcResponse> {
+    const id = this.nextId++
+    const response = new Promise<JsonRpcResponse>((resolvePromise, reject) => {
+      this.pending.set(id, { resolve: resolvePromise, reject })
+    })
+    this.process.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', id, method, params })}\n`)
+    return response
+  }
+
+  close(): void {
+    this.process.kill()
+  }
+
+  private receive(chunk: string): void {
+    this.buffer += chunk
+    let newline = this.buffer.indexOf('\n')
+    while (newline >= 0) {
+      const line = this.buffer.slice(0, newline)
+      this.buffer = this.buffer.slice(newline + 1)
+      const response = JSON.parse(line) as JsonRpcResponse
+      const pending = this.pending.get(response.id)
+      if (pending) {
+        this.pending.delete(response.id)
+        pending.resolve(response)
+      }
+      newline = this.buffer.indexOf('\n')
+    }
+  }
+
+  private rejectAll(error: Error): void {
+    for (const pending of this.pending.values()) pending.reject(error)
+    this.pending.clear()
+  }
+}
+
+async function waitForFile(path: string): Promise<void> {
+  const deadline = Date.now() + 15_000
+  while (Date.now() < deadline) {
+    if (
+      await access(path)
+        .then(() => true)
+        .catch(() => false)
+    )
+      return
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 50))
+  }
+  throw new Error(`Timed out waiting for ${path}`)
+}
+
+function resultText(response: JsonRpcResponse): string {
+  expect(response.error).toBeUndefined()
+  const result = response.result as { content?: Array<{ type: string; text: string }> }
+  const text = result.content?.[0]?.text
+  if (typeof text !== 'string') throw new Error('MCP tool did not return text content')
+  return text
+}
+
+test.describe('MCP stdio adapter + Shell bridge', () => {
+  test('creates, edits, undoes, and saves a Slides deck through the real local bridge', async () => {
+    const saveDir = await mkdtemp(join(tmpdir(), 'genoffice-mcp-slides-save-'))
+    const launched = await launchShell({
+      onboardingSeen: true,
+      defaultSaveDir: saveDir,
+      videoDir: 'mcp-shell-slides',
+    })
+    const discoveryPath = join(launched.userDataDir, 'mcp', 'bridge.json')
+    let client: StdioMcpClient | undefined
+    try {
+      await waitForFile(discoveryPath)
+      client = new StdioMcpClient(discoveryPath)
+
+      const initialized = await client.request('initialize', {
+        protocolVersion: '2025-06-18',
+        clientInfo: { name: 'genoffice-e2e' },
+      })
+      expect(initialized.result).toMatchObject({ serverInfo: { name: 'GenOffice' } })
+
+      const tools = await client.request('tools/list', {})
+      expect(tools.result).toMatchObject({
+        tools: expect.arrayContaining([
+          expect.objectContaining({ name: 'create_document' }),
+          expect.objectContaining({ name: 'slides.add_slide' }),
+          expect.objectContaining({ name: 'undo' }),
+          expect.objectContaining({ name: 'save_document' }),
+        ]),
+      })
+
+      const created = JSON.parse(
+        resultText(
+          await client.request('tools/call', {
+            name: 'create_document',
+            arguments: { kind: 'slides' },
+          }),
+        ),
+      ) as { documentId: string; revision: number }
+      expect(created).toMatchObject({ documentId: expect.any(String), revision: 0 })
+
+      const added = await client.request('tools/call', {
+        name: 'slides.add_slide',
+        arguments: { documentId: created.documentId, expectedRevision: 0, afterSlide: 0 },
+      })
+      expect(JSON.parse(resultText(added))).toMatchObject({ applied: true, revision: 1 })
+
+      const editedDeck = await client.request('tools/call', {
+        name: 'slides.get_deck_context',
+        arguments: { documentId: created.documentId },
+      })
+      expect(JSON.parse(resultText(editedDeck))).toMatchObject({ revision: 1, slideCount: 2 })
+
+      const undone = await client.request('tools/call', {
+        name: 'undo',
+        arguments: { documentId: created.documentId, expectedRevision: 1 },
+      })
+      expect(JSON.parse(resultText(undone))).toMatchObject({ applied: true, revision: 2 })
+
+      const restoredDeck = await client.request('tools/call', {
+        name: 'slides.get_deck_context',
+        arguments: { documentId: created.documentId },
+      })
+      expect(JSON.parse(resultText(restoredDeck))).toMatchObject({ revision: 2, slideCount: 1 })
+
+      const saved = await client.request('tools/call', {
+        name: 'save_document',
+        arguments: { documentId: created.documentId, expectedRevision: 2 },
+      })
+      expect(JSON.parse(resultText(saved))).toMatchObject({ saved: true, revision: 2 })
+      expect((await readdir(saveDir)).some((name) => name.endsWith('.pptx'))).toBe(true)
+    } finally {
+      client?.close()
+      await closeAndSaveVideo(launched, 'mcp-shell-slides')
+    }
+  })
+})
