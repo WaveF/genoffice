@@ -147,10 +147,10 @@ import { McpRevisionTracker } from './mcp-revision'
 import { cfRuleUnsaveableReason, iconSetSaveable } from '../gateway/xlsx-cf'
 import { installLazyFindBridge } from './lazy-find'
 import {
-  readCells as readCellsImpl,
-  readFormats as readFormatsImpl,
-  type WorkbookReadContext,
-} from './ai/workbook-readers'
+  readMcpCells,
+  readMcpFormats,
+  type McpWorkbookReadContext,
+} from './mcp-workbook-readers'
 import {
   installCrossHighlight,
   loadCrossHighlightPreference,
@@ -2230,7 +2230,7 @@ export function App(): React.JSX.Element {
   }
 
   mcpLazyReadRef.current = async (action, input) => {
-    const readerContext: WorkbookReadContext = { univerRef, lazyWorkbookRef, adapterRef }
+    const readerContext: McpWorkbookReadContext = { univerRef, lazyWorkbookRef, adapterRef }
     return handleLazySheetsMcpReadRequest({
       getState: () => {
         const state = lazyWorkbookRef.current
@@ -2243,8 +2243,8 @@ export function App(): React.JSX.Element {
         if (!runtime) return Promise.resolve(false)
         return ensureLazyRangeLoaded(runtime, lazyWorkbookRef, worksheet, range, () => undefined)
       },
-      readCells: (sheetId, addresses) => readCellsImpl(readerContext, addresses, sheetId),
-      readFormats: (sheetId, addresses) => readFormatsImpl(readerContext, addresses, sheetId),
+      readCells: (sheetId, addresses) => readMcpCells(readerContext, addresses, sheetId),
+      readFormats: (sheetId, addresses) => readMcpFormats(readerContext, addresses, sheetId),
     }, action, input)
   }
 

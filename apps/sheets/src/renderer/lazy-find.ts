@@ -24,11 +24,15 @@ import {
   type IReplaceAllResult,
 } from '@univerjs/find-replace'
 import { Subject, type Subscription } from 'rxjs'
-import { FILE_READ_BATCH_CELLS, MAX_SCAN_CELLS } from './ai/workbook-search'
 import { t } from './i18n/locale'
 import { netAxisDelta } from './view-transform'
 import type { LazyWorkbookState, UniverRuntime } from './univer-state'
 import { ensureLazyRangeLoaded, readSheetRangeMapped } from './univer-sync'
+
+/** Row batches stay within the sidecar's per-read cell budget. */
+const FILE_READ_BATCH_CELLS = 18_000
+/** Total cells a full-sheet Find session may inspect. */
+const MAX_SCAN_CELLS = 400_000
 
 /** Same match shape the built-in sheets provider produces (ISheetCellMatch). */
 export interface LazyCellMatch extends IFindMatch {
