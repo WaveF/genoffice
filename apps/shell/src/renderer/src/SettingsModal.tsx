@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Dropdown } from '@genoffice/ui'
-import type { AiSettings } from '@genoffice/ai-provider'
 import { useI18n } from './locale'
 import type { StringKey, TFunc } from './locale'
-import type { AccountStatus, AiCatalogEntry, UiTheme } from '../../shared/home-api'
-import { ProviderLogo } from './provider-logos'
+import type { AccountStatus, UiTheme } from '../../shared/home-api'
 import './settings.css'
+
+type AiSettings = { provider: string; providers: Record<string, { apiKey: string; model: string; baseUrl?: string }>; gskToolsEnabled?: boolean }
+type AiCatalogEntry = { id: string; label: string; defaultModel: string; models: readonly string[]; needsBaseUrl?: boolean; keyPlaceholder?: string; defaultBaseUrl?: string }
+const ProviderLogo = (_props: { id: string }) => null
 
 // ── Settings modal (opened from the account menu) ─────────
 // Genspark-style two-pane dialog: section nav on the left, fields on the right.
@@ -56,17 +58,16 @@ function formatStars(n: number): string {
   return `${k >= 100 ? Math.round(k) : (Math.round(k * 10) / 10).toString().replace(/\.0$/, '')}k`
 }
 
-type SectionId = 'account' | 'aiModel' | 'general' | 'about'
+type SectionId = 'account' | 'general' | 'about'
 
 const SECTIONS: readonly { id: SectionId; labelKey: StringKey }[] = [
   { id: 'account', labelKey: 'setSecAccount' },
-  { id: 'aiModel', labelKey: 'setSecAiModel' },
   { id: 'general', labelKey: 'setSecGeneral' },
   { id: 'about', labelKey: 'setSecAbout' },
 ]
 
 function SectionIcon({ id }: { id: SectionId }) {
-  if (id === 'aiModel') {
+  if (false) {
     return (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
         <path
@@ -204,7 +205,7 @@ function AiModelPane({ t }: { t: TFunc }) {
     touch()
   }
   const save = () => {
-    void window.aiOffice.setAiSettings?.(settings).then(() => {
+    void window.aiOffice.setAiSettings?.(settings as never).then(() => {
       setDirty(false)
       setSaved(true)
     })
@@ -213,7 +214,7 @@ function AiModelPane({ t }: { t: TFunc }) {
     setTesting(true)
     setTestResult(null)
     void window.aiOffice
-      .testAiSettings?.(settings)
+      .testAiSettings?.(settings as never)
       .then((r) => setTestResult(r ?? { ok: false }))
       .finally(() => setTesting(false))
   }
@@ -583,7 +584,7 @@ export function SettingsModal({
                 </div>
               </>
             )}
-            {section === 'aiModel' && <AiModelPane t={t} />}
+            {false && <AiModelPane t={t} />}
             {section === 'general' && (
               <>
                 <h3 className="set-pane-title">{t('setSecGeneral')}</h3>
