@@ -11,14 +11,14 @@
 | ID | 工作项 | 状态 | 当前证据 / 剩余范围 |
 | --- | --- | --- | --- |
 | SUN7-01 | Slides 下线验收 | 待手工回归 | renderer/runtime 已删除；需手工验证编辑、保存、undo。 |
-| SUN7-02 | Docs/Markdown UI 与 renderer 收尾 | 进行中 | renderer 面板已删；Docs Ribbon 残留、Docs main/shared IPC 仍须物理删除。 |
-| SUN7-03 | Sheets 运行时与 IPC 收尾 | 进行中 | 已删除 AgentLoop、transport、`registerSheetsAiIpc`、请求 schema、图片/网页搜索 IPC、预加载 API 与选区工作流；MCP 惰性读取仍可用。剩余 `ai/tools.ts` 及其仅供 Agent 使用的辅助模块须在保留 MCP 读取依赖后迁移/删除。 |
+| SUN7-02 | Docs/Markdown UI 与 renderer 收尾 | 已完成 | Docs 已删除聊天/流式/搜索/生成 IPC 与 provider 依赖；普通网页图片粘贴保留为 `docs:fetch-pasted-image`。Markdown 已无内置 AI renderer。 |
+| SUN7-03 | Sheets 运行时与 IPC 收尾 | 进行中 | 内置 Agent、transport、IPC 与 provider 依赖已删除；MCP 惰性读取仍可用。遗留 `renderer/ai/` 目录仅承载待迁移的通用/MCP 读取辅助模块。 |
 | SUN7-04 | PDF renderer 与 IPC 收尾 | 进行中 | AI 面板/stream/image bridge 已删；`_aiApi` 死能力对象仍须整体删除。 |
-| SUN7-05 | Shell 全局设置与 provider 表面 | 未开始 | SettingsModal、preload、home-api 仍引用 `ai-provider`。 |
-| SUN7-06 | 全局 IPC 删除 | 未开始 | Docs `registerAiIpc`、Sheets 未注册 handler、相关 shared/preload 必须物理删除。 |
-| SUN7-07 | 包与聊天存储删除 | 未开始 | `packages/ai-provider`、`packages/agent-core` 仍存在；删除前须清完所有直接引用。 |
-| SUN7-08 | i18n、资源、测试、文档 | 未开始 | 各应用 AI 文案/样式/测试与 README、隐私、安全说明需更新。 |
-| SUN7-09 | 质量门禁 | 未开始 | 全 workspace typecheck、MCP adapter/gateway 回归、Shell/Slides MCP smoke、手工 Office 编辑回归。 |
+| SUN7-05 | Shell 全局设置与 provider 表面 | 进行中 | AI 设置导航、preload、HomeApi 与 provider 品牌资源已删除；SettingsModal 中不可达旧 pane 仍待物理删除。 |
+| SUN7-06 | 全局 IPC 删除 | 已完成 | Docs、Sheets 的 `ai:*` handlers/preload 已删除；Docs 安全图片粘贴改为独立 `docs:*` IPC。 |
+| SUN7-07 | 包与聊天存储删除 | 已完成 | 已删除 `packages/ai-provider`、`packages/agent-core`、各应用依赖与根脚本/lockfile workspace 条目。 |
+| SUN7-08 | i18n、资源、测试、文档 | 进行中 | 已删除 provider 图标与部分旧引用；仍需清理 AI 样式/i18n 以及原始规划文档中的过时状态。 |
+| SUN7-09 | 质量门禁 | 进行中 | Docs/Sheets typecheck 与 23 项 MCP 回归已通过；仍需 PDF/Shell/Slides 验证及手工 Office 编辑回归。 |
 
 ## 执行顺序与退出条件
 
