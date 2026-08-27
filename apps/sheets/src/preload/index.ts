@@ -355,13 +355,6 @@ const desktopApi: DesktopApi = {
     }
     return result as unknown as AiChatResponse
   },
-  async aiStream(request) {
-    await ipcRenderer.invoke(IPC_CHANNELS.aiStream, request)
-  },
-  async aiStreamCancel(requestId) {
-    if (!requestId) throw new Error('Invalid AI stream request id.')
-    await ipcRenderer.invoke(IPC_CHANNELS.aiStreamCancel, requestId)
-  },
   async aiGskStatus(withEmail) {
     const result: unknown = await ipcRenderer.invoke(IPC_CHANNELS.aiGskStatus, withEmail)
     if (!isRecord(result) || typeof result.loggedIn !== 'boolean') {
@@ -410,19 +403,6 @@ const desktopApi: DesktopApi = {
       throw new Error('Invalid image download response.')
     }
     return result as { base64: string; mime: string }
-  },
-  onAiStream(callback) {
-    const listener = (_event: unknown, chunk: unknown): void => {
-      if (
-        isRecord(chunk) &&
-        typeof chunk.requestId === 'string' &&
-        typeof chunk.type === 'string'
-      ) {
-        callback(chunk as unknown as AiStreamChunk)
-      }
-    }
-    ipcRenderer.on(IPC_CHANNELS.aiStreamChunk, listener)
-    return () => ipcRenderer.removeListener(IPC_CHANNELS.aiStreamChunk, listener)
   },
   async consumeNewBlankWorkbook() {
     const result: unknown = await ipcRenderer.invoke('sheets:consume-new-blank')

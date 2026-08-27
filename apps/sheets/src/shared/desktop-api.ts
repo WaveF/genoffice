@@ -2378,9 +2378,6 @@ export interface DesktopApi {
   getAiSettings(): Promise<AiSettings>
   setAiSettings(settings: AiSettings): Promise<void>
   aiChat(request: AiChatRequest): Promise<AiChatResponse>
-  /// start a streaming AI call; deltas arrive via onAiStream with the same requestId
-  aiStream(request: AiStreamRequest): Promise<void>
-  aiStreamCancel(requestId: string): Promise<void>
   /// Genspark account status (gsk login state); withEmail also returns the email
   /// (needs a network request, slower)
   aiGskStatus(withEmail?: boolean): Promise<GenSparkAccountStatus>
@@ -2395,7 +2392,6 @@ export interface DesktopApi {
   generateImage(op: { prompt: string; aspectRatio?: string }): Promise<GenerateImageResult>
   /// Downloads an image URL in the main process (SSRF-guarded); null on failure
   fetchImage(url: string): Promise<{ base64: string; mime: string } | null>
-  onAiStream(handler: (chunk: AiStreamChunk) => void): () => void
   /// Chat attachments: multi-select file dialog (returns null on cancel)
   pickAttachments(): Promise<AttachmentAddResult | null>
   /// Validates dropped paths and returns attachment metadata
