@@ -264,7 +264,6 @@ export const appStrings = defineStrings({
       '“{text}”有哪些更好的同义词或近义表达?请列出 3-5 个并简要说明差别,不要修改文档。',
     appTranslateSelectionPrompt:
       '将文中当前选中的这段文字翻译成{lang},用译文替换原文,保持格式不变:“{text}”',
-    appAiBadgeTip: '将调用 AI',
     appTranslate: '翻译',
     appTranslateTo: '翻译成{lang}',
     appLangEnglish: '英文',
@@ -614,7 +613,6 @@ export const appStrings = defineStrings({
       'What are better synonyms or near-synonym expressions for "{text}"? List 3-5 with brief notes on the differences; do not modify the document.',
     appTranslateSelectionPrompt:
       'Translate the currently selected passage into {lang}, replace the original with the translation, and keep the formatting unchanged: "{text}"',
-    appAiBadgeTip: 'Uses AI',
     appTranslate: 'Translate',
     appTranslateTo: 'Translate to {lang}',
     appLangEnglish: 'English',
@@ -986,7 +984,6 @@ export const appStrings = defineStrings({
       '「{text}」のより良い類義語や言い換え表現を 3〜5 個挙げ、違いを簡潔に説明してください。ドキュメントは変更しないでください。',
     appTranslateSelectionPrompt:
       '現在選択中のテキストを{lang}に翻訳し、訳文で原文を置き換えてください。書式は変えないでください：「{text}」',
-    appAiBadgeTip: 'AI を使用します',
     appTranslate: '翻訳',
     appTranslateTo: '{lang}に翻訳',
     appLangEnglish: '英語',
@@ -1363,7 +1360,6 @@ export const appStrings = defineStrings({
       '"{text}"의 더 나은 동의어나 유사 표현을 3-5개 나열하고 차이를 간단히 설명해 주세요. 문서는 수정하지 마세요.',
     appTranslateSelectionPrompt:
       '현재 선택된 텍스트를 {lang}(으)로 번역하여 원문을 번역문으로 바꿔 주세요. 서식은 유지해 주세요: "{text}"',
-    appAiBadgeTip: 'AI를 사용합니다',
     appTranslate: '번역',
     appTranslateTo: '{lang}(으)로 번역',
     appLangEnglish: '영어',
@@ -1728,7 +1724,6 @@ export const appStrings = defineStrings({
       'Quels sont de meilleurs synonymes ou expressions proches pour « {text} » ? Listez-en 3 à 5 avec une brève explication des différences, sans modifier le document.',
     appTranslateSelectionPrompt:
       "Traduisez le passage actuellement sélectionné en {lang}, remplacez l'original par la traduction en conservant la mise en forme : « {text} »",
-    appAiBadgeTip: "Utilise l'IA",
     appTranslate: 'Traduire',
     appTranslateTo: 'Traduire en {lang}',
     appLangEnglish: 'anglais',
@@ -2087,7 +2082,6 @@ export const appStrings = defineStrings({
       'Welche besseren Synonyme oder ähnliche Ausdrücke gibt es für „{text}“? Nenne 3–5 mit kurzer Erläuterung der Unterschiede; das Dokument nicht ändern.',
     appTranslateSelectionPrompt:
       'Übersetze den aktuell markierten Text in {lang}, ersetze das Original durch die Übersetzung und behalte die Formatierung bei: „{text}“',
-    appAiBadgeTip: 'Verwendet KI',
     appTranslate: 'Übersetzen',
     appTranslateTo: 'In {lang} übersetzen',
     appLangEnglish: 'Englisch',
@@ -2445,7 +2439,6 @@ export const appStrings = defineStrings({
       '¿Qué sinónimos o expresiones similares mejores hay para «{text}»? Enumera de 3 a 5 con una breve explicación de las diferencias, sin modificar el documento.',
     appTranslateSelectionPrompt:
       'Traduce el texto actualmente seleccionado al {lang}, sustituye el original por la traducción y mantén el formato: «{text}»',
-    appAiBadgeTip: 'Usa IA',
     appTranslate: 'Traducir',
     appTranslateTo: 'Traducir al {lang}',
     appLangEnglish: 'inglés',
@@ -2794,7 +2787,6 @@ export const appStrings = defineStrings({
       'มีคำพ้องความหมายหรือสำนวนใกล้เคียงที่ดีกว่าสำหรับ "{text}" ไหม โปรดแสดง 3-5 คำพร้อมอธิบายความแตกต่างโดยย่อ และอย่าแก้ไขเอกสาร',
     appTranslateSelectionPrompt:
       'แปลข้อความที่เลือกอยู่เป็น{lang} แทนที่ต้นฉบับด้วยคำแปลโดยคงรูปแบบเดิม: "{text}"',
-    appAiBadgeTip: 'ใช้ AI',
     appTranslate: 'แปล',
     appTranslateTo: 'แปลเป็น{lang}',
     appLangEnglish: 'ภาษาอังกฤษ',
@@ -3144,7 +3136,6 @@ export const appStrings = defineStrings({
       'Apa sinonim atau ungkapan serupa yang lebih baik untuk "{text}"? Sebutkan 3-5 dengan penjelasan singkat perbedaannya; jangan ubah dokumen.',
     appTranslateSelectionPrompt:
       'Terjemahkan teks yang sedang dipilih ke {lang}, ganti teks asli dengan terjemahan, dan pertahankan formatnya: "{text}"',
-    appAiBadgeTip: 'Menggunakan AI',
     appTranslate: 'Terjemahkan',
     appTranslateTo: 'Terjemahkan ke {lang}',
     appLangEnglish: 'bahasa Inggris',
@@ -3498,7 +3489,6 @@ export const appStrings = defineStrings({
       'Какие есть более удачные синонимы или близкие выражения для «{text}»? Перечислите 3–5 с кратким пояснением различий; документ не изменяйте.',
     appTranslateSelectionPrompt:
       'Переведите выделенный фрагмент на {lang}, замените оригинал переводом, сохранив форматирование: «{text}»',
-    appAiBadgeTip: 'Использует ИИ',
     appTranslate: 'Перевод',
     appTranslateTo: 'Перевести на {lang}',
     appLangEnglish: 'английский',
@@ -3846,7 +3836,6 @@ export const appStrings = defineStrings({
       'ما المرادفات أو التعبيرات القريبة الأفضل لـ "{text}"؟ اذكر 3-5 مع شرح موجز للفروق، ولا تعدّل المستند.',
     appTranslateSelectionPrompt:
       'ترجم النص المحدد حاليًا إلى {lang}، واستبدل النص الأصلي بالترجمة مع الحفاظ على التنسيق: "{text}"',
-    appAiBadgeTip: 'يستخدم الذكاء الاصطناعي',
     appTranslate: 'ترجمة',
     appTranslateTo: 'ترجمة إلى {lang}',
     appLangEnglish: 'الإنجليزية',
@@ -4198,7 +4187,6 @@ export const appStrings = defineStrings({
       'Quais são sinônimos ou expressões semelhantes melhores para "{text}"? Liste de 3 a 5 com uma breve explicação das diferenças; não modifique o documento.',
     appTranslateSelectionPrompt:
       'Traduza o trecho atualmente selecionado para {lang}, substitua o original pela tradução e mantenha a formatação: "{text}"',
-    appAiBadgeTip: 'Usa IA',
     appTranslate: 'Traduzir',
     appTranslateTo: 'Traduzir para {lang}',
     appLangEnglish: 'Inglês',
@@ -4551,7 +4539,6 @@ export const appStrings = defineStrings({
       'Quali sinonimi o espressioni simili migliori esistono per "{text}"? Elencane 3-5 con una breve spiegazione delle differenze; non modificare il documento.',
     appTranslateSelectionPrompt:
       'Traduci il testo attualmente selezionato in {lang}, sostituisci l\'originale con la traduzione mantenendo la formattazione: "{text}"',
-    appAiBadgeTip: "Usa l'IA",
     appTranslate: 'Traduci',
     appTranslateTo: 'Traduci in {lang}',
     appLangEnglish: 'Inglese',
@@ -4905,7 +4892,6 @@ export const appStrings = defineStrings({
       'Jakie są lepsze synonimy lub bliskie wyrażenia dla „{text}”? Wymień 3–5 z krótkim objaśnieniem różnic; nie modyfikuj dokumentu.',
     appTranslateSelectionPrompt:
       'Przetłumacz aktualnie zaznaczony fragment na {lang}, zastąp oryginał tłumaczeniem, zachowując formatowanie: „{text}”',
-    appAiBadgeTip: 'Używa AI',
     appTranslate: 'Przetłumacz',
     appTranslateTo: 'Przetłumacz na {lang}',
     appLangEnglish: 'angielski',
@@ -5265,7 +5251,6 @@ export const appStrings = defineStrings({
       'Wat zijn betere synoniemen of vergelijkbare uitdrukkingen voor "{text}"? Noem er 3-5 met een korte toelichting op de verschillen; wijzig het document niet.',
     appTranslateSelectionPrompt:
       'Vertaal de geselecteerde tekst naar het {lang}, vervang het origineel door de vertaling en behoud de opmaak: "{text}"',
-    appAiBadgeTip: 'Gebruikt AI',
     appTranslate: 'Vertalen',
     appTranslateTo: 'Vertalen naar {lang}',
     appLangEnglish: 'Engels',
@@ -5619,7 +5604,6 @@ export const appStrings = defineStrings({
       'Apakah sinonim atau ungkapan hampir sama yang lebih baik untuk "{text}"? Senaraikan 3-5 dengan penjelasan ringkas tentang perbezaannya; jangan ubah dokumen.',
     appTranslateSelectionPrompt:
       'Terjemahkan teks yang sedang dipilih ke {lang}, gantikan teks asal dengan terjemahan dan kekalkan formatnya: "{text}"',
-    appAiBadgeTip: 'Menggunakan AI',
     appTranslate: 'Terjemah',
     appTranslateTo: 'Terjemah ke {lang}',
     appLangEnglish: 'Bahasa Inggeris',
@@ -5962,7 +5946,6 @@ export const appStrings = defineStrings({
       'אילו מילים נרדפות או ביטויים קרובים טובים יותר יש עבור "{text}"? פרט 3-5 עם הסבר קצר על ההבדלים; אל תשנה את המסמך.',
     appTranslateSelectionPrompt:
       'תרגם את הקטע שנבחר כעת ל{lang}, החלף את המקור בתרגום ושמור על העיצוב: "{text}"',
-    appAiBadgeTip: 'משתמש ב-AI',
     appTranslate: 'תרגום',
     appTranslateTo: 'תרגום ל{lang}',
     appLangEnglish: 'אנגלית',
@@ -6311,7 +6294,6 @@ export const appStrings = defineStrings({
       '"{text}" के लिए बेहतर पर्यायवाची या मिलते-जुलते भाव क्या हैं? 3-5 सूचीबद्ध करें और अंतर संक्षेप में बताएं; दस्तावेज़ में बदलाव न करें।',
     appTranslateSelectionPrompt:
       'वर्तमान में चयनित अंश का {lang} में अनुवाद करें, मूल पाठ को अनुवाद से बदलें और स्वरूपण अपरिवर्तित रखें: "{text}"',
-    appAiBadgeTip: 'AI का उपयोग करता है',
     appTranslate: 'अनुवाद करें',
     appTranslateTo: '{lang} में अनुवाद करें',
     appLangEnglish: 'अंग्रेज़ी',
@@ -6649,7 +6631,6 @@ export const appStrings = defineStrings({
       '「{text}」有哪些更好的同義詞或近義表達?請列出 3-5 個並簡要說明差別,不要修改文件。',
     appTranslateSelectionPrompt:
       '將文中當前選中的這段文字翻譯成{lang},用譯文替換原文,保持格式不變:「{text}」',
-    appAiBadgeTip: '將呼叫 AI',
     appTranslate: '翻譯',
     appTranslateTo: '翻譯成{lang}',
     appLangEnglish: '英文',
