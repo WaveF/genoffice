@@ -732,31 +732,6 @@ html.genoffice-popover-open .ribbon-tabs {
   background: var(--active-bg);
 }
 
-/* The Genspark AI entry keeps a black label even while the panel is open. */
-.rb-big.ai-entry.active {
-  color: var(--text);
-}
-
-/* The AI entry buttons read as one piece: hover/press tint the whole button
-   (icon + label together), unlike the other tall buttons where only the icon
-   row is painted. */
-.rb-big.ai-entry {
-  border-radius: 4px;
-}
-
-.rb-big.ai-entry:hover:not(:disabled) {
-  background: var(--hover);
-}
-
-.rb-big.ai-entry.active {
-  background: var(--active-bg);
-}
-
-.rb-big.ai-entry:hover:not(:disabled) .rb-big-icon,
-.rb-big.ai-entry.active .rb-big-icon {
-  background: transparent;
-}
-
 .rb-col {
   display: flex;
   flex-direction: column;
@@ -1179,24 +1154,6 @@ html.genoffice-popover-open .ribbon-tabs {
 }
 
 /* line spacing dropdown */
-/* Home-tab Genspark AI entry: black circular "+" badge with a dropdown caret,
-   brand label below (mirrors the sheets Home ribbon). */
-/* AI feature buttons next to the entry: purple glyphs, label below */
-.ai-feature-icon {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  color: var(--color-brand-secondary);
-}
-
-.ai-feature-icon svg {
-  /* 24px renders the 24-unit viewBox 1:1, so the 1.5 stroke paints 1.5px,
-     keeping the 1:16 stroke standard */
-  width: 24px;
-  height: 24px;
-}
-
 .spacing-menu {
   position: fixed;
   position-anchor: --rb-drop-wrap;

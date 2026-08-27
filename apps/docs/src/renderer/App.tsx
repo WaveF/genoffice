@@ -3499,8 +3499,6 @@ export function App() {
     onOpen: () => void openFile(),
     onSave: () => void save(false),
     onSaveAs: () => void save(true),
-    onToggleAi: () => {},
-    onAiPreset: () => {},
     onSection: (next: SectionSettings) => {
       // layout applies to the cursor's section; the final section's sectPr goes through SaveOptions.section (also drives canvas geometry)
       setSections((prev) =>
@@ -3753,7 +3751,6 @@ export function App() {
         blocks={doc?.parsed.blocks ?? EMPTY_BLOCKS}
         styles={ribbonStyles}
         docDefaults={doc?.parsed.docDefaults}
-        showAi={false}
         section={sections[activeSection]?.settings ?? section}
         activeSection={sections.length > 1 ? activeSection : null}
         pageColor={pageColor}
