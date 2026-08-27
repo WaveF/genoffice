@@ -4641,7 +4641,6 @@ export function App(): React.JSX.Element {
         onAddPastedImage={(data, ext) => void handleAddPastedImage(data, ext)}
         onRemoveAttachment={handleRemoveAttachment}
         onPromptChange={setPrompt}
-        onSend={handleSend}
         onStop={handleStopAgent}
         onNewChat={handleNewChat}
         onUndo={handleUndo}

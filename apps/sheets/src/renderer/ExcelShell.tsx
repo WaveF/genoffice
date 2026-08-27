@@ -4,7 +4,6 @@ import { Dropdown, SHAPE_GALLERY_GROUPS, ShapePreview, useDismissablePopover } f
 
 import {
   CaretIcon,
-  GensparkMark,
   RIBBON_GLYPH_ICONS,
   RedoIcon,
   SaveAsIcon,
@@ -108,21 +107,6 @@ const IS_MAC = navigator.platform.toLowerCase().includes('mac')
 /// Excel's grow/shrink font walks its size ladder, not ±1.
 const FONT_SIZE_LADDER = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 26, 28, 36, 48, 72]
 
-/// Review > Translate targets, shown in their native names (never localized).
-const TRANSLATE_LANGUAGES = [
-  'English',
-  '简体中文',
-  '繁體中文',
-  '日本語',
-  '한국어',
-  'Español',
-  'Français',
-  'Deutsch',
-  'Português',
-  'Русский',
-  'العربية',
-] as const
-
 function stepFontSize(current: number, direction: 1 | -1): number {
   if (direction === 1) {
     return FONT_SIZE_LADDER.find((size) => size > current) ?? FONT_SIZE_LADDER.at(-1) ?? current
@@ -165,7 +149,6 @@ interface ExcelShellProps {
   readonly onPromptChange: (prompt: string) => void
   /** Send the composer text, or the given instruction when provided (Retry also
    *  resends that message's original attachments) */
-  readonly onSend: (instruction?: string, attachments?: readonly AttachmentMeta[]) => void
   readonly onStop: () => void
   readonly onNewChat: () => void
   readonly onUndo: (steps?: number) => void
@@ -328,7 +311,6 @@ export function ExcelShell({
   onGetConsolidateDefault,
   onApplyHeaderFooter,
   onPromptChange,
-  onSend,
   onStop,
   onNewChat,
   onUndo,
@@ -359,13 +341,6 @@ export function ExcelShell({
 }: ExcelShellProps): React.JSX.Element {
   const { t } = useI18n()
   const [activeTab, setActiveTab] = useState<RibbonTab>('Home')
-  // Persisted so a closed AI panel stays closed on next launch (docs/slides parity)
-  const [isCopilotOpen, setIsCopilotOpen] = useState(
-    () => localStorage.getItem('ai-sheets-show-ai') !== '0',
-  )
-  useEffect(() => {
-    localStorage.setItem('ai-sheets-show-ai', isCopilotOpen ? '1' : '0')
-  }, [isCopilotOpen])
   const [showFormatCells, setShowFormatCells] = useState(false)
   const [axisSizeTarget, setAxisSizeTarget] = useState<'row' | 'col' | null>(null)
   const [showLinkDialog, setShowLinkDialog] = useState(false)
@@ -454,7 +429,7 @@ export function ExcelShell({
   const saveAsTitle = `${t('appSaveAs')} (${platformShortcuts('⇧⌘S')})`
 
   return (
-    <main className={`app-shell ${isCopilotOpen ? '' : 'copilot-collapsed'}`}>
+    <main className="app-shell">
       <header className="excel-header">
         <nav
           className={`ribbon-tabs ${IN_TAB ? '' : IS_MAC ? 'ribbon-tabs-mac' : 'ribbon-tabs-win'}`}
@@ -575,12 +550,6 @@ export function ExcelShell({
             else if (command === 'chart-element-axis-val') setChartTextTarget('axis-value')
             else onCommand(command)
           }}
-          onAiRun={(nextPrompt) => {
-            setIsCopilotOpen(true)
-            onSend(nextPrompt)
-          }}
-          aiOpen={isCopilotOpen}
-          onAiToggle={() => setIsCopilotOpen((open) => !open)}
         />
       </header>
 
@@ -1149,9 +1118,6 @@ function Ribbon({
   pageLayout,
   selectedChart,
   onCommand,
-  onAiRun,
-  aiOpen,
-  onAiToggle,
   onListNames,
   calcManual,
   onRefreshPivot,
@@ -1172,11 +1138,6 @@ function Ribbon({
   readonly onListNames: () => readonly string[]
   /** Manual-recalc mode echo for the Calculation Options menu. */
   readonly calcManual: boolean
-  /** Open the AI panel and immediately send the given prompt */
-  readonly onAiRun: (prompt: string) => void
-  /** AI side panel visibility (docs/slides parity: the entry button toggles it) */
-  readonly aiOpen: boolean
-  readonly onAiToggle: () => void
   readonly onRefreshPivot: () => string | null
   readonly onIsSelectionInPivot: () => boolean
 }): React.JSX.Element {
@@ -2306,26 +2267,6 @@ function Ribbon({
             onClick={() => onCommand('workbook-statistics')}
           />
         </RibbonGroup>
-        <RibbonGroup label={t('appGroupLanguage')} hidden>
-          <div className="ribbon-tool large" data-tip={t('appTranslateTitle')}>
-            <span className="tool-icon-row">
-              <ToolSymbol symbol="文" />
-              <CaretIcon />
-            </span>
-            <span>
-              <strong>{t('appTranslate')}</strong>
-            </span>
-            <MenuSelect
-              cover
-              label={t('appTranslate')}
-              options={TRANSLATE_LANGUAGES.map((language) => ({
-                value: language,
-                label: language,
-              }))}
-              onPick={(language) => onAiRun(t('appTranslatePrompt', { language }))}
-            />
-          </div>
-        </RibbonGroup>
         <RibbonGroup label={t('appGroupComments')}>
           <RibbonButton
             large
@@ -2422,77 +2363,6 @@ function Ribbon({
     : [...fontSizes, echoSize].sort((a, b) => a - b)
   return (
     <div className="ribbon">
-      <RibbonGroup label={t('appGroupAiAssistant')} hidden>
-        <button
-          className={`ribbon-tool as-button large ai-entry ${aiOpen ? 'active' : ''}`}
-          data-tip={t('aiOpenAssistant')}
-          onClick={onAiToggle}
-        >
-          <span className="tool-icon-row">
-            <GensparkMark size={26} />
-          </span>
-          <span>
-            <strong>Genspark AI</strong>
-          </span>
-        </button>
-        <button
-          className="ribbon-tool as-button large ai-entry"
-          disabled={!sheetHasContent}
-          data-tip={t('aiCheckBtn')}
-          onClick={() => onAiRun(t('aiCheckPrompt'))}
-        >
-          <span className="tool-icon-row">
-            <span className="ai-feature-icon" aria-hidden="true">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M11 3.25C15.2802 3.25 18.75 6.71979 18.75 11C18.75 15.2802 15.2802 18.75 11 18.75C6.71979 18.75 3.25 15.2802 3.25 11C3.25 6.71979 6.71979 3.25 11 3.25Z" />
-                <path
-                  d="M7.5 10.8235L9.64097 12.9645C9.93755 13.2611 10.4177 13.2634 10.7171 12.9697L14.7647 9"
-                  strokeLinecap="round"
-                />
-                <path d="M20 20.5L16.5 17" strokeLinecap="round" />
-              </svg>
-            </span>
-          </span>
-          <span>
-            <strong>{t('aiCheckBtn')}</strong>
-          </span>
-        </button>
-        <button
-          className="ribbon-tool as-button large ai-entry"
-          disabled={!sheetHasContent}
-          data-tip={t('aiAnalyzeBtn')}
-          onClick={() => onAiRun(t('aiAnalyzePrompt'))}
-        >
-          <span className="tool-icon-row">
-            <span className="ai-feature-icon" aria-hidden="true">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M3.88589 14.2073H8.48682" strokeLinecap="round" />
-                <path d="M3.88589 19.0112H8.48682" strokeLinecap="round" />
-                <path d="M3.88589 9.40369H11.692" strokeLinecap="round" />
-                <path d="M3.88589 4.59998H19.1645" strokeLinecap="round" />
-                <path d="M15.1995 10.5445C15.3784 10.0908 16.0206 10.0908 16.1996 10.5445L16.706 11.8286C17.0338 12.6598 17.6918 13.3178 18.523 13.6456L19.8071 14.1521C20.2608 14.331 20.2608 14.9732 19.8071 15.1522L18.523 15.6586C17.6918 15.9864 17.0338 16.6444 16.706 17.4756L16.1996 18.7597C16.0206 19.2134 15.3784 19.2134 15.1995 18.7597L14.693 17.4756C14.3652 16.6444 13.7072 15.9864 12.876 15.6586L11.592 15.1522C11.1382 14.9732 11.1382 14.331 11.592 14.1521L12.876 13.6456C13.7072 13.3178 14.3652 12.6598 14.693 11.8286L15.1995 10.5445Z" />
-              </svg>
-            </span>
-          </span>
-          <span>
-            <strong>{t('aiAnalyzeBtn')}</strong>
-          </span>
-        </button>
-      </RibbonGroup>
       <RibbonGroup label={t('appGroupClipboard')}>
         <button
           className="ribbon-tool as-button large"
