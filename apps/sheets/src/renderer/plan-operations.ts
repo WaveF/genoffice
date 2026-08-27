@@ -1,11 +1,10 @@
 /**
- * AI change-plan builders for the sheets renderer.
+ * Change-plan builders for the sheets renderer.
  *
  * proposeOperations validates agent-provided DSL operations and builds a
- * preview plan; runDeterministicPlan does the same for the regex planner.
+ * preview plan.
  * Extracted from App.tsx; App-scope state comes in through PlanContext.
  */
-import { planPrompt } from '../ai/deterministic-planner'
 import {
   columnIndex,
   columnLabel,
@@ -754,82 +753,6 @@ export function proposeOperations(
     return {
       ok: false,
       error: error instanceof Error ? error.message : 'Unable to create a preview.',
-    }
-  }
-}
-
-export function runDeterministicPlan(
-  ctx: PlanContext,
-  instruction: string,
-): { text: string; isError?: boolean } {
-  const state = ctx.lazyWorkbookRef.current
-  if (state) {
-    const runtime = ctx.univerRef.current
-    const workbook = runtime?.univerAPI.getActiveWorkbook()
-    const worksheet = workbook?.getActiveSheet()
-    if (!runtime || !workbook || !worksheet) return { text: t('appNoWorkbookOpen'), isError: true }
-    try {
-      const sheetId = worksheet.getSheetId()
-      // AI output stays untrusted input: it must pass the DSL schema.
-      const command = workbookCommandBatchSchema.parse(
-        planPrompt(instruction, { revision: 0, sheetId }),
-      )
-      const reader = lazyWorkbookCellReader(workbook)
-      for (const operation of expandToPrimitiveOps(command.operations, reader)) {
-        // Range-level ops pass through unexpanded; the apply executor loads
-        // unloaded chunks itself, so no streaming check here.
-        if (
-          operation.op === 'fill_range' ||
-          operation.op === 'copy_range' ||
-          operation.op === 'convert_to_values' ||
-          operation.op === 'clear_range' ||
-          operation.op === 'find_replace' ||
-          operation.op === 'rename_sheet' ||
-          operation.op === 'format_range' ||
-          isLayoutOp(operation) ||
-          isStructuralOp(operation)
-        )
-          continue
-        const target = parseAddress(operation.address)
-        if (!lazyCellEditable(state, operation.sheetId, target.row, target.column)) {
-          return { text: t('appCellStreaming'), isError: true }
-        }
-      }
-      const plan = buildLazyChangePlan(command, reader, (id) => {
-        const sheet = workbook.getSheetBySheetId(id)
-        if (!sheet) throw new Error(`Unknown sheet: ${id}`)
-        return sheet.getSheetName()
-      })
-      ctx.lazyPreviewRef.current = { sessionId: state.file.sessionId, sheetId, plan }
-      ctx.setPreview(plan)
-      void ctx.autoApplySafePlan(plan)
-      return { text: t('appPreviewCreated') }
-    } catch (error: unknown) {
-      return {
-        text: error instanceof Error ? error.message : t('appPreviewFailed'),
-        isError: true,
-      }
-    }
-  }
-  try {
-    const snapshot = ctx.adapterRef.current.getSnapshot()
-    const activeId = ctx.univerRef.current?.univerAPI
-      .getActiveWorkbook()
-      ?.getActiveSheet()
-      ?.getSheetId()
-    const command = planPrompt(instruction, {
-      revision: snapshot.revision,
-      sheetId:
-        snapshot.sheets.find((sheet) => sheet.id === activeId)?.id ?? snapshot.sheets[0]?.id ?? '',
-    })
-    const plan = ctx.adapterRef.current.plan(command)
-    ctx.setPreview(plan)
-    void ctx.autoApplySafePlan(plan)
-    return { text: t('appPreviewCreatedDemo') }
-  } catch (error: unknown) {
-    return {
-      text: error instanceof Error ? error.message : t('appPreviewFailed'),
-      isError: true,
     }
   }
 }
