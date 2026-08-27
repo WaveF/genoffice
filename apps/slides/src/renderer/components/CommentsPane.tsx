@@ -57,7 +57,7 @@ export function CommentsPane({
   return (
     <aside className="comments-pane">
       <div className="ai-panel-header">
-        <span className="ai-panel-title">{t('paneCommentsTitle', { n: slideIndex + 1 })}</span>
+        <span className="pane-title">{t('paneCommentsTitle', { n: slideIndex + 1 })}</span>
         <div className="ai-panel-header-actions">
           <button
             className="ai-header-btn"

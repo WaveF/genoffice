@@ -1465,7 +1465,7 @@ export function FormatPane({
   return (
     <aside className="format-pane">
       <div className="ai-panel-header">
-        <span className="ai-panel-title">
+        <span className="pane-title">
           {typeName ? t('paneFormatTitleTyped', { type: typeName }) : t('paneFormatTitle')}
         </span>
         <div className="ai-panel-header-actions">

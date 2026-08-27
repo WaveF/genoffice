@@ -746,8 +746,8 @@ button {
 
 /* Home-tab Genspark AI entry: black circular "+" badge with a dropdown caret,
    brand label below (mirrors the sheets Home ribbon). */
-/* AI feature buttons next to the entry: purple glyphs, label below */
-.ai-feature-icon {
+/* Fixed-size artwork holder used by ribbon buttons. */
+.rb-feature-icon {
   display: grid;
   place-items: center;
   width: 28px;
@@ -755,7 +755,7 @@ button {
   color: var(--color-brand-secondary);
 }
 
-.ai-feature-icon svg {
+.rb-feature-icon svg {
   /* 24px renders the 24-unit viewBox 1:1, so the 1.5 stroke paints 1.5px,
      keeping the 1:16 stroke standard */
   width: 24px;
@@ -1550,7 +1550,7 @@ body.vib .slide-list {
   font-size: 14px;
 }
 
-.ai-panel-title {
+.pane-title {
   display: flex;
   align-items: center;
   gap: 7px;

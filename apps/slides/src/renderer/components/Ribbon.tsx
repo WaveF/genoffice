@@ -2947,7 +2947,7 @@ export function Ribbon({
                 >
                   <span className="rb-big-icon">
                     {/* 28px box around the 22px art so the icon row matches the SVG glyphs' height */}
-                    <span className="ai-feature-icon" aria-hidden="true">
+                    <span className="rb-feature-icon" aria-hidden="true">
                       <img src={iconTransparency} width={22} height={22} alt="" />
                     </span>
                     <RbCaret />
@@ -3047,7 +3047,7 @@ export function Ribbon({
                 onClick={onPictureCrop}
               >
                 <span className="rb-big-icon">
-                  <span className="ai-feature-icon" aria-hidden="true">
+                  <span className="rb-feature-icon" aria-hidden="true">
                     <img src={iconCrop} width={22} height={22} alt="" />
                   </span>
                 </span>

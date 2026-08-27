@@ -75,7 +75,7 @@ export function AnimationPane({
   return (
     <aside className="comments-pane anim-pane">
       <div className="ai-panel-header">
-        <span className="ai-panel-title">{t('paneAnimTitle', { n: slideIndex + 1 })}</span>
+        <span className="pane-title">{t('paneAnimTitle', { n: slideIndex + 1 })}</span>
         <div className="ai-panel-header-actions">
           <button
             className="ai-header-btn"
