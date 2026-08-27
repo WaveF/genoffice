@@ -2651,30 +2651,6 @@ export function registerAiIpc(): void {
     activeAiStreams.get(requestId)?.abort()
   })
 
-  // shared search tools (content + images): Serper with DuckDuckGo fallback (same source as slides/sheets)
-  ipcMain.handle('ai:web-search', async (_event, query: string, maxResults?: number) => {
-    try {
-      return await webSearch(
-        String(query),
-        typeof maxResults === 'number' ? maxResults : 6,
-        gskCloudToolsOn(),
-      )
-    } catch (err) {
-      return { results: [], method: 'error', error: String(err) }
-    }
-  })
-  ipcMain.handle('ai:image-search', async (_event, query: string, maxResults?: number) => {
-    try {
-      return await imageSearch(
-        String(query),
-        typeof maxResults === 'number' ? maxResults : 8,
-        gskCloudToolsOn(),
-      )
-    } catch (err) {
-      return { images: [], method: 'error', error: String(err) }
-    }
-  })
-
   // download image from URL → base64+mime (download in the main process avoids CORS; the renderer builds the image node and measures size itself)
   ipcMain.handle(
     'docs:fetch-pasted-image',
@@ -2700,54 +2676,6 @@ export function registerAiIpc(): void {
     },
   )
 
-  // docs-owned (like pdf:generate-image): slides' ai:generate-image is only
-  // registered once a slides view exists, so docs needs its own channel
-  ipcMain.handle(
-    'docs:ai-generate-image',
-    async (_event, op: { prompt?: unknown; aspectRatio?: unknown }) => {
-      if (!hasGskAuth())
-        return {
-          error: 'Genspark account is not logged in on this machine; ask the user to log in first',
-        }
-      if (!gskCloudToolsOn())
-        return {
-          error:
-            'Genspark cloud tools are turned off in Settings (AI Model); enable them to use this tool',
-        }
-      const prompt = String(op?.prompt ?? '').trim()
-      if (!prompt) return { error: 'prompt must not be empty' }
-      try {
-        const r = await gskGenerateImage({
-          prompt,
-          aspectRatio: op?.aspectRatio ? String(op.aspectRatio) : undefined,
-        })
-        return { url: r.url }
-      } catch (err) {
-        return { error: err instanceof Error ? err.message : String(err) }
-      }
-    },
-  )
-
-  ipcMain.handle('ai:chat', async (_event, request: AiChatRequest) => {
-    const { settings, system, user } = request
-    const provider = settings.provider
-    let config = settings.providers?.[provider]
-    if (provider === 'genspark' && config && !config.apiKey) {
-      config = { ...config, apiKey: gskApiKey() }
-    }
-    if (!config?.apiKey) {
-      return {
-        ok: false,
-        error: provider === 'genspark' ? tm('errGskNotLoggedIn') : tm('errNoApiKey', { provider }),
-      }
-    }
-    if (!config.model) return { ok: false, error: tm('errNoModel') }
-    try {
-      return await chatForProvider(provider, config, system, user)
-    } catch (err) {
-      return { ok: false, error: String(err) }
-    }
-  })
 }
 
 // ── project-store IPC (shared across docs / slides / sheets) ──────────────
