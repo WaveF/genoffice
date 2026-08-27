@@ -10,15 +10,15 @@
 
 | ID | 工作项 | 状态 | 当前证据 / 剩余范围 |
 | --- | --- | --- | --- |
-| SUN7-01 | Slides 下线验收 | 待手工回归 | renderer/runtime 已删除；需手工验证编辑、保存、undo。 |
+| SUN7-01 | Slides 下线验收 | 待手工回归 | 自动 typecheck 已通过；仍需手工验证编辑、保存、undo。 |
 | SUN7-02 | Docs/Markdown UI 与 renderer 收尾 | 已完成 | Docs 已删除聊天/流式/搜索/生成 IPC 与 provider 依赖；本轮又物理删除隐藏 Ribbon、专用翻译与样式。普通网页图片粘贴保留为 `docs:fetch-pasted-image`。Markdown 已无内置 AI renderer。 |
-| SUN7-03 | Sheets 运行时与 IPC 收尾 | 进行中 | 内置 Agent、transport、IPC 与 provider 依赖已删除；MCP 惰性读取已迁至 `mcp-workbook-readers.ts`，原 `renderer/ai/` 目录已删除。仍需审计 App 中不可达的旧聊天状态。 |
+| SUN7-03 | Sheets 运行时与 IPC 收尾 | 已完成 | 内置 Agent、transport、IPC、聊天状态、规则解析器与 provider 依赖已删除；MCP 惰性读取已迁至 `mcp-workbook-readers.ts`，原 `renderer/ai/` 目录已删除。Sheets typecheck 与 35 项 MCP 回归通过。 |
 | SUN7-04 | PDF renderer 与 IPC 收尾 | 已完成 | `_aiApi`、AI 面板/stream/image bridge、隐藏控件及关联样式均已删除；PDF typecheck 已通过。 |
 | SUN7-05 | Shell 全局设置与 provider 表面 | 已完成 | AI 设置导航、preload、HomeApi、provider 品牌资源及不可达 `AiModelPane` 均已物理删除；Shell typecheck 仅保留既有的 `tab-manager.ts` 无关基线错误。 |
 | SUN7-06 | 全局 IPC 删除 | 已完成 | Docs、Sheets 的 `ai:*` handlers/preload 已删除；Docs 安全图片粘贴改为独立 `docs:*` IPC。 |
 | SUN7-07 | 包与聊天存储删除 | 已完成 | 已删除 `packages/ai-provider`、`packages/agent-core`、各应用依赖与根脚本/lockfile workspace 条目。 |
-| SUN7-08 | i18n、资源、测试、文档 | 进行中 | 已删除 Docs 专用 AI 翻译、Slides 无调用图标；仍需清理可证实无调用的 AI 样式/i18n，以及原始规划文档中的过时状态。 |
-| SUN7-09 | 质量门禁 | 进行中 | Docs/Sheets/PDF/Slides typecheck 及 Docs/Sheets MCP 回归已通过；仍需 Shell 基线复核和手工 Office 编辑回归。 |
+| SUN7-08 | i18n、资源、测试、文档 | 已完成 | 已删除 Docs/Sheets 专用 AI 翻译、无调用菜单徽章、Slides 无调用图标/样式；源码中无可达 AI 翻译调用。 |
+| SUN7-09 | 质量门禁 | 待手工回归 | Docs/Sheets/PDF/Slides typecheck 通过，5 个 MCP 测试文件共 37 项通过，provider/IPC/运行时标识静态搜索为零；Shell 仅保留既有 `tab-manager.ts(281)` 基线错误。仍需人工 Office 编辑冒烟。 |
 
 ## 执行顺序与退出条件
 
@@ -34,3 +34,4 @@
 - `SUN7-03`：Sheets 的惰性 MCP 读取复用了原 `ai/workbook-readers.ts`。清理时应把该模块迁至 MCP/通用读取域，不能因目录名直接删除，避免回退已交付的 `sheets.read_range` 能力。
 - `SUN7-03` 更新：读取模块已迁移至 `mcp-workbook-readers.ts`，并通过 Sheets typecheck 与 35 项 MCP 回归；下一轮只处理无调用的旧聊天状态，不触及 MCP 读取路径。
 - `SUN7-08`：Slides 有部分普通格式面板沿用 `ai-*` CSS 类名。对于仍有调用的样式必须先改为中性名称；仅凭类名前缀不得删除。
+- `SUN7-09` 自动验证（2026-08-28）：Docs、Sheets、PDF、Slides typecheck 均通过；`mcp-adapter`、`mcp-lazy-reader`、`mcp-revision`、Shell MCP gateway 共 37 项测试通过；`@genoffice/(ai-provider|agent-core)`、`ai:*` IPC、旧内部运行时标识及可达 AI 翻译调用均为零命中。Shell typecheck 仍命中既有 `src/main/tab-manager.ts(281,35)` 参数类型错误，未由本阶段变更引入。
