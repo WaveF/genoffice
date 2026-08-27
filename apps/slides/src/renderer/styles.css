@@ -582,56 +582,6 @@ button {
   flex-shrink: 0;
 }
 
-/* AI badge shared by ribbon button and (later) AI panel title */
-.copilot-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 7px;
-  color: var(--slides-on-accent);
-  background: var(--slides-copilot-grad);
-  box-shadow: var(--slides-shadow-badge);
-}
-
-/* Mini variant: corner marker on ribbon buttons whose action calls AI (Spelling / Translate) */
-.rb-ai-icon {
-  position: relative;
-}
-
-.copilot-badge-mini {
-  position: absolute;
-  /* hugs the bottom-right corner of the centered 28px icon */
-  left: calc(50% + 7px);
-  bottom: -1px;
-  width: 13px;
-  height: 13px;
-  border-radius: 4px;
-  box-shadow: none;
-}
-
-/* AI entry points all use the app icon (Ribbon AI button / AI panel title / collapsed entry) */
-.app-badge {
-  display: block;
-  width: 22px;
-  height: 22px;
-  border-radius: 7px;
-  box-shadow: var(--slides-shadow-badge-soft);
-}
-
-/* Genspark brand logo (Ribbon AI button / AI panel title / collapsed entry) */
-.genspark-badge {
-  display: block;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-}
-
-.ai-panel-title .genspark-badge {
-  width: 18px;
-  height: 18px;
-}
 /* ---- ribbon body ---- */
 
 .ribbon-body {
@@ -817,25 +767,6 @@ button {
 }
 
 /* hover/open paint only the icon row — the label below
-
-/* AI button: brand logo only — no gray plate behind the icon, label stays black */
-.rb-big.rb-ai {
-  font-size: 11px;
-  font-weight: 500;
-}
-
-.rb-big.rb-ai > span:not(.rb-big-icon) {
-  margin-top: -1px;
-}
-
-.rb-big.rb-ai.active {
-  color: var(--color-text-primary);
-}
-
-.rb-big.rb-ai.active .rb-big-icon,
-.rb-big.rb-ai:hover .rb-big-icon {
-  background: none;
-}
 
 /* PowerPoint-style: hover/open paint only the icon row — the label below
  * stays outside the gray. The box spans the whole button width (align-self
