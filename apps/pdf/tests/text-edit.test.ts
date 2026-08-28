@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import {
   applyTextEdits,
   applyTextInserts,
+  canDrawText,
   mergeEngineCodepoints,
   textInsertAxes,
   validateTextEdits,
@@ -305,9 +306,10 @@ describe('applyTextEdits', () => {
   it('skips an edit whose replacement no available font can draw', async () => {
     if (!existsSync('/System/Library/Fonts/Supplemental/Arial Unicode.ttf')) return
     const f = await makeFixture('Amount due 500')
-    // Emoji sit beyond every rebuild face incl. the fallback; embedding them would strand
-    // missing glyphs and abort the save at read-back verification — skip the edit instead
-    const result = await applyTextEdits(f.bytes, [edit(f, 'Amount due 500', 'Pay 🦄 now')])
+    // U+10FFFF is a Unicode noncharacter and cannot appear in a font cmap;
+    // unlike emoji, this remains deterministic across hosts with different fallback fonts.
+    expect(canDrawText('\u{10FFFF}')).toBe(false)
+    const result = await applyTextEdits(f.bytes, [edit(f, 'Amount due 500', 'Pay \u{10FFFF} now')])
     expect(result.skipped).toHaveLength(1)
     expect(result.skipped[0]!.reason).toContain('no available font')
     expect(result.bytes).toBe(f.bytes)
