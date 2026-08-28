@@ -349,4 +349,92 @@ test.describe('MCP stdio adapter + Shell bridge', () => {
       await closeAndSaveVideo(launched, 'mcp-shell-documents')
     }
   })
+
+  test('applies Docs text edits and bounded undo/redo through the real bridge', async () => {
+    const launched = await launchShell({ onboardingSeen: true, videoDir: 'mcp-shell-docs-write' })
+    const discoveryPath = join(launched.userDataDir, 'mcp', 'bridge.json')
+    let client: StdioMcpClient | undefined
+    try {
+      await waitForFile(discoveryPath)
+      client = new StdioMcpClient(discoveryPath)
+      await client.request('initialize', {
+        protocolVersion: '2025-06-18',
+        clientInfo: { name: 'genoffice-e2e-docs-write' },
+      })
+      const created = JSON.parse(
+        resultText(
+          await client.request('tools/call', {
+            name: 'create_document',
+            arguments: { kind: 'docs' },
+          }),
+        ),
+      ) as { documentId: string; revision: number }
+      await waitForPageWithUrl(launched.app, 'docs/out')
+      await requestUntilRendererReady(client, 'docs.get_context', {
+        documentId: created.documentId,
+      })
+      const initialStatus = JSON.parse(
+        resultText(
+          await client.request('tools/call', {
+            name: 'get_document_status',
+            arguments: { documentId: created.documentId },
+          }),
+        ),
+      ) as { revision: number }
+
+      const inserted = await requestUntilRendererReady(client, 'docs.insert_content', {
+        documentId: created.documentId,
+        expectedRevision: initialStatus.revision,
+        content: 'MCP Docs text',
+      })
+      const insertedRevision = JSON.parse(resultText(inserted)) as { revision: number }
+      expect(insertedRevision, 'Docs insert response').toMatchObject({
+        revision: expect.any(Number),
+      })
+      expect(insertedRevision.revision).toBeGreaterThan(created.revision)
+
+      const stale = await client.request('tools/call', {
+        name: 'docs.insert_content',
+        arguments: {
+          documentId: created.documentId,
+          expectedRevision: initialStatus.revision,
+          content: 'Stale text',
+        },
+      })
+      expect(stale.result).toMatchObject({ isError: true })
+      expect(JSON.parse(resultText(stale))).toMatchObject({ code: 'conflict' })
+
+      const undone = await client.request('tools/call', {
+        name: 'docs.apply_commands',
+        arguments: {
+          documentId: created.documentId,
+          expectedRevision: insertedRevision.revision,
+          commands: [{ op: 'undo' }],
+        },
+      })
+      const undoneRevision = JSON.parse(resultText(undone)) as { revision: number }
+      expect(undoneRevision.revision).toBeGreaterThan(insertedRevision.revision)
+
+      const redone = await client.request('tools/call', {
+        name: 'docs.apply_commands',
+        arguments: {
+          documentId: created.documentId,
+          expectedRevision: undoneRevision.revision,
+          commands: [{ op: 'redo' }],
+        },
+      })
+      const redoneRevision = JSON.parse(resultText(redone)) as { revision: number }
+      const blocks = await client.request('tools/call', {
+        name: 'docs.read_blocks',
+        arguments: { documentId: created.documentId },
+      })
+      expect(redoneRevision.revision).toBeGreaterThan(undoneRevision.revision)
+      expect(JSON.parse(resultText(blocks))).toMatchObject({
+        blocks: expect.arrayContaining([expect.objectContaining({ text: 'MCP Docs text' })]),
+      })
+    } finally {
+      client?.close()
+      await closeAndSaveVideo(launched, 'mcp-shell-docs-write')
+    }
+  })
 })

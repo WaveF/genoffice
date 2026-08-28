@@ -267,6 +267,34 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
         },
       },
     },
+    ...(kind === 'docs'
+      ? [
+          {
+            name: 'docs.apply_commands',
+            description: 'Apply a bounded sequence of explicit Docs undo or redo commands.',
+            inputSchema: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['documentId', 'expectedRevision', 'commands'],
+              properties: {
+                documentId: { type: 'string', minLength: 1, maxLength: 128 },
+                expectedRevision: { type: 'integer', minimum: 0 },
+                commands: {
+                  type: 'array',
+                  minItems: 1,
+                  maxItems: 10,
+                  items: {
+                    type: 'object',
+                    additionalProperties: false,
+                    required: ['op'],
+                    properties: { op: { enum: ['undo', 'redo'] } },
+                  },
+                },
+              },
+            },
+          },
+        ]
+      : []),
   ]),
   ...(
     [
@@ -853,11 +881,14 @@ export class ShellMcpGateway implements McpBridgeGateway {
       name === 'docs.insert_content' ||
       name === 'docs.replace_blocks' ||
       name === 'markdown.insert_content' ||
-      name === 'markdown.replace_blocks'
+      name === 'markdown.replace_blocks' ||
+      name === 'docs.apply_commands'
     ) {
       const [kind] = name.split('.') as ['docs' | 'markdown']
       const { documentId, expectedRevision } =
-        this.requireDocumentRevisionWithContent(argumentsValue)
+        name === 'docs.apply_commands'
+          ? this.requireDocumentRevisionWithCommands(argumentsValue)
+          : this.requireDocumentRevisionWithContent(argumentsValue)
       const target = await this.requireRendererTarget(documentId, kind)
       if (target.revision !== expectedRevision)
         throw new CapabilityError('conflict', 'Document changed since it was read', {
@@ -1132,6 +1163,35 @@ export class ShellMcpGateway implements McpBridgeGateway {
         'validation_error',
         'documentId, expectedRevision, and bounded content are required',
       )
+    return base
+  }
+
+  private requireDocumentRevisionWithCommands(argumentsValue: Record<string, unknown>): {
+    documentId: string
+    expectedRevision: number
+  } {
+    const base = this.requireDocumentRevision({
+      documentId: argumentsValue.documentId,
+      expectedRevision: argumentsValue.expectedRevision,
+    })
+    const commands = argumentsValue.commands
+    if (
+      !Array.isArray(commands) ||
+      commands.length === 0 ||
+      commands.length > 10 ||
+      Object.keys(argumentsValue).length !== 3 ||
+      commands.some(
+        (command) =>
+          !isRecord(command) ||
+          Object.keys(command).length !== 1 ||
+          !['undo', 'redo'].includes(String(command.op)),
+      )
+    ) {
+      throw new CapabilityError(
+        'validation_error',
+        'documentId, expectedRevision, and bounded undo/redo commands are required',
+      )
+    }
     return base
   }
 

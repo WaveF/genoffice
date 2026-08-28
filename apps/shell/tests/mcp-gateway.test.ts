@@ -300,6 +300,29 @@ describe('ShellMcpGateway', () => {
     ).rejects.toMatchObject({ code: 'conflict' })
   })
 
+  it('routes only bounded Docs undo/redo commands through the renderer write queue', async () => {
+    const docsTarget = { ...target, kind: 'docs' as const }
+    const result = await gatewayWith([docsTarget]).handle(
+      request({
+        name: 'docs.apply_commands',
+        input: { documentId: 'doc-123', expectedRevision: 3, commands: [{ op: 'undo' }] },
+      }),
+    )
+    expect(result).toMatchObject({ mutated: true, revision: 3 })
+    expect(JSON.parse((result as { content: string }).content)).toMatchObject({
+      action: 'docs.apply_commands',
+      input: { documentId: 'doc-123', expectedRevision: 3, commands: [{ op: 'undo' }] },
+    })
+    await expect(
+      gatewayWith([docsTarget]).handle(
+        request({
+          name: 'docs.apply_commands',
+          input: { documentId: 'doc-123', expectedRevision: 3, commands: [{ op: 'toggleBold' }] },
+        }),
+      ),
+    ).rejects.toMatchObject({ code: 'validation_error' })
+  })
+
   it('requires a Sheets revision and sends operation batches through the renderer write queue', async () => {
     const sheetsTarget = { ...target, kind: 'sheets' as const }
     const result = await gatewayWith([sheetsTarget]).handle(

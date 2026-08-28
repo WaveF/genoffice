@@ -31,7 +31,12 @@ function blocks(editor: Editor) {
 /** Fixed, model-free Docs capability adapter used only by the renderer bridge. */
 export function handleDocsMcpRequest(
   editor: Editor,
-  action: 'docs.get_context' | 'docs.read_blocks' | 'docs.insert_content' | 'docs.replace_blocks',
+  action:
+    | 'docs.get_context'
+    | 'docs.read_blocks'
+    | 'docs.insert_content'
+    | 'docs.replace_blocks'
+    | 'docs.apply_commands',
   input: Record<string, unknown>,
 ): unknown {
   const all = blocks(editor)
@@ -53,7 +58,17 @@ export function handleDocsMcpRequest(
     const start = input.start
     const end = input.end
     const content = input.content
-    if (typeof start !== 'number' || typeof end !== 'number' || !Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || end < start || end >= all.length || typeof content !== 'string' || content.length > MAX_BLOCK_TEXT)
+    if (
+      typeof start !== 'number' ||
+      typeof end !== 'number' ||
+      !Number.isSafeInteger(start) ||
+      !Number.isSafeInteger(end) ||
+      start < 0 ||
+      end < start ||
+      end >= all.length ||
+      typeof content !== 'string' ||
+      content.length > MAX_BLOCK_TEXT
+    )
       throw new Error('start/end and bounded content are required')
     let from = 0
     let to = 0
@@ -62,6 +77,28 @@ export function handleDocsMcpRequest(
       if (index === end) to = offset + node.nodeSize
     })
     editor.commands.insertContentAt({ from, to }, content)
+    return { applied: true, blockCount: blocks(editor).length }
+  }
+  if (action === 'docs.apply_commands') {
+    const commands = input.commands
+    if (!Array.isArray(commands) || commands.length === 0 || commands.length > 10)
+      throw new Error('commands must contain between 1 and 10 bounded commands')
+    for (const command of commands) {
+      if (
+        !command ||
+        typeof command !== 'object' ||
+        Array.isArray(command) ||
+        Object.keys(command).length !== 1 ||
+        !['undo', 'redo'].includes((command as { op?: unknown }).op as string)
+      ) {
+        throw new Error('only explicit undo and redo commands are supported')
+      }
+      const applied =
+        (command as { op: 'undo' | 'redo' }).op === 'undo'
+          ? editor.commands.undo()
+          : editor.commands.redo()
+      if (!applied) throw new Error(`unable to ${(command as { op: string }).op} document change`)
+    }
     return { applied: true, blockCount: blocks(editor).length }
   }
   const { start, limit } = asRange(input)

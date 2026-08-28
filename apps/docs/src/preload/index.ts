@@ -5,7 +5,12 @@ import type { ProjectApi } from '@genoffice/project-store'
 
 type DocsMcpRequest = {
   requestId: string
-  action: 'docs.get_context' | 'docs.read_blocks' | 'docs.insert_content' | 'docs.replace_blocks'
+  action:
+    | 'docs.get_context'
+    | 'docs.read_blocks'
+    | 'docs.insert_content'
+    | 'docs.replace_blocks'
+    | 'docs.apply_commands'
   input: Record<string, unknown>
 }
 
