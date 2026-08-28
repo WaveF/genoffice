@@ -66,7 +66,6 @@ function menuProps(editor: Editor, overrides: Record<string, unknown> = {}) {
     onParagraphDialog: noop,
     onLink: noop,
     onNewComment: noop,
-    onAiPreset: noop,
     ...overrides,
   }
 }
@@ -109,37 +108,6 @@ describe('EditorContextMenu', () => {
     expect(onClose).toHaveBeenCalled()
     act(() => byLabel('字体…').click())
     expect(onFontDialog).toHaveBeenCalledOnce()
-    unmount()
-    editor.destroy()
-  })
-
-  it('sends the selected text to the AI panel for Synonyms', () => {
-    const editor = createEditor()
-    select(editor, 1, 4)
-    const onAiPreset = vi.fn()
-    const { container, unmount } = render(
-      createElement(EditorContextMenu, menuProps(editor, { onAiPreset })),
-    )
-    const synonym = [...container.querySelectorAll<HTMLButtonElement>('.ctx-item')].find(
-      (b) => b.querySelector('.ctx-label')?.textContent === '同义词',
-    )!
-    expect(synonym.disabled).toBe(false)
-    act(() => synonym.click())
-    expect(onAiPreset).toHaveBeenCalledOnce()
-    expect(String(onAiPreset.mock.calls[0][0])).toContain('EVs')
-    unmount()
-    editor.destroy()
-  })
-
-  it('marks AI-backed items (Synonyms/Translate) with the copilot badge', () => {
-    const editor = createEditor()
-    select(editor, 1, 4)
-    const { container, unmount } = render(createElement(EditorContextMenu, menuProps(editor)))
-    const badged = [...container.querySelectorAll<HTMLButtonElement>('.ctx-item')]
-      .filter((b) => b.querySelector('.copilot-badge'))
-      .map((b) => b.querySelector('.ctx-label')?.textContent)
-    expect(badged).toContain('同义词')
-    expect(badged).toContain('翻译')
     unmount()
     editor.destroy()
   })

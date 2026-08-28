@@ -28,7 +28,7 @@ import { useModalKeys } from './modal-keys'
 
 /**
  * Editor context menu (right click in the document body):
- * Cut/Copy/Paste · Font… · Paragraph… · Synonyms · Translate · Hyperlink… · New Comment.
+ * Cut/Copy/Paste · Font… · Paragraph… · Hyperlink… · New Comment.
  */
 
 export interface ContextMenuState {
