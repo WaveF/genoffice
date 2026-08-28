@@ -34,10 +34,11 @@ const THEME_OPTIONS = [
   { value: 'dark', labelKey: 'themeDark' },
 ] as const satisfies readonly { value: UiTheme; labelKey: StringKey }[]
 
-type SectionId = 'general' | 'mcp' | 'about'
+type SectionId = 'general' | 'mcp' | 'skills' | 'about'
 const SECTIONS: readonly { id: SectionId; label?: string; labelKey?: StringKey }[] = [
   { id: 'general', labelKey: 'setSecGeneral' },
   { id: 'mcp', label: 'MCP' },
+  { id: 'skills', label: '技能' },
   { id: 'about', labelKey: 'setSecAbout' },
 ]
 
@@ -73,6 +74,23 @@ function SectionIcon({ id }: { id: SectionId }) {
           strokeWidth="1.3"
           strokeLinecap="round"
           strokeLinejoin="round"
+        />
+      </svg>
+    )
+  if (id === 'skills')
+    return (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path
+          d="M3 3.4h6.5a2 2 0 0 1 2 2v7.2H5a2 2 0 0 0-2 .9V3.4Z"
+          stroke="currentColor"
+          strokeWidth="1.3"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M5.2 6.2h4.2M5.2 8.6h3.2"
+          stroke="currentColor"
+          strokeWidth="1.3"
+          strokeLinecap="round"
         />
       </svg>
     )
@@ -121,8 +139,6 @@ export function SettingsModal({ onClose }: { onClose: () => void; [key: string]:
   const [section, setSection] = useState<SectionId>('general')
   const [theme, setTheme] = useState<UiTheme>('system')
   const [saveDir, setSaveDir] = useState('')
-  const [analyticsOn, setAnalyticsOn] = useState(true)
-  const [analyticsSaving, setAnalyticsSaving] = useState(false)
   const [appVersion, setAppVersion] = useState('')
   const [mcp, setMcp] = useState<McpConnectionInfo | null>(null)
   const [copied, setCopied] = useState(false)
@@ -132,9 +148,6 @@ export function SettingsModal({ onClose }: { onClose: () => void; [key: string]:
     let alive = true
     void window.aiOffice.getTheme?.().then((value) => alive && setTheme(value))
     void window.aiOffice.getDefaultSaveDir?.().then((value) => alive && value && setSaveDir(value))
-    void window.aiOffice
-      .getAnalyticsEnabled?.()
-      .then((value) => alive && setAnalyticsOn(value !== false))
     void window.aiOffice.getAppVersion?.().then((value) => alive && value && setAppVersion(value))
     void window.aiOffice.getMcpConnectionInfo?.().then((value) => alive && setMcp(value))
     return () => {
@@ -239,69 +252,36 @@ export function SettingsModal({ onClose }: { onClose: () => void; [key: string]:
                     </button>
                   }
                 />
-                <div className="set-field">
-                  <div className="set-field-text">
-                    <div className="set-field-stack">
-                      <div className="set-field-label">{t('setAnalytics')}</div>
-                      <div className="set-field-desc">{t('setAnalyticsDesc')}</div>
-                    </div>
-                  </div>
-                  <button
-                    className="set-switch"
-                    role="switch"
-                    aria-checked={analyticsOn}
-                    aria-label={t('setAnalytics')}
-                    disabled={analyticsSaving}
-                    onClick={() => {
-                      const next = !analyticsOn
-                      setAnalyticsSaving(true)
-                      void window.aiOffice
-                        .setAnalyticsEnabled(next)
-                        .then((saved) => saved && setAnalyticsOn(next))
-                        .catch(() => {})
-                        .finally(() => setAnalyticsSaving(false))
-                    }}
-                  />
-                </div>
               </>
             )}
             {section === 'mcp' && (
               <>
                 <h3 className="set-pane-title">MCP</h3>
-                <div className="set-field-stack set-mcp-intro">
-                  <div className="set-field-label">连接外部 AI</div>
-                  <div className="set-field-desc">
-                    将下方指引复制给第三方 Agent；它会从本机 discovery 文件读取当前会话的 MCP 配置。
-                  </div>
-                </div>
                 <Field
                   label="连接状态"
                   value={mcp?.available ? '本地 bridge 已运行' : '本地 bridge 未运行'}
+                  action={
+                    <span
+                      className={`set-mcp-status-dot${mcp?.available ? ' online' : ''}`}
+                      aria-label={mcp?.available ? '运行中' : '未运行'}
+                    />
+                  }
                 />
-                <Field
-                  label="discovery 文件"
-                  value={mcp?.discoveryPath ?? '—'}
-                  valueTitle={mcp?.discoveryPath}
-                />
-                {mcp?.adapterPath && (
-                  <Field
-                    label="内置 adapter"
-                    value={mcp.adapterPath}
-                    valueTitle={mcp.adapterPath}
-                  />
-                )}
                 <div className="set-mcp-actions">
                   <button
                     className="set-btn primary"
                     disabled={!mcp?.available}
                     onClick={copyPrompt}
                   >
-                    {copied ? '已复制' : '复制给 AI'}
+                    {copied ? '已复制' : '复制给 AI 使用'}
                   </button>
                 </div>
-                <pre className="set-mcp-prompt">
-                  {prompt || '启动 GenOffice 后将在这里显示 MCP 连接信息。'}
-                </pre>
+              </>
+            )}
+            {section === 'skills' && (
+              <>
+                <h3 className="set-pane-title">技能</h3>
+                <p className="set-skills-coming">Coming Soon</p>
               </>
             )}
             {section === 'about' && (

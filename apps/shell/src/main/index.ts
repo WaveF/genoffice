@@ -48,15 +48,7 @@ import {
   showSaveDialogWithMemory,
   windowMenuTemplate,
 } from '@genoffice/electron-utils'
-import { readAppSettings, writeAppSetting, writeAppSettings } from './app-settings'
-import {
-  ANALYTICS_ENABLED_KEY,
-  analyticsEnabledFrom,
-  createAnalytics,
-  ensureAnalyticsClientId,
-  extractPackagedAnalyticsKeys,
-} from './analytics'
-import type { Analytics, AnalyticsKeys } from './analytics'
+import { readAppSettings, writeAppSetting } from './app-settings'
 import {
   LAST_RUN_VERSION_KEY,
   STAR_PROMPT_KEY,
@@ -196,8 +188,6 @@ import { ShellMcpGateway } from './mcp/gateway'
 import { AuthenticatedMcpPermissionGate } from './mcp/permissions'
 import { FileMcpAuditLogger } from './mcp/audit'
 import { SlidesMcpAdapter, waitForSlidesMcpSession } from '../../../slides/src/main/mcp-adapter'
-import { applyUpdateChannel, initAutoUpdater } from './updater'
-import { isUpdateChannel, type UpdateChannel } from '../shared/update-api'
 import type { DocumentKind, DocumentTarget } from '@genoffice/capabilities'
 
 /**
@@ -315,15 +305,6 @@ function persistLang(lang: Lang): void {
   writeAppSetting(APP_SETTINGS_PATH(), 'language', lang)
 }
 
-let cachedUpdateChannel: UpdateChannel | null = null
-
-function currentUpdateChannel(): UpdateChannel {
-  if (cachedUpdateChannel) return cachedUpdateChannel
-  const saved = readAppSettings(APP_SETTINGS_PATH()).updateChannel
-  cachedUpdateChannel = isUpdateChannel(saved) ? saved : 'stable'
-  return cachedUpdateChannel
-}
-
 let cachedTheme: UiTheme | null = null
 
 function currentTheme(): UiTheme {
@@ -331,69 +312,6 @@ function currentTheme(): UiTheme {
   const saved = readAppSettings(APP_SETTINGS_PATH()).theme
   cachedTheme = saved === 'light' || saved === 'dark' ? saved : 'system'
   return cachedTheme
-}
-
-// ---- anonymous usage analytics (see src/main/analytics.ts) ----
-// Stays a no-op until initAnalytics() runs at startup; keyless builds
-// (source/forks) keep the no-op forever, so every track() call is safe.
-
-let analytics: Analytics = { active: false, track: () => {} }
-
-let cachedAnalyticsEnabled: boolean | null = null
-
-function analyticsEnabled(): boolean {
-  cachedAnalyticsEnabled ??= analyticsEnabledFrom(readAppSettings(APP_SETTINGS_PATH()))
-  return cachedAnalyticsEnabled
-}
-
-function resolveAnalyticsKeys(): AnalyticsKeys | null {
-  // Only packaged extraMetadata is authoritative. Source/dev runs never read
-  // runtime credentials and therefore remain a strict no-op.
-  if (!app.isPackaged) return null
-  try {
-    return extractPackagedAnalyticsKeys(
-      JSON.parse(readFileSync(join(app.getAppPath(), 'package.json'), 'utf8')),
-      app.isPackaged,
-    )
-  } catch {
-    return null
-  }
-}
-
-function persistAnalyticsPreference(enabled: boolean): boolean {
-  const previous = cachedAnalyticsEnabled
-  // Change the in-memory gate before touching disk. The synchronous atomic
-  // write prevents another event from being handled in between.
-  cachedAnalyticsEnabled = enabled
-  try {
-    writeAppSettings(APP_SETTINGS_PATH(), { [ANALYTICS_ENABLED_KEY]: enabled })
-    return true
-  } catch (error) {
-    cachedAnalyticsEnabled = previous
-    throw error
-  }
-}
-
-function initAnalytics(): void {
-  try {
-    analytics = createAnalytics({
-      keys: resolveAnalyticsKeys(),
-      getClientId: () => ensureAnalyticsClientId(APP_SETTINGS_PATH()),
-      isEnabled: analyticsEnabled,
-      // Country-only approximation from OS regional settings. This avoids an
-      // IP lookup while populating GA4's built-in Country dimension.
-      getCountryCode: () => app.getLocaleCountryCode(),
-      // evaluated per event: ui_lang follows live language switches
-      baseParams: () => ({
-        app_version: app.getVersion(),
-        platform: process.platform,
-        os_version: process.getSystemVersion(),
-        ui_lang: currentLang(),
-      }),
-    })
-  } catch {
-    // analytics must never block startup
-  }
 }
 
 // ---- first-run onboarding ----
@@ -2607,7 +2525,6 @@ function openDocumentPath(filePath: string): boolean {
   if (opened) {
     recordStarPromptDocOpen()
     // extension only — never the file name or path
-    analytics.track('file_open', { ext: extname(filePath).slice(1).toLowerCase() })
   }
   return opened
 }
@@ -2695,7 +2612,6 @@ async function newSheetTab(): Promise<void> {
     // route directly (not via openDocumentPath) so creating a sheet emits
     // only file_new — the file_open event is reserved for opening existing files
     if (routeDocumentPath(filePath)) recordStarPromptDocOpen()
-    analytics.track('file_new', { kind: 'xlsx' })
   } catch (err) {
     console.warn('[shell] blank workbook create failed, opening in-memory blank tab:', err)
     try {
@@ -2722,7 +2638,6 @@ function newDocTab(): void {
     tabManager?.openDocsTab(undefined, { newBlank: true })
     // creating a document is as much a value moment as opening one
     recordStarPromptDocOpen()
-    analytics.track('file_new', { kind: 'docx' })
   } catch (err) {
     surfaceNewTabError(err)
   }
@@ -2732,7 +2647,6 @@ function newSlideTab(): void {
   try {
     tabManager?.openSlidesTab()
     recordStarPromptDocOpen()
-    analytics.track('file_new', { kind: 'pptx' })
   } catch (err) {
     surfaceNewTabError(err)
   }
@@ -2742,7 +2656,6 @@ function newMarkdownTab(): void {
   try {
     tabManager?.openMarkdownTab()
     recordStarPromptDocOpen()
-    analytics.track('file_new', { kind: 'md' })
   } catch (err) {
     surfaceNewTabError(err)
   }
@@ -2792,9 +2705,6 @@ async function createMcpDocument(kind: DocumentKind): Promise<DocumentTarget> {
   if (!target) throw new Error('Created document could not be resolved')
   if (target.kind === 'slides') await waitForSlidesMcpSession(target.webContentsId)
   recordStarPromptDocOpen()
-  analytics.track('file_new', {
-    kind: kind === 'docs' ? 'docx' : kind === 'sheets' ? 'xlsx' : kind === 'slides' ? 'pptx' : kind,
-  })
   return target
 }
 
@@ -2814,7 +2724,6 @@ async function newPdfTab(): Promise<void> {
     // route directly (not via openDocumentPath) so creating a pdf emits only
     // file_new and counts one doc-open — same as the blank workbook above
     if (routeDocumentPath(filePath)) recordStarPromptDocOpen()
-    analytics.track('file_new', { kind: 'pdf' })
   } catch (err) {
     surfaceNewTabError(err)
   }
@@ -2871,7 +2780,6 @@ function registerHomeIpc(): void {
   // kept main-side so the "open manually" rescue never opens a renderer-supplied URL
   let pendingLoginUrl = ''
   ipcMain.handle(HOME_CHANNELS.accountLogin, async (event) => {
-    analytics.track('login_click')
     const sender = event.sender
     pendingLoginUrl = ''
     await proxyBootstrap
@@ -2888,7 +2796,6 @@ function registerHomeIpc(): void {
           void shell.openExternal(progress.url)
         }
       }
-      if (progress.phase === 'success') analytics.track('login_success')
       send(progress)
     })
     if (launched) send({ phase: 'launched' })
@@ -3077,8 +2984,6 @@ function registerHomeIpc(): void {
     for (const wc of webContents.getAllWebContents()) wc.send('app:language-changed', lang)
   })
 
-  ipcMain.handle(HOME_CHANNELS.getUpdateChannel, (): UpdateChannel => currentUpdateChannel())
-
   ipcMain.handle(HOME_CHANNELS.mcpConnectionInfo, (): McpConnectionInfo => {
     const discoveryPath = join(app.getPath('userData'), 'mcp', 'bridge.json')
     return {
@@ -3086,13 +2991,6 @@ function registerHomeIpc(): void {
       discoveryPath,
       ...(existsSync(MCP_ADAPTER_PATH) ? { adapterPath: MCP_ADAPTER_PATH } : {}),
     }
-  })
-
-  ipcMain.handle(HOME_CHANNELS.setUpdateChannel, (_event, channel: unknown) => {
-    if (!isUpdateChannel(channel) || channel === currentUpdateChannel()) return
-    cachedUpdateChannel = channel
-    writeAppSetting(APP_SETTINGS_PATH(), 'updateChannel', channel)
-    applyUpdateChannel(channel)
   })
 
   ipcMain.handle(
@@ -3120,13 +3018,6 @@ function registerHomeIpc(): void {
     writeAppSetting(APP_SETTINGS_PATH(), 'theme', theme)
     nativeTheme.themeSource = theme
     for (const wc of webContents.getAllWebContents()) wc.send('app:theme-changed', theme)
-  })
-
-  ipcMain.handle(HOME_CHANNELS.getAnalyticsEnabled, (): boolean => analyticsEnabled())
-
-  ipcMain.handle(HOME_CHANNELS.setAnalyticsEnabled, (_event, enabled: unknown): boolean => {
-    if (typeof enabled !== 'boolean') return false
-    return persistAnalyticsPreference(enabled)
   })
 
   // effective folder where new/untitled files land; the editor mains resolve
@@ -4274,8 +4165,6 @@ app.whenReady().then(async () => {
   } catch {
     // settings write failures must never block startup
   }
-  initAnalytics()
-  analytics.track('app_launch')
   startSheetsCaptureServer()
   createShellWindow()
   if (tabManager) {
@@ -4309,7 +4198,8 @@ app.whenReady().then(async () => {
   // deferred to ready: labels need currentLang(), which reads app.getLocale()
   installBackToHomeItems()
   installDockMenu()
-  initAutoUpdater(() => shellWindow, currentUpdateChannel())
+  // This fork deliberately has no trusted update feed. Do not contact the
+  // upstream channel until a project-owned signed release channel exists.
 
   if (!pendingLaunchPath || !openDocumentPath(pendingLaunchPath)) tabManager?.openHomeTab()
   pendingLaunchPath = null

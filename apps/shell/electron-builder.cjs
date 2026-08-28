@@ -13,12 +13,6 @@
  * the publish config is omitted: electron-builder then bakes no
  * app-update.yml into the app and in-app auto-update stays disabled.
  *
- * GENOFFICE_GA4_MEASUREMENT_ID / GENOFFICE_GA4_API_SECRET — GA4 Measurement
- * Protocol credentials for anonymous usage analytics, injected the same way
- * (CI secrets, or apps/shell/electron-builder.env locally). They are written
- * into the packaged app's package.json via extraMetadata and read back by
- * src/main/analytics.ts. When either is unset — every source/fork build —
- * nothing is injected and the app runs with analytics fully disabled.
  */
 
 const { execFileSync } = require('node:child_process')
@@ -26,16 +20,11 @@ const { existsSync, rmSync } = require('node:fs')
 const { dirname, isAbsolute, join } = require('node:path')
 
 const updateUrl = process.env.GENOFFICE_UPDATE_URL
-const ga4MeasurementId = process.env.GENOFFICE_GA4_MEASUREMENT_ID
-const ga4ApiSecret = process.env.GENOFFICE_GA4_API_SECRET
 const gskCliDir = dirname(require.resolve('@genspark/cli/package.json'))
 const gskCommanderDir = dirname(require.resolve('commander'))
 // harfbuzzjs 1.x exposes only its ESM entry point; derive the adjacent wasm
 // rather than resolving a non-exported subpath (older releases used a root file).
-const harfbuzzSubsetWasm = join(
-  dirname(require.resolve('harfbuzzjs')),
-  'harfbuzz-subset.wasm',
-)
+const harfbuzzSubsetWasm = join(dirname(require.resolve('harfbuzzjs')), 'harfbuzz-subset.wasm')
 
 // GENOFFICE_MAC_X64=1 — opt into packaging the Intel (x64) dmg/zip alongside
 // arm64. Off by default: Intel packages must only ever ship signed with the
@@ -488,17 +477,6 @@ if (updateUrl) {
       channel: 'latest',
     },
   ]
-}
-
-// CI's "-c.extraMetadata.version=..." CLI override deep-merges with this
-// block, so both survive together in the packaged package.json.
-if (ga4MeasurementId && ga4ApiSecret) {
-  config.extraMetadata = {
-    genofficeAnalytics: {
-      measurementId: ga4MeasurementId,
-      apiSecret: ga4ApiSecret,
-    },
-  }
 }
 
 module.exports = config

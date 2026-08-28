@@ -376,6 +376,26 @@
   padding: 14px 0 10px;
 }
 
+.set-mcp-status-dot {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 14%, transparent);
+}
+
+.set-mcp-status-dot.online {
+  background: var(--success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 14%, transparent);
+}
+
+.set-skills-coming {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
 .set-mcp-prompt {
   margin: 0;
   padding: 12px;

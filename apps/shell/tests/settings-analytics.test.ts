@@ -35,68 +35,13 @@ async function click(button: HTMLButtonElement): Promise<void> {
   })
 }
 
-describe('Settings analytics consent', () => {
-  it('starts on and changes only after persistence succeeds', async () => {
-    const persist = vi
-      .fn<(enabled: boolean) => Promise<boolean>>()
-      .mockResolvedValueOnce(false)
-      .mockResolvedValueOnce(true)
-    window.aiOffice = {
-      getTheme: async () => 'system',
-      getDefaultSaveDir: async () => '',
-      getAnalyticsEnabled: async () => true,
-      setAnalyticsEnabled: persist,
-      getUpdateChannel: async () => 'stable',
-      getAppVersion: async () => '1.0.0',
-      githubStars: async () => null,
-    } as unknown as HomeApi
-
-    await act(async () => {
-      root.render(
-        createElement(
-          LocaleProvider,
-          { initial: 'en' },
-          createElement(SettingsModal, {
-            status: null,
-            loggingOut: false,
-            loginWaiting: false,
-            loginUrl: null,
-            urlCopied: false,
-            onOpenLoginUrl: vi.fn(),
-            onCopyLoginUrl: vi.fn(),
-            onClose: vi.fn(),
-            onLogin: vi.fn(),
-            onLogout: vi.fn(),
-          }),
-        ),
-      )
-      await Promise.resolve()
-    })
-
-    const general = Array.from(host.querySelectorAll<HTMLButtonElement>('.set-nav-item')).find(
-      (button) => button.textContent?.includes('General'),
-    )
-    expect(general).toBeDefined()
-    await click(general!)
-
-    const consent = host.querySelector<HTMLButtonElement>('.set-switch')
-    expect(consent?.getAttribute('aria-checked')).toBe('true')
-
-    await click(consent!)
-    expect(persist).toHaveBeenLastCalledWith(false)
-    expect(consent?.getAttribute('aria-checked')).toBe('true')
-
-    await click(consent!)
-    expect(consent?.getAttribute('aria-checked')).toBe('false')
-  })
-
-  it('shows only General, MCP, and About, and copies the local MCP prompt', async () => {
+describe('Settings MCP setup', () => {
+  it('shows General, MCP, Skills, and About, and copies the local MCP prompt', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined)
     Object.assign(navigator, { clipboard: { writeText } })
     window.aiOffice = {
       getTheme: async () => 'system',
       getDefaultSaveDir: async () => '',
-      getAnalyticsEnabled: async () => true,
       getAppVersion: async () => '1.0.0',
       getMcpConnectionInfo: async () => ({
         available: true,
@@ -118,14 +63,14 @@ describe('Settings analytics consent', () => {
     const labels = Array.from(host.querySelectorAll('.set-nav-item')).map(
       (node) => node.textContent,
     )
-    expect(labels).toEqual(['General', 'MCP', 'About'])
+    expect(labels).toEqual(['General', 'MCP', '技能', 'About'])
     await click(
       Array.from(host.querySelectorAll<HTMLButtonElement>('.set-nav-item')).find(
         (button) => button.textContent === 'MCP',
       )!,
     )
     const copy = Array.from(host.querySelectorAll<HTMLButtonElement>('.set-btn')).find(
-      (button) => button.textContent === '复制给 AI',
+      (button) => button.textContent === '复制给 AI 使用',
     )
     expect(copy).toBeDefined()
     await click(copy!)
@@ -133,5 +78,7 @@ describe('Settings analytics consent', () => {
     expect(writeText).toHaveBeenCalledWith(
       expect.stringContaining('/tmp/GenOffice/mcp/bridge.json'),
     )
+    expect(host.querySelector('.set-mcp-prompt')).toBeNull()
+    expect(host.querySelector('.set-mcp-status-dot.online')).not.toBeNull()
   })
 })

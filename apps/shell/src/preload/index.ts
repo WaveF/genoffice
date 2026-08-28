@@ -120,18 +120,6 @@ const homeApi: HomeApi = {
     if (!isUiLanguage(lang)) throw new Error('Invalid language.')
     await ipcRenderer.invoke(HOME_CHANNELS.setLanguage, lang)
   },
-  async getUpdateChannel() {
-    const result: unknown = await ipcRenderer.invoke(HOME_CHANNELS.getUpdateChannel)
-    return result === 'beta' ? 'beta' : 'stable'
-  },
-  async setUpdateChannel(channel) {
-    // validated inline: a runtime import from ../shared/update-api would be
-    // shared with the update.ts preload entry and get split into a chunk,
-    // which sandboxed preload scripts cannot load (window.aiOffice would
-    // silently disappear). Preload entries must stay single-file bundles.
-    if (channel !== 'stable' && channel !== 'beta') throw new Error('Invalid update channel.')
-    await ipcRenderer.invoke(HOME_CHANNELS.setUpdateChannel, channel)
-  },
   async getMcpConnectionInfo() {
     const result: unknown = await ipcRenderer.invoke(HOME_CHANNELS.mcpConnectionInfo)
     const value = result as Partial<McpConnectionInfo> | null
@@ -180,15 +168,6 @@ const homeApi: HomeApi = {
     if (theme !== 'light' && theme !== 'dark' && theme !== 'system')
       throw new Error('Invalid theme.')
     await ipcRenderer.invoke(HOME_CHANNELS.setTheme, theme)
-  },
-  async getAnalyticsEnabled() {
-    const result: unknown = await ipcRenderer.invoke(HOME_CHANNELS.getAnalyticsEnabled)
-    return result !== false
-  },
-  async setAnalyticsEnabled(enabled) {
-    if (typeof enabled !== 'boolean') throw new Error('Invalid analytics consent.')
-    const result: unknown = await ipcRenderer.invoke(HOME_CHANNELS.setAnalyticsEnabled, enabled)
-    return result === true
   },
   async getDefaultSaveDir() {
     const result: unknown = await ipcRenderer.invoke(HOME_CHANNELS.getDefaultSaveDir)

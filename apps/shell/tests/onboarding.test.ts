@@ -44,15 +44,15 @@ async function click(selector: string): Promise<void> {
   })
 }
 
-describe('analytics consent in onboarding', () => {
-  it('explains default-on analytics without an onboarding control', () => {
+describe('onboarding completion', () => {
+  it('does not render an analytics consent control or notice', () => {
     renderOnboarding(vi.fn(async () => true))
     expect(host.querySelector('[role="switch"]')).toBeNull()
-    expect(host.textContent).toContain('Enabled by default')
-    expect(host.textContent).toContain('Settings → General')
+    expect(host.textContent).not.toContain('Enabled by default')
+    expect(host.textContent).not.toContain('Settings → General')
   })
 
-  it('lets Skip and Escape finish without changing analytics', async () => {
+  it('lets Skip and Escape finish onboarding', async () => {
     const onDone = vi.fn(async () => true)
     renderOnboarding(onDone)
 
@@ -67,7 +67,7 @@ describe('analytics consent in onboarding', () => {
     expect(onDone).toHaveBeenLastCalledWith()
   })
 
-  it('finishes the final slide without an analytics choice', async () => {
+  it('finishes the final slide', async () => {
     const onDone = vi.fn(async () => true)
     renderOnboarding(onDone)
 
