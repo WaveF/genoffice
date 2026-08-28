@@ -100,6 +100,8 @@ export interface HomeApi {
   getUpdateChannel(): Promise<UpdateChannel>
   /** switch + persist the update channel; triggers an immediate update check */
   setUpdateChannel(channel: UpdateChannel): Promise<void>
+  /** Local MCP discovery details for the currently running Shell session. */
+  getMcpConnectionInfo(): Promise<McpConnectionInfo>
   /** Genspark account status (gsk login state; to be upgraded to a signup/account system later) */
   accountStatus(): Promise<AccountStatus>
   /** start Genspark login (opens the browser; accountStatus flips to logged-in on completion); returns whether the launch succeeded */
@@ -149,6 +151,12 @@ export interface HomeApi {
   cloudProjectsSync(): Promise<CloudProjectsSnapshot | null>
   /** open a cloud project (relative '/agents?id=...' URL) in the default browser */
   openCloudProject(projectUrl: string): Promise<void>
+}
+
+export interface McpConnectionInfo {
+  available: boolean
+  discoveryPath: string
+  adapterPath?: string
 }
 
 /** 'starred' = went to GitHub or said "already starred" (never prompt again);
@@ -271,6 +279,7 @@ export const HOME_CHANNELS = {
   setLanguage: 'home:set-language',
   getUpdateChannel: 'home:get-update-channel',
   setUpdateChannel: 'home:set-update-channel',
+  mcpConnectionInfo: 'home:mcp-connection-info',
   accountStatus: 'home:account-status',
   accountLogin: 'home:account-login',
   accountLoginEvent: 'home:account-login-event',

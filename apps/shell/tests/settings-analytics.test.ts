@@ -89,4 +89,49 @@ describe('Settings analytics consent', () => {
     await click(consent!)
     expect(consent?.getAttribute('aria-checked')).toBe('false')
   })
+
+  it('shows only General, MCP, and About, and copies the local MCP prompt', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.assign(navigator, { clipboard: { writeText } })
+    window.aiOffice = {
+      getTheme: async () => 'system',
+      getDefaultSaveDir: async () => '',
+      getAnalyticsEnabled: async () => true,
+      getAppVersion: async () => '1.0.0',
+      getMcpConnectionInfo: async () => ({
+        available: true,
+        discoveryPath: '/tmp/GenOffice/mcp/bridge.json',
+        adapterPath: '/tmp/GenOffice/genoffice-mcp.mjs',
+      }),
+    } as unknown as HomeApi
+
+    await act(async () => {
+      root.render(
+        createElement(
+          LocaleProvider,
+          { initial: 'en' },
+          createElement(SettingsModal, { onClose: vi.fn() }),
+        ),
+      )
+      await Promise.resolve()
+    })
+    const labels = Array.from(host.querySelectorAll('.set-nav-item')).map(
+      (node) => node.textContent,
+    )
+    expect(labels).toEqual(['General', 'MCP', 'About'])
+    await click(
+      Array.from(host.querySelectorAll<HTMLButtonElement>('.set-nav-item')).find(
+        (button) => button.textContent === 'MCP',
+      )!,
+    )
+    const copy = Array.from(host.querySelectorAll<HTMLButtonElement>('.set-btn')).find(
+      (button) => button.textContent === '复制给 AI',
+    )
+    expect(copy).toBeDefined()
+    await click(copy!)
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('media.stage_image'))
+    expect(writeText).toHaveBeenCalledWith(
+      expect.stringContaining('/tmp/GenOffice/mcp/bridge.json'),
+    )
+  })
 })

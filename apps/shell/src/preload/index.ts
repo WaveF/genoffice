@@ -5,6 +5,7 @@ import type {
   AccountStatus,
   CloudProjectsSnapshot,
   HomeApi,
+  McpConnectionInfo,
   RecentEntry,
   RecentPage,
   RenameResult,
@@ -130,6 +131,15 @@ const homeApi: HomeApi = {
     // silently disappear). Preload entries must stay single-file bundles.
     if (channel !== 'stable' && channel !== 'beta') throw new Error('Invalid update channel.')
     await ipcRenderer.invoke(HOME_CHANNELS.setUpdateChannel, channel)
+  },
+  async getMcpConnectionInfo() {
+    const result: unknown = await ipcRenderer.invoke(HOME_CHANNELS.mcpConnectionInfo)
+    const value = result as Partial<McpConnectionInfo> | null
+    return {
+      available: value?.available === true,
+      discoveryPath: typeof value?.discoveryPath === 'string' ? value.discoveryPath : '',
+      ...(typeof value?.adapterPath === 'string' ? { adapterPath: value.adapterPath } : {}),
+    }
   },
   async accountStatus() {
     const result: unknown = await ipcRenderer.invoke(HOME_CHANNELS.accountStatus)

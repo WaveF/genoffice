@@ -719,6 +719,40 @@ function AccountEntry({
   )
 }
 
+/** Local-only settings entry. Account state is deliberately not queried or shown. */
+function SettingsEntry() {
+  const { t } = useI18n()
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  return (
+    <div className="account-entry">
+      {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
+      <button
+        className="account-btn"
+        onClick={() => setSettingsOpen(true)}
+        aria-haspopup="dialog"
+        aria-expanded={settingsOpen}
+        aria-label={t('settings')}
+        data-tip={t('settings')}
+      >
+        <span className="account-avatar" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="2.2" stroke="currentColor" strokeWidth="1.4" />
+            <path
+              d="M8 1.8v1.4M8 12.8v1.4M14.2 8h-1.4M3.2 8H1.8M12.4 3.6l-1 1M4.6 11.4l-1 1M12.4 12.4l-1-1M4.6 4.6l-1-1"
+              stroke="currentColor"
+              strokeWidth="1.25"
+              strokeLinecap="round"
+            />
+          </svg>
+        </span>
+        <span className="account-text">
+          <span className="account-name">{t('settings')}</span>
+        </span>
+      </button>
+    </div>
+  )
+}
+
 // ── Cloud (Genspark web) projects view ──────────────────
 
 /** kind filter segments; labels shared with the recents type filter */
@@ -2099,7 +2133,7 @@ export function Home() {
           </>
         )}
 
-        <AccountEntry onStatusChange={handleAccountStatus} />
+        <SettingsEntry />
       </aside>
 
       {selectedProjectId ? (

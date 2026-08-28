@@ -1,17 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Dropdown } from '@genoffice/ui'
 import { useI18n } from './locale'
 import type { StringKey } from './locale'
-import type { AccountStatus, UiTheme } from '../../shared/home-api'
+import type { McpConnectionInfo, UiTheme } from '../../shared/home-api'
 import './settings.css'
 
-// ── Settings modal (opened from the account menu) ─────────
-// Genspark-style two-pane dialog: section nav on the left, fields on the right.
-// All values go through the existing home IPC; nothing is stored locally.
-
-// sorted by ISO 639 language code — native-script labels have no natural
-// shared alphabet, so the code is the ordering key
 const LANG_OPTIONS = [
   { value: 'ar', label: 'العربية' },
   { value: 'de', label: 'Deutsch' },
@@ -34,49 +28,21 @@ const LANG_OPTIONS = [
   { value: 'zh-TW', label: '繁體中文' },
 ] as const
 
-// GenMail's option order: follow-system first, then the manual picks
 const THEME_OPTIONS = [
   { value: 'system', labelKey: 'themeSystem' },
   { value: 'light', labelKey: 'themeLight' },
   { value: 'dark', labelKey: 'themeDark' },
 ] as const satisfies readonly { value: UiTheme; labelKey: StringKey }[]
 
-const CHANNEL_OPTIONS = [
-  { value: 'stable', labelKey: 'channelStable' },
-  { value: 'beta', labelKey: 'channelBeta' },
-] as const satisfies readonly { value: 'stable' | 'beta'; labelKey: StringKey }[]
-
-/** GitHub-style abbreviated stargazer count (2591 → "2.6k") — the number is
- * social proof, not a metric; the cached/exact value would only look stale */
-function formatStars(n: number): string {
-  if (n < 1000) return String(n)
-  const k = n / 1000
-  return `${k >= 100 ? Math.round(k) : (Math.round(k * 10) / 10).toString().replace(/\.0$/, '')}k`
-}
-
-type SectionId = 'account' | 'general' | 'about'
-
-const SECTIONS: readonly { id: SectionId; labelKey: StringKey }[] = [
-  { id: 'account', labelKey: 'setSecAccount' },
+type SectionId = 'general' | 'mcp' | 'about'
+const SECTIONS: readonly { id: SectionId; label?: string; labelKey?: StringKey }[] = [
   { id: 'general', labelKey: 'setSecGeneral' },
+  { id: 'mcp', label: 'MCP' },
   { id: 'about', labelKey: 'setSecAbout' },
 ]
 
 function SectionIcon({ id }: { id: SectionId }) {
-  if (id === 'account') {
-    return (
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-        <circle cx="8" cy="5.2" r="2.9" stroke="currentColor" strokeWidth="1.3" />
-        <path
-          d="M2.7 13.6a5.5 5.5 0 0 1 10.6 0"
-          stroke="currentColor"
-          strokeWidth="1.3"
-          strokeLinecap="round"
-        />
-      </svg>
-    )
-  }
-  if (id === 'general') {
+  if (id === 'general')
     return (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
         <path
@@ -89,7 +55,27 @@ function SectionIcon({ id }: { id: SectionId }) {
         <circle cx="4.5" cy="11" r="1.7" stroke="currentColor" strokeWidth="1.3" />
       </svg>
     )
-  }
+  if (id === 'mcp')
+    return (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <rect
+          x="2.2"
+          y="3"
+          width="11.6"
+          height="10"
+          rx="2"
+          stroke="currentColor"
+          strokeWidth="1.3"
+        />
+        <path
+          d="m5.4 6.3-1.5 1.7 1.5 1.7M10.6 6.3l1.5 1.7-1.5 1.7M6.9 10.3l2.2-4.6"
+          stroke="currentColor"
+          strokeWidth="1.3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    )
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
       <circle cx="8" cy="8" r="6.3" stroke="currentColor" strokeWidth="1.3" />
@@ -99,7 +85,6 @@ function SectionIcon({ id }: { id: SectionId }) {
   )
 }
 
-/** label-over-value field row with an optional right-aligned action */
 function Field({
   label,
   value,
@@ -124,178 +109,89 @@ function Field({
   )
 }
 
-/** AI model pane: provider / model / key / base URL, saved to userData/ai-settings.json */
-export interface SettingsModalProps {
-  status: AccountStatus | null
-  loggingOut: boolean
-  /** browser sign-in in progress (spinner shows on the account entry) */
-  loginWaiting: boolean
-  /** device auth URL while waiting — rescue actions when the browser did not auto-open */
-  loginUrl: string | null
-  urlCopied: boolean
-  onOpenLoginUrl: () => void
-  onCopyLoginUrl: () => void
-  onClose: () => void
-  /** closes the modal and launches the Genspark login flow (progress shows on the account entry) */
-  onLogin: () => void
-  onLogout: () => void
+function connectionPrompt(info: McpConnectionInfo): string {
+  const adapter = info.adapterPath
+    ? `node "${info.adapterPath}" --discovery "${info.discoveryPath}"`
+    : `genoffice-mcp --discovery "${info.discoveryPath}"`
+  return `请连接正在运行的 GenOffice 本地 MCP，并只操作其明确公开的工具。\n\n1. 使用以下 stdio 命令配置 MCP：\n${adapter}\n\n2. discovery 文件：${info.discoveryPath}\n其中包含本机会话 token；不要在回复、日志或仓库中泄露、复制或提交它。\n\n3. 连接后先调用 tools/list，以实时 schema 为准。所有写操作必须携带 documentId 和 expectedRevision；发生 conflict 时先重新读取再重试。\n\n4. Markdown 插图：先把 PNG/JPEG/GIF 写入 discovery 中的 mediaImportDirectory，再调用 media.stage_image，然后用返回的 mediaHandle 调用 markdown.insert_image。不要传任意路径、URL、base64 或图片 bytes。`
 }
 
-export function SettingsModal({
-  status,
-  loggingOut,
-  loginWaiting,
-  loginUrl,
-  urlCopied,
-  onOpenLoginUrl,
-  onCopyLoginUrl,
-  onClose,
-  onLogin,
-  onLogout,
-}: SettingsModalProps) {
+export function SettingsModal({ onClose }: { onClose: () => void; [key: string]: unknown }) {
   const { lang, setLang, t } = useI18n()
-  const [section, setSection] = useState<SectionId>('account')
+  const [section, setSection] = useState<SectionId>('general')
   const [theme, setTheme] = useState<UiTheme>('system')
   const [saveDir, setSaveDir] = useState('')
   const [analyticsOn, setAnalyticsOn] = useState(true)
   const [analyticsSaving, setAnalyticsSaving] = useState(false)
-  const [channel, setChannel] = useState<'stable' | 'beta'>('stable')
   const [appVersion, setAppVersion] = useState('')
-  const [githubStars, setGithubStars] = useState<number | null>(null)
+  const [mcp, setMcp] = useState<McpConnectionInfo | null>(null)
+  const [copied, setCopied] = useState(false)
+  const prompt = useMemo(() => (mcp ? connectionPrompt(mcp) : ''), [mcp])
 
   useEffect(() => {
     let alive = true
-    void window.aiOffice.getTheme?.().then((th) => {
-      if (alive) setTheme(th)
-    })
-    void window.aiOffice.getDefaultSaveDir?.().then((dir) => {
-      if (alive && dir) setSaveDir(dir)
-    })
-    void window.aiOffice.getAnalyticsEnabled?.().then((on) => {
-      if (alive) setAnalyticsOn(on !== false)
-    })
-    void window.aiOffice.getUpdateChannel?.().then((ch) => {
-      if (alive) setChannel(ch)
-    })
-    void window.aiOffice.getAppVersion?.().then((v) => {
-      if (alive && v) setAppVersion(v)
-    })
-    void window.aiOffice.githubStars?.().then((n) => {
-      if (alive && n !== null) setGithubStars(n)
-    })
+    void window.aiOffice.getTheme?.().then((value) => alive && setTheme(value))
+    void window.aiOffice.getDefaultSaveDir?.().then((value) => alive && value && setSaveDir(value))
+    void window.aiOffice
+      .getAnalyticsEnabled?.()
+      .then((value) => alive && setAnalyticsOn(value !== false))
+    void window.aiOffice.getAppVersion?.().then((value) => alive && value && setAppVersion(value))
+    void window.aiOffice.getMcpConnectionInfo?.().then((value) => alive && setMcp(value))
     return () => {
       alive = false
     }
   }, [])
-
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [onClose])
-
   const applyTheme = (next: UiTheme) => {
     setTheme(next)
     void window.aiOffice.setTheme(next)
     if (next === 'system') document.documentElement.removeAttribute('data-theme')
     else document.documentElement.setAttribute('data-theme', next)
   }
-
-  const changeSaveDir = () => {
-    void window.aiOffice.pickDefaultSaveDir?.().then((dir) => {
-      if (dir) setSaveDir(dir)
-    })
-  }
-
-  const loggedIn = status?.loggedIn ?? false
-  const email = status?.email ?? ''
+  const copyPrompt = () =>
+    void navigator.clipboard
+      .writeText(prompt)
+      .then(() => {
+        setCopied(true)
+        window.setTimeout(() => setCopied(false), 2000)
+      })
+      .catch(() => {})
 
   return (
     <div
       className="set-overlay"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose()
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose()
       }}
     >
       <div className="set-dialog" role="dialog" aria-modal="true" aria-label={t('settings')}>
         <div className="set-header">
           <h2 className="set-title">{t('settings')}</h2>
           <button className="set-close" onClick={onClose} aria-label={t('cancel')}>
-            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-              <path
-                d="M2 2l10 10M12 2L2 12"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-            </svg>
+            ×
           </button>
         </div>
         <div className="set-body">
           <nav className="set-nav" aria-label={t('settings')}>
-            {SECTIONS.map((s) => (
+            {SECTIONS.map((item) => (
               <button
-                key={s.id}
-                className={`set-nav-item${section === s.id ? ' active' : ''}`}
-                aria-current={section === s.id}
-                onClick={() => setSection(s.id)}
+                key={item.id}
+                className={`set-nav-item${section === item.id ? ' active' : ''}`}
+                aria-current={section === item.id}
+                onClick={() => setSection(item.id)}
               >
-                <SectionIcon id={s.id} />
-                {t(s.labelKey)}
+                <SectionIcon id={item.id} />
+                {item.labelKey ? t(item.labelKey) : item.label}
               </button>
             ))}
           </nav>
           <div className="set-pane">
-            {section === 'account' && (
-              <>
-                <h3 className="set-pane-title">{t('setSecAccount')}</h3>
-                <Field label={t('setEmail')} value={loggedIn ? email : t('setNotLoggedIn')} />
-                {loggedIn && (
-                  <Field
-                    label={t('credits')}
-                    value={
-                      status?.creditBalance === undefined
-                        ? '—'
-                        : Math.floor(status.creditBalance).toLocaleString('en-US')
-                    }
-                    action={
-                      <button
-                        className="set-btn"
-                        data-tip={t('creditsTip')}
-                        onClick={() => void window.aiOffice.openCreditUsage?.()}
-                      >
-                        {t('setViewUsage')}
-                      </button>
-                    }
-                  />
-                )}
-                <div className="set-pane-footer">
-                  {loggedIn ? (
-                    <button className="set-btn danger" disabled={loggingOut} onClick={onLogout}>
-                      {loggingOut ? t('loggingOut') : t('logout')}
-                    </button>
-                  ) : (
-                    <>
-                      {loginWaiting && loginUrl && (
-                        <>
-                          <button className="set-btn" onClick={onOpenLoginUrl}>
-                            {t('loginOpenManually')}
-                          </button>
-                          <button className="set-btn" onClick={onCopyLoginUrl}>
-                            {urlCopied ? t('loginCopied') : t('loginCopyUrl')}
-                          </button>
-                        </>
-                      )}
-                      <button className="set-btn primary" onClick={onLogin}>
-                        {loginWaiting ? t('waitingShort') : t('loginGenspark')}
-                      </button>
-                    </>
-                  )}
-                </div>
-              </>
-            )}
             {section === 'general' && (
               <>
                 <h3 className="set-pane-title">{t('setSecGeneral')}</h3>
@@ -307,8 +203,8 @@ export function SettingsModal({
                     className="set-dd"
                     value={lang}
                     ariaLabel={t('language')}
-                    options={LANG_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
-                    onPick={(v) => setLang(v as typeof lang)}
+                    options={LANG_OPTIONS.map((item) => ({ value: item.value, label: item.label }))}
+                    onPick={(value) => setLang(value as typeof lang)}
                   />
                 </div>
                 <div className="set-field">
@@ -319,11 +215,11 @@ export function SettingsModal({
                     className="set-dd"
                     value={theme}
                     ariaLabel={t('theme')}
-                    options={THEME_OPTIONS.map((opt) => ({
-                      value: opt.value,
-                      label: t(opt.labelKey),
+                    options={THEME_OPTIONS.map((item) => ({
+                      value: item.value,
+                      label: t(item.labelKey),
                     }))}
-                    onPick={(v) => applyTheme(v as UiTheme)}
+                    onPick={(value) => applyTheme(value as UiTheme)}
                   />
                 </div>
                 <Field
@@ -331,7 +227,14 @@ export function SettingsModal({
                   value={saveDir || '—'}
                   valueTitle={saveDir}
                   action={
-                    <button className="set-btn" onClick={changeSaveDir}>
+                    <button
+                      className="set-btn"
+                      onClick={() =>
+                        void window.aiOffice
+                          .pickDefaultSaveDir?.()
+                          .then((value) => value && setSaveDir(value))
+                      }
+                    >
                       {t('setChange')}
                     </button>
                   }
@@ -354,9 +257,7 @@ export function SettingsModal({
                       setAnalyticsSaving(true)
                       void window.aiOffice
                         .setAnalyticsEnabled(next)
-                        .then((persisted) => {
-                          if (persisted) setAnalyticsOn(next)
-                        })
+                        .then((saved) => saved && setAnalyticsOn(next))
                         .catch(() => {})
                         .finally(() => setAnalyticsSaving(false))
                     }}
@@ -364,45 +265,50 @@ export function SettingsModal({
                 </div>
               </>
             )}
+            {section === 'mcp' && (
+              <>
+                <h3 className="set-pane-title">MCP</h3>
+                <div className="set-field-stack set-mcp-intro">
+                  <div className="set-field-label">连接外部 AI</div>
+                  <div className="set-field-desc">
+                    将下方指引复制给第三方 Agent；它会从本机 discovery 文件读取当前会话的 MCP 配置。
+                  </div>
+                </div>
+                <Field
+                  label="连接状态"
+                  value={mcp?.available ? '本地 bridge 已运行' : '本地 bridge 未运行'}
+                />
+                <Field
+                  label="discovery 文件"
+                  value={mcp?.discoveryPath ?? '—'}
+                  valueTitle={mcp?.discoveryPath}
+                />
+                {mcp?.adapterPath && (
+                  <Field
+                    label="内置 adapter"
+                    value={mcp.adapterPath}
+                    valueTitle={mcp.adapterPath}
+                  />
+                )}
+                <div className="set-mcp-actions">
+                  <button
+                    className="set-btn primary"
+                    disabled={!mcp?.available}
+                    onClick={copyPrompt}
+                  >
+                    {copied ? '已复制' : '复制给 AI'}
+                  </button>
+                </div>
+                <pre className="set-mcp-prompt">
+                  {prompt || '启动 GenOffice 后将在这里显示 MCP 连接信息。'}
+                </pre>
+              </>
+            )}
             {section === 'about' && (
               <>
                 <h3 className="set-pane-title">{t('setSecAbout')}</h3>
                 <Field label={t('versionLabel')} value={appVersion || '—'} />
-                <div className="set-field">
-                  <div className="set-field-text">
-                    <label className="set-field-label">{t('updateChannel')}</label>
-                  </div>
-                  <Dropdown
-                    className="set-dd"
-                    value={channel}
-                    ariaLabel={t('updateChannel')}
-                    options={CHANNEL_OPTIONS.map((opt) => ({
-                      value: opt.value,
-                      label: t(opt.labelKey),
-                    }))}
-                    onPick={(v) => {
-                      const next = v === 'beta' ? 'beta' : 'stable'
-                      setChannel(next)
-                      void window.aiOffice.setUpdateChannel(next)
-                    }}
-                  />
-                </div>
-                <Field
-                  label={t('setGithub')}
-                  value={
-                    githubStars === null
-                      ? 'github.com/genspark-ai/genoffice'
-                      : `github.com/genspark-ai/genoffice · ★ ${formatStars(githubStars)}`
-                  }
-                  action={
-                    <button
-                      className="set-btn"
-                      onClick={() => void window.aiOffice.openGitHubRepo?.()}
-                    >
-                      {t('starOnGitHub')}
-                    </button>
-                  }
-                />
+                <Field label={t('updateChannel')} value="不可用（此构建未配置更新源）" />
               </>
             )}
           </div>

@@ -178,6 +178,7 @@ import type {
   AccountLoginEvent,
   RecentEntry,
   RecentPage,
+  McpConnectionInfo,
   RenameResult,
   StarPromptShow,
   UiTheme,
@@ -3077,6 +3078,15 @@ function registerHomeIpc(): void {
   })
 
   ipcMain.handle(HOME_CHANNELS.getUpdateChannel, (): UpdateChannel => currentUpdateChannel())
+
+  ipcMain.handle(HOME_CHANNELS.mcpConnectionInfo, (): McpConnectionInfo => {
+    const discoveryPath = join(app.getPath('userData'), 'mcp', 'bridge.json')
+    return {
+      available: mcpBridge !== null && existsSync(discoveryPath),
+      discoveryPath,
+      ...(existsSync(MCP_ADAPTER_PATH) ? { adapterPath: MCP_ADAPTER_PATH } : {}),
+    }
+  })
 
   ipcMain.handle(HOME_CHANNELS.setUpdateChannel, (_event, channel: unknown) => {
     if (!isUpdateChannel(channel) || channel === currentUpdateChannel()) return

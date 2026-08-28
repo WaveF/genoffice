@@ -366,6 +366,35 @@
   gap: 8px;
 }
 
+.set-mcp-intro {
+  padding: 0 0 16px;
+}
+
+.set-mcp-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 14px 0 10px;
+}
+
+.set-mcp-prompt {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--bg-content);
+  color: var(--text-secondary);
+  font:
+    12px/1.55 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+}
+
 /* ── AI model pane ── */
 
 .set-input {
