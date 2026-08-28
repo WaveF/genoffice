@@ -8,6 +8,17 @@ const here = dirname(fileURLToPath(import.meta.url))
 // Pin resolution to this repo's workspace sources (matches tsconfig paths;
 // avoids bundling stale implementations when node_modules links point elsewhere)
 const workspaceAlias = {
+  // harfbuzzjs intentionally exports only its ESM wrapper. The main process needs
+  // its low-level CJS factory, so resolve those bundled files explicitly instead
+  // of relying on a brittle workspace-relative node_modules path.
+  'harfbuzzjs/dist/harfbuzz.js': resolve(
+    here,
+    '../../node_modules/harfbuzzjs/dist/harfbuzz.js',
+  ),
+  'harfbuzzjs/dist/harfbuzz.wasm': resolve(
+    here,
+    '../../node_modules/harfbuzzjs/dist/harfbuzz.wasm',
+  ),
   // Subpath before the bare name: string aliases are prefix replacements
   '@genoffice/pptx-engine/table-grid': resolve(
     here,

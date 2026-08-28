@@ -16,7 +16,7 @@ declare module 'bidi-js' {
 }
 
 /** harfbuzzjs low-level Emscripten factory (deep-path import; the wrapper has a top-level await and cannot go into a CJS bundle) */
-declare module '*/harfbuzzjs/dist/harfbuzz.js' {
+declare module 'harfbuzzjs/dist/harfbuzz.js' {
   function createHarfBuzz(moduleArg?: Record<string, unknown>): Promise<unknown>
   export default createHarfBuzz
 }
