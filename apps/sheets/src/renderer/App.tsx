@@ -56,7 +56,11 @@ import {
   applyAiTableRowDelete,
   renameChartRefsForSheet,
 } from './workbook-ops'
-import { lazyGateError, type PlanContext } from './plan-operations'
+import {
+  lazyGateError,
+  proposeOperations as proposeOperationsImpl,
+  type PlanContext,
+} from './plan-operations'
 import { isNumericIdentifierText } from './cell-warning'
 import { consumePendingUndoCarry } from './undo-carry'
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
