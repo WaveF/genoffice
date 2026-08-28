@@ -10,6 +10,19 @@ import { spawn } from 'node:child_process'
 const root = resolve(import.meta.dirname, '..')
 const target = process.env.PACKAGE_SMOKE_TARGET
 
+function reportFatal(error) {
+  const message = error instanceof Error ? (error.stack ?? error.message) : String(error)
+  // Keep CI failure diagnostics visible in the run summary even when raw
+  // GitHub Actions logs require authenticated access.
+  process.stdout.write(
+    `::error title=Packaged MCP smoke::${message.replaceAll('%', '%25').replaceAll('\r', '').replaceAll('\n', '%0A')}\n`,
+  )
+  process.exitCode = 1
+}
+
+process.on('uncaughtException', reportFatal)
+process.on('unhandledRejection', reportFatal)
+
 const layouts = {
   mac: {
     app: join(
