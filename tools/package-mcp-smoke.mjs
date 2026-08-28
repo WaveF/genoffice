@@ -73,7 +73,7 @@ function sleep(ms) {
   return new Promise((resolvePromise) => setTimeout(resolvePromise, ms))
 }
 
-async function waitForFile(path, timeoutMs = 30_000) {
+async function waitForFile(path, timeoutMs = 30_000, describeFailure = () => '') {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
     try {
@@ -83,7 +83,7 @@ async function waitForFile(path, timeoutMs = 30_000) {
     }
     await sleep(100)
   }
-  throw new Error(`Timed out waiting for packaged bridge discovery: ${path}`)
+  throw new Error(`Timed out waiting for packaged bridge discovery: ${path}${describeFailure()}`)
 }
 
 function createMcpClient(discoveryPath) {
@@ -157,19 +157,33 @@ async function stopApp(child) {
 }
 
 const userDataDir = await mkdtemp(join(tmpdir(), 'genoffice-package-mcp-'))
-const app = spawn(appPath, [], {
+let appOutput = ''
+const app = spawn(appPath, target === 'linux' ? ['--no-sandbox', '--disable-gpu'] : [], {
   detached: process.platform !== 'win32',
   env: {
     ...process.env,
     GENOFFICE_USER_DATA: userDataDir,
     ...(target === 'linux' ? { ELECTRON_DISABLE_SANDBOX: '1' } : {}),
   },
-  stdio: 'ignore',
+  // Linux GitHub runners need the same trusted-local switches as the Electron
+  // E2E suite; Windows keeps its default process invocation.
+  stdio: ['ignore', 'pipe', 'pipe'],
+})
+for (const stream of [app.stdout, app.stderr]) {
+  stream?.setEncoding('utf8')
+  stream?.on('data', (chunk) => {
+    appOutput = `${appOutput}${chunk}`.slice(-4_000)
+  })
+}
+app.once('error', (error) => {
+  appOutput = `${appOutput}\nlaunch error: ${error.message}`.slice(-4_000)
 })
 let client
 try {
   const discoveryPath = join(userDataDir, 'mcp', 'bridge.json')
-  await waitForFile(discoveryPath)
+  await waitForFile(discoveryPath, 30_000, () =>
+    appOutput ? `\nPackaged app output:\n${appOutput}` : '',
+  )
   client = createMcpClient(discoveryPath)
   const initialized = await client.request('initialize', {
     protocolVersion: '2025-06-18',
