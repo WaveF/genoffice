@@ -118,6 +118,27 @@ describe('ShellMcpGateway', () => {
     )
   })
 
+  it('does not expose arbitrary local-file access through the MCP tool surface', async () => {
+    const tools = (await gatewayWith().handle({
+      clientId: 'test-client',
+      requestId: 'scope-request',
+      method: 'tools/list',
+      params: {},
+      signal: new AbortController().signal,
+    })) as Array<{ name: string; inputSchema: Record<string, unknown> }>
+
+    expect(tools.map((tool) => tool.name)).not.toEqual(
+      expect.arrayContaining(['open_document', 'read_file', 'write_file']),
+    )
+    const createDocument = tools.find((tool) => tool.name === 'create_document')
+    expect(createDocument?.inputSchema).toEqual({
+      type: 'object',
+      additionalProperties: false,
+      required: ['kind'],
+      properties: { kind: { enum: ['docs', 'sheets', 'slides', 'markdown', 'pdf'] } },
+    })
+  })
+
   it('creates only one blank supported document and returns its opaque handle', async () => {
     const created = {
       ...target,
