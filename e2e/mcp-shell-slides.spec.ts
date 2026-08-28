@@ -107,7 +107,7 @@ async function requestUntilRendererReady(
 }
 
 test.describe('MCP stdio adapter + Shell bridge', () => {
-  test('creates, edits, undoes, and saves a Slides deck through the real local bridge', async () => {
+  test('runs the complete Slides MCP flow against an inactive document through the real local bridge', async () => {
     const saveDir = await mkdtemp(join(tmpdir(), 'genoffice-mcp-slides-save-'))
     const launched = await launchShell({
       onboardingSeen: true,
@@ -137,7 +137,7 @@ test.describe('MCP stdio adapter + Shell bridge', () => {
         ]),
       })
 
-      const created = JSON.parse(
+      const primary = JSON.parse(
         resultText(
           await client.request('tools/call', {
             name: 'create_document',
@@ -145,7 +145,61 @@ test.describe('MCP stdio adapter + Shell bridge', () => {
           }),
         ),
       ) as { documentId: string; revision: number }
-      expect(created).toMatchObject({ documentId: expect.any(String), revision: 0 })
+      expect(primary).toMatchObject({ documentId: expect.any(String), revision: 0 })
+
+      // Creating another deck deliberately makes the target deck inactive. Every
+      // subsequent read/write must still use primary.documentId, never the active tab.
+      const secondary = JSON.parse(
+        resultText(
+          await client.request('tools/call', {
+            name: 'create_document',
+            arguments: { kind: 'slides' },
+          }),
+        ),
+      ) as { documentId: string; revision: number }
+      expect(secondary).toMatchObject({ documentId: expect.any(String), revision: 0 })
+      expect(secondary.documentId).not.toBe(primary.documentId)
+
+      const openDocuments = JSON.parse(
+        resultText(
+          await client.request('tools/call', { name: 'list_open_documents', arguments: {} }),
+        ),
+      ) as Array<{ documentId: string; active: boolean; kind: string }>
+      expect(openDocuments).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            documentId: primary.documentId,
+            kind: 'slides',
+            active: false,
+          }),
+          expect.objectContaining({
+            documentId: secondary.documentId,
+            kind: 'slides',
+            active: true,
+          }),
+        ]),
+      )
+
+      const read = await client.request('tools/call', {
+        name: 'slides.read_slide',
+        arguments: { documentId: primary.documentId, slide: 0 },
+      })
+      expect(JSON.parse(resultText(read))).toMatchObject({ revision: 0, index: 0 })
+
+      const dryRun = await client.request('tools/call', {
+        name: 'slides.apply_ops',
+        arguments: {
+          documentId: primary.documentId,
+          expectedRevision: 0,
+          dryRun: true,
+          ops: [{ op: 'setSlideSize', cx: 12192000, cy: 6858000 }],
+        },
+      })
+      expect(JSON.parse(resultText(dryRun))).toMatchObject({
+        applied: false,
+        dryRun: true,
+        revision: 0,
+      })
 
       competingClient = new StdioMcpClient(discoveryPath)
       const competingInitialized = await competingClient.request('initialize', {
@@ -156,7 +210,7 @@ test.describe('MCP stdio adapter + Shell bridge', () => {
 
       const addSlideRequest = {
         name: 'slides.add_slide',
-        arguments: { documentId: created.documentId, expectedRevision: 0, afterSlide: 0 },
+        arguments: { documentId: primary.documentId, expectedRevision: 0, afterSlide: 0 },
       }
       const addResults = await Promise.all([
         client.request('tools/call', addSlideRequest),
@@ -179,27 +233,39 @@ test.describe('MCP stdio adapter + Shell bridge', () => {
 
       const editedDeck = await client.request('tools/call', {
         name: 'slides.get_deck_context',
-        arguments: { documentId: created.documentId },
+        arguments: { documentId: primary.documentId },
       })
       expect(JSON.parse(resultText(editedDeck))).toMatchObject({ revision: 1, slideCount: 2 })
 
+      const untouchedDeck = await client.request('tools/call', {
+        name: 'slides.get_deck_context',
+        arguments: { documentId: secondary.documentId },
+      })
+      expect(JSON.parse(resultText(untouchedDeck))).toMatchObject({ revision: 0, slideCount: 1 })
+
       const undone = await client.request('tools/call', {
         name: 'undo',
-        arguments: { documentId: created.documentId, expectedRevision: 1 },
+        arguments: { documentId: primary.documentId, expectedRevision: 1 },
       })
       expect(JSON.parse(resultText(undone))).toMatchObject({ applied: true, revision: 2 })
 
       const restoredDeck = await client.request('tools/call', {
         name: 'slides.get_deck_context',
-        arguments: { documentId: created.documentId },
+        arguments: { documentId: primary.documentId },
       })
       expect(JSON.parse(resultText(restoredDeck))).toMatchObject({ revision: 2, slideCount: 1 })
 
+      const redone = await client.request('tools/call', {
+        name: 'redo',
+        arguments: { documentId: primary.documentId, expectedRevision: 2 },
+      })
+      expect(JSON.parse(resultText(redone))).toMatchObject({ applied: true, revision: 3 })
+
       const saved = await client.request('tools/call', {
         name: 'save_document',
-        arguments: { documentId: created.documentId, expectedRevision: 2 },
+        arguments: { documentId: primary.documentId, expectedRevision: 3 },
       })
-      expect(JSON.parse(resultText(saved))).toMatchObject({ saved: true, revision: 2 })
+      expect(JSON.parse(resultText(saved))).toMatchObject({ saved: true, revision: 3 })
       expect((await readdir(saveDir)).some((name) => name.endsWith('.pptx'))).toBe(true)
     } finally {
       competingClient?.close()
