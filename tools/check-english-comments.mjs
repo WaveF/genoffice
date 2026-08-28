@@ -24,10 +24,9 @@ for (const file of git.stdout.trim().split('\n')) {
   if (!isCode) continue
   const lines = readFileSync(join(root, file), 'utf8').split('\n')
   lines.forEach((line, index) => {
-    const text =
-      (line.match(/(?:^|[^:'"])\/\/(.*)$/) ??
-        line.match(/^\s*\*(.*)$/) ??
-        line.match(/\/\*(.*)$/))?.[1]
+    const text = (line.match(/(?:^|[^:'"])\/\/(.*)$/) ??
+      line.match(/^\s*\*(.*)$/) ??
+      line.match(/\/\*(.*)$/))?.[1]
     if (text !== undefined && HAN.test(text)) {
       violations.push(`  ${file}:${index + 1}: ${line.trim()}`)
     }
