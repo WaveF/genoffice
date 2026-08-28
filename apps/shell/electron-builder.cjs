@@ -30,7 +30,12 @@ const ga4MeasurementId = process.env.GENOFFICE_GA4_MEASUREMENT_ID
 const ga4ApiSecret = process.env.GENOFFICE_GA4_API_SECRET
 const gskCliDir = dirname(require.resolve('@genspark/cli/package.json'))
 const gskCommanderDir = dirname(require.resolve('commander'))
-const harfbuzzSubsetWasm = require.resolve('harfbuzzjs/hb-subset.wasm')
+// harfbuzzjs 1.x exposes only its ESM entry point; derive the adjacent wasm
+// rather than resolving a non-exported subpath (older releases used a root file).
+const harfbuzzSubsetWasm = join(
+  dirname(require.resolve('harfbuzzjs')),
+  'harfbuzz-subset.wasm',
+)
 
 // GENOFFICE_MAC_X64=1 — opt into packaging the Intel (x64) dmg/zip alongside
 // arm64. Off by default: Intel packages must only ever ship signed with the
