@@ -12,6 +12,8 @@ export interface McpBridgeDiscovery {
   transport: 'unix' | 'pipe'
   endpoint: string
   token: string
+  /** Session-private directory where an authenticated MCP client may stage generated image files. */
+  mediaImportDirectory?: string
   /** Packaged adapter path when Shell owns one; omitted for source-only runs. */
   adapterPath?: string
 }
@@ -33,6 +35,7 @@ export interface LocalMcpBridgeOptions {
   gateway: McpBridgeGateway
   platform?: NodeJS.Platform
   adapterPath?: string
+  mediaImportDirectory?: string
 }
 
 interface WireRequest {
@@ -71,10 +74,10 @@ export class LocalMcpBridge {
     this.endpoint =
       this.platform === 'win32'
         ? `\\\\.\\pipe\\genoffice-mcp-${instance}`
-        // macOS limits Unix-domain socket paths to roughly 104 bytes. userData
-        // paths are often longer (notably “Application Support/GenOffice Dev”),
-        // so keep the ephemeral socket in the short system temp directory.
-        : join(tmpdir(), `genoffice-mcp-${instance}.sock`)
+        : // macOS limits Unix-domain socket paths to roughly 104 bytes. userData
+          // paths are often longer (notably “Application Support/GenOffice Dev”),
+          // so keep the ephemeral socket in the short system temp directory.
+          join(tmpdir(), `genoffice-mcp-${instance}.sock`)
   }
 
   get discoveryPath(): string {
@@ -87,6 +90,9 @@ export class LocalMcpBridge {
       transport: this.platform === 'win32' ? 'pipe' : 'unix',
       endpoint: this.endpoint,
       token: this.token,
+      ...(this.options.mediaImportDirectory
+        ? { mediaImportDirectory: this.options.mediaImportDirectory }
+        : {}),
       ...(this.options.adapterPath ? { adapterPath: this.options.adapterPath } : {}),
     }
   }

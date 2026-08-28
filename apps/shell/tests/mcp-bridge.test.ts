@@ -33,6 +33,7 @@ describe('LocalMcpBridge', () => {
     const bridge = new LocalMcpBridge({
       userDataPath,
       adapterPath: '/Applications/GenOffice.app/Contents/Resources/mcp/genoffice-mcp.mjs',
+      mediaImportDirectory: '/private/tmp/genoffice-mcp-media-test',
       gateway: { handle },
     })
     await bridge.start()
@@ -46,6 +47,7 @@ describe('LocalMcpBridge', () => {
       expect(discovery.adapterPath).toBe(
         '/Applications/GenOffice.app/Contents/Resources/mcp/genoffice-mcp.mjs',
       )
+      expect(discovery.mediaImportDirectory).toBe('/private/tmp/genoffice-mcp-media-test')
       expect((await stat(bridge.discoveryPath)).mode & 0o077).toBe(0)
       const ok = await request(bridge.discovery.endpoint, {
         id: '1',

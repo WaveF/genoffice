@@ -36,7 +36,8 @@ export function handleMarkdownMcpRequest(
     | 'markdown.read_blocks'
     | 'markdown.insert_content'
     | 'markdown.replace_blocks'
-    | 'markdown.apply_commands',
+    | 'markdown.apply_commands'
+    | 'markdown.insert_image',
   input: Record<string, unknown>,
 ): unknown {
   const all = blocks(editor)
@@ -82,6 +83,23 @@ export function handleMarkdownMcpRequest(
       if (!applied) throw new Error(`unable to ${(command as { op: string }).op} document change`)
     }
     return { applied: true, blockCount: blocks(editor).length }
+  }
+  if (action === 'markdown.insert_image') {
+    const src = input.src
+    const alt = input.alt ?? ''
+    if (
+      typeof src !== 'string' ||
+      !/^assets\/[A-Za-z0-9][A-Za-z0-9._-]{0,179}$/.test(src) ||
+      typeof alt !== 'string' ||
+      alt.length > 256
+    ) {
+      throw new Error('a bounded app-owned assets path and optional alt text are required')
+    }
+    editor.commands.insertContentAt(editor.state.doc.content.size, {
+      type: 'image',
+      attrs: { src, alt },
+    })
+    return { applied: true, src, blockCount: blocks(editor).length }
   }
   const { start, limit } = asRange(input)
   return { start, blocks: all.slice(start, start + limit), total: all.length }

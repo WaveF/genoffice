@@ -14,7 +14,7 @@ vi.mock('electron', () => ({
   webContents: { fromId },
 }))
 
-import { RendererMcpBridge } from '../src/main/mcp/renderer-bridge'
+import { RendererMcpBridge, rendererMcpRevision } from '../src/main/mcp/renderer-bridge'
 
 describe('RendererMcpBridge', () => {
   beforeEach(() => {
@@ -98,5 +98,38 @@ describe('RendererMcpBridge', () => {
       { requestId, ok: true, result: {} },
     )
     await expect(pending).resolves.toEqual({})
+  })
+
+  it('keeps a document revision monotonic when its renderer reloads', () => {
+    new RendererMcpBridge()
+    const reportRevision = handlers.get('mcp:renderer-revision')!
+    reportRevision({ sender: { id: 99 } }, 4)
+    reportRevision({ sender: { id: 99 } }, 0)
+    reportRevision({ sender: { id: 99 } }, 1)
+    expect(rendererMcpRevision(99)).toBe(4)
+  })
+
+  it('does not let a reloaded renderer response lower its revision', async () => {
+    const bridge = new RendererMcpBridge()
+    fromId.mockReturnValue({
+      id: 98,
+      isDestroyed: () => false,
+      isLoadingMainFrame: () => false,
+      once: vi.fn(),
+      removeListener: vi.fn(),
+      send,
+    })
+    const reportRevision = handlers.get('mcp:renderer-revision')!
+    reportRevision({ sender: { id: 98 } }, 4)
+    markRendererReady(98)
+    const pending = bridge.request(98, 'markdown.get_context', {}, new AbortController().signal)
+    await vi.waitFor(() => expect(send).toHaveBeenCalledOnce())
+    const { requestId } = send.mock.calls[0]![1] as { requestId: string }
+    handlers.get('mcp:renderer-response')!(
+      { sender: { id: 98 } },
+      { requestId, ok: true, result: { revision: 0 } },
+    )
+    await expect(pending).resolves.toEqual({ revision: 0 })
+    expect(rendererMcpRevision(98)).toBe(4)
   })
 })

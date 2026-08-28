@@ -1,11 +1,15 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
-import { access, mkdtemp, readdir } from 'node:fs/promises'
+import { access, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { closeAndSaveVideo, launchShell, waitForPageWithUrl } from './helpers'
 
 const MCP_ADAPTER = resolve(__dirname, '../packages/genoffice-mcp/dist/genoffice-mcp.mjs')
+const PNG_1PX = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64',
+)
 
 interface JsonRpcResponse {
   jsonrpc: '2.0'
@@ -103,6 +107,25 @@ async function requestUntilRendererReady(
     const detail = JSON.parse(resultText(response)) as { code?: string }
     if (detail.code !== 'renderer_unavailable' || Date.now() >= deadline) return response
     await new Promise((resolvePromise) => setTimeout(resolvePromise, 100))
+  }
+}
+
+async function waitForDocumentRevision(
+  client: StdioMcpClient,
+  documentId: string,
+  afterRevision: number,
+): Promise<number> {
+  const deadline = Date.now() + 15_000
+  for (;;) {
+    const response = await client.request('tools/call', {
+      name: 'get_document_status',
+      arguments: { documentId },
+    })
+    const revision = (JSON.parse(resultText(response)) as { revision: number }).revision
+    if (revision > afterRevision) return revision
+    if (Date.now() >= deadline)
+      throw new Error(`Timed out waiting for ${documentId} revision after ${afterRevision}`)
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 50))
   }
 }
 
@@ -524,6 +547,118 @@ test.describe('MCP stdio adapter + Shell bridge', () => {
     } finally {
       client?.close()
       await closeAndSaveVideo(launched, 'mcp-shell-markdown-write')
+    }
+  })
+
+  test('imports one staged image into Markdown owned assets through the real bridge', async () => {
+    const saveDir = await mkdtemp(join(tmpdir(), 'genoffice-mcp-markdown-media-save-'))
+    const launched = await launchShell({
+      onboardingSeen: true,
+      defaultSaveDir: saveDir,
+      videoDir: 'mcp-shell-markdown-media',
+    })
+    const discoveryPath = join(launched.userDataDir, 'mcp', 'bridge.json')
+    let client: StdioMcpClient | undefined
+    try {
+      await waitForFile(discoveryPath)
+      const discovery = JSON.parse(await readFile(discoveryPath, 'utf8')) as {
+        mediaImportDirectory?: string
+      }
+      expect(discovery.mediaImportDirectory).toEqual(expect.any(String))
+      const importDirectory = discovery.mediaImportDirectory!
+      const stagedPath = join(importDirectory, 'agent-image.png')
+      await writeFile(stagedPath, PNG_1PX)
+
+      client = new StdioMcpClient(discoveryPath)
+      await client.request('initialize', {
+        protocolVersion: '2025-06-18',
+        clientInfo: { name: 'genoffice-e2e-markdown-media' },
+      })
+      const staged = JSON.parse(
+        resultText(
+          await client.request('tools/call', {
+            name: 'media.stage_image',
+            arguments: { fileName: 'agent-image.png' },
+          }),
+        ),
+      ) as { mediaHandle: string; mimeType: string }
+      expect(staged).toMatchObject({ mediaHandle: expect.any(String), mimeType: 'image/png' })
+      await expect(access(stagedPath)).rejects.toThrow()
+
+      const created = JSON.parse(
+        resultText(
+          await client.request('tools/call', {
+            name: 'create_document',
+            arguments: { kind: 'markdown' },
+          }),
+        ),
+      ) as { documentId: string }
+      const markdown = await waitForPageWithUrl(launched.app, 'markdown/out')
+      await requestUntilRendererReady(client, 'markdown.get_context', {
+        documentId: created.documentId,
+      })
+      const status = JSON.parse(
+        resultText(
+          await client.request('tools/call', {
+            name: 'get_document_status',
+            arguments: { documentId: created.documentId },
+          }),
+        ),
+      ) as { revision: number }
+      const inserted = await client.request('tools/call', {
+        name: 'markdown.insert_image',
+        arguments: {
+          documentId: created.documentId,
+          expectedRevision: status.revision,
+          mediaHandle: staged.mediaHandle,
+          alt: 'Generated image',
+        },
+      })
+      expect(JSON.parse(resultText(inserted))).toMatchObject({
+        src: expect.stringMatching(/^assets\//),
+      })
+      await expect(markdown.locator('.doc-editor img[alt="Generated image"]')).toBeVisible()
+      const insertedRevision = await waitForDocumentRevision(
+        client,
+        created.documentId,
+        status.revision,
+      )
+      await markdown.keyboard.press('ControlOrMeta+s')
+
+      const files = await readdir(saveDir)
+      const markdownFile = files.find((file) => file.endsWith('.md'))
+      expect(markdownFile).toBeDefined()
+      const markdownText = await readFile(join(saveDir, markdownFile!), 'utf8')
+      expect(markdownText).toContain('![Generated image](assets/')
+      const assets = await readdir(join(saveDir, 'assets'))
+      expect(assets.some((file) => file.endsWith('.png'))).toBe(true)
+
+      // Re-open the renderer from the saved document. The image source must
+      // remain relative to this document's owned assets directory, never to
+      // the one-shot MCP staging directory.
+      await markdown.reload()
+      await expect(markdown.locator('.doc-editor img[alt="Generated image"]')).toBeVisible()
+      const reloaded = await requestUntilRendererReady(client, 'markdown.get_context', {
+        documentId: created.documentId,
+      })
+      expect(JSON.parse(resultText(reloaded))).toMatchObject({
+        revision: expect.any(Number),
+        preview: expect.arrayContaining([
+          expect.objectContaining({ text: '![Generated image](assets/agent-image.png)' }),
+        ]),
+      })
+      const reloadedStatus = JSON.parse(
+        resultText(
+          await client.request('tools/call', {
+            name: 'get_document_status',
+            arguments: { documentId: created.documentId },
+          }),
+        ),
+      ) as { revision: number }
+      expect(reloadedStatus.revision).toBe(insertedRevision)
+    } finally {
+      client?.close()
+      await closeAndSaveVideo(launched, 'mcp-shell-markdown-media')
     }
   })
 })

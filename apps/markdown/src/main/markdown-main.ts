@@ -374,6 +374,17 @@ export function markdownFilePath(webContentsId: number): string | undefined {
   return savePathByWc.get(webContentsId)
 }
 
+/** Materialize already-validated MCP media into the current document's owned assets directory. */
+export async function importMcpMarkdownImage(
+  webContentsId: number,
+  fileName: string,
+  bytes: Buffer,
+): Promise<string | null> {
+  const documentPath = savePathByWc.get(webContentsId)
+  if (!documentPath) return null
+  return writeImageIntoOwnedAssets(documentPath, fileName, bytes)
+}
+
 /** The file was renamed on disk — re-grant the new path and tell the renderer */
 export function markdownFileRenamed(contents: WebContents, oldPath: string, newPath: string): void {
   const wcId = contents.id

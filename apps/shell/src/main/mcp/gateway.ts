@@ -14,6 +14,7 @@ import { DocumentWriteQueue } from './write-queue'
 import type { McpAuditLogger } from './audit'
 import { assertSafeMcpInput } from './input-guard'
 import type { RendererMcpAction } from './renderer-bridge'
+import type { McpMediaImportStore } from './media-import'
 
 /** Small interface keeps the gateway unit-testable without an Electron runtime. */
 export interface DocumentTargetSource {
@@ -25,6 +26,11 @@ export interface DocumentTargetSource {
 /** Shell-owned factory: it creates only blank documents in the configured default location. */
 export interface McpDocumentFactory {
   create(kind: DocumentKind): Promise<DocumentTarget>
+}
+
+/** Markdown owns document-relative assets; Shell only asks it to materialize validated bytes. */
+export interface MarkdownMcpImageWriter {
+  insertImage(webContentsId: number, fileName: string, bytes: Buffer): Promise<string | null>
 }
 
 /** Read-only portion of the Slides facade, injected to avoid an Electron dependency in gateway tests. */
@@ -124,6 +130,17 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
       additionalProperties: false,
       required: ['kind'],
       properties: { kind: { enum: ['docs', 'sheets', 'slides', 'markdown', 'pdf'] } },
+    },
+  },
+  {
+    name: 'media.stage_image',
+    description:
+      'Validate one image staged in the session mediaImportDirectory and return an opaque media handle.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['fileName'],
+      properties: { fileName: { type: 'string', minLength: 1, maxLength: 180 } },
     },
   },
   {
@@ -290,6 +307,25 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
                     properties: { op: { enum: ['undo', 'redo'] } },
                   },
                 },
+              },
+            },
+          },
+        ]
+      : []),
+    ...(kind === 'markdown'
+      ? [
+          {
+            name: 'markdown.insert_image',
+            description: 'Insert one previously staged image into a saved Markdown document.',
+            inputSchema: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['documentId', 'expectedRevision', 'mediaHandle'],
+              properties: {
+                documentId: { type: 'string', minLength: 1, maxLength: 128 },
+                expectedRevision: { type: 'integer', minimum: 0 },
+                mediaHandle: { type: 'string', minLength: 1, maxLength: 128 },
+                alt: { type: 'string', maxLength: 256 },
               },
             },
           },
@@ -465,6 +501,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
 
+function withAuthoritativeRevision(result: unknown, revision: number): unknown {
+  return isRecord(result) ? { ...result, revision } : result
+}
+
 function executionContext(request: McpBridgeRequest): ExecutionContext {
   return { clientId: request.clientId, requestId: request.requestId, signal: request.signal }
 }
@@ -480,6 +520,8 @@ export class ShellMcpGateway implements McpBridgeGateway {
     private readonly audit?: McpAuditLogger,
     private readonly renderer?: RendererMcpReader,
     private readonly documentFactory?: McpDocumentFactory,
+    private readonly media?: McpMediaImportStore,
+    private readonly markdownImages?: MarkdownMcpImageWriter,
   ) {}
 
   async handle(request: McpBridgeRequest): Promise<unknown> {
@@ -531,6 +573,22 @@ export class ShellMcpGateway implements McpBridgeGateway {
       const target = await this.requireDocumentFactory().create(kind as DocumentKind)
       return toolResult(JSON.stringify(target), true, target.revision)
     }
+    if (name === 'media.stage_image') {
+      if (Object.keys(argumentsValue).length !== 1) {
+        throw new CapabilityError(
+          'validation_error',
+          'fileName must be the only media staging argument',
+        )
+      }
+      const staged = this.requireMedia().stage(context.clientId, argumentsValue.fileName)
+      return toolResult(
+        JSON.stringify({
+          mediaHandle: staged.handle,
+          fileName: staged.fileName,
+          mimeType: staged.mimeType,
+        }),
+      )
+    }
     if (name === 'slides.get_deck_context') {
       const target = await this.requireSlidesTarget(this.requireOnlyDocumentId(argumentsValue))
       return toolResult(
@@ -580,7 +638,12 @@ export class ShellMcpGateway implements McpBridgeGateway {
         input,
         context.signal,
       )
-      return toolResult(JSON.stringify(result), false, target.revision)
+      const updated = await this.requireRendererTarget(documentId, kind)
+      return toolResult(
+        JSON.stringify(withAuthoritativeRevision(result, updated.revision)),
+        false,
+        updated.revision,
+      )
     }
     if (name === 'sheets.get_workbook_context' || name === 'pdf.get_document_context') {
       const [kind] = name.split('.') as ['sheets' | 'pdf']
@@ -910,7 +973,53 @@ export class ShellMcpGateway implements McpBridgeGateway {
         )
       })
       const updated = await this.requireRendererTarget(documentId, kind)
-      return toolResult(JSON.stringify(result), true, updated.revision)
+      return toolResult(
+        JSON.stringify(withAuthoritativeRevision(result, updated.revision)),
+        true,
+        updated.revision,
+      )
+    }
+    if (name === 'markdown.insert_image') {
+      const { documentId, expectedRevision, mediaHandle, alt } =
+        this.requireMarkdownImageInput(argumentsValue)
+      const target = await this.requireRendererTarget(documentId, 'markdown')
+      if (target.revision !== expectedRevision)
+        throw new CapabilityError('conflict', 'Document changed since it was read', {
+          expectedRevision,
+          actualRevision: target.revision,
+        })
+      const result = await this.writeQueue.enqueue(target.documentId, context.signal, async () => {
+        await this.requirePermissions().authorize({
+          clientId: context.clientId,
+          toolName: name,
+          risk: 'write',
+          document: target,
+        })
+        const staged = this.requireMedia().consume(context.clientId, mediaHandle)
+        const src = await this.requireMarkdownImages().insertImage(
+          target.webContentsId,
+          staged.fileName,
+          staged.bytes,
+        )
+        if (!src) {
+          throw new CapabilityError(
+            'validation_error',
+            'Markdown image insertion requires a saved Markdown document',
+          )
+        }
+        return this.requireRenderer().request(
+          target.webContentsId,
+          'markdown.insert_image',
+          { src, alt },
+          context.signal,
+        )
+      })
+      const updated = await this.requireRendererTarget(documentId, 'markdown')
+      return toolResult(
+        JSON.stringify(withAuthoritativeRevision(result, updated.revision)),
+        true,
+        updated.revision,
+      )
     }
     if (name === 'slides.apply_ops') {
       const documentId = argumentsValue.documentId
@@ -1195,6 +1304,36 @@ export class ShellMcpGateway implements McpBridgeGateway {
     return base
   }
 
+  private requireMarkdownImageInput(argumentsValue: Record<string, unknown>): {
+    documentId: string
+    expectedRevision: number
+    mediaHandle: string
+    alt: string
+  } {
+    const base = this.requireDocumentRevision({
+      documentId: argumentsValue.documentId,
+      expectedRevision: argumentsValue.expectedRevision,
+    })
+    const mediaHandle = argumentsValue.mediaHandle
+    const alt = argumentsValue.alt ?? ''
+    if (
+      typeof mediaHandle !== 'string' ||
+      mediaHandle.length === 0 ||
+      mediaHandle.length > 128 ||
+      typeof alt !== 'string' ||
+      alt.length > 256 ||
+      Object.keys(argumentsValue).some(
+        (key) => !['documentId', 'expectedRevision', 'mediaHandle', 'alt'].includes(key),
+      )
+    ) {
+      throw new CapabilityError(
+        'validation_error',
+        'documentId, expectedRevision, mediaHandle, and optional bounded alt are required',
+      )
+    }
+    return { ...base, mediaHandle, alt }
+  }
+
   private async requireSlidesTarget(documentId: string): Promise<DocumentTarget> {
     const target = await this.documents.findDocumentTarget(documentId)
     if (!target) throw new CapabilityError('not_found', 'Document is no longer open')
@@ -1218,6 +1357,17 @@ export class ShellMcpGateway implements McpBridgeGateway {
     if (!this.renderer)
       throw new CapabilityError('not_running', 'Renderer MCP support is unavailable')
     return this.renderer
+  }
+
+  private requireMedia(): McpMediaImportStore {
+    if (!this.media) throw new CapabilityError('not_running', 'MCP media import is unavailable')
+    return this.media
+  }
+
+  private requireMarkdownImages(): MarkdownMcpImageWriter {
+    if (!this.markdownImages)
+      throw new CapabilityError('not_running', 'Markdown image import is unavailable')
+    return this.markdownImages
   }
 
   private requireSlides(): SlidesMcpReader {

@@ -109,6 +109,7 @@ export interface MarkdownApi {
         | 'markdown.insert_content'
         | 'markdown.replace_blocks'
         | 'markdown.apply_commands'
+        | 'markdown.insert_image'
       input: Record<string, unknown>
     }) => void,
   ): () => void

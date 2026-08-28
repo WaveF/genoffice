@@ -4,11 +4,13 @@ import {
   ShellMcpGateway,
   type DocumentTargetSource,
   type McpDocumentFactory,
+  type MarkdownMcpImageWriter,
   type RendererMcpReader,
   type SlidesMcpReader,
 } from '../src/main/mcp/gateway'
 import type { McpPermissionGate } from '../src/main/mcp/permissions'
 import type { McpAuditLogger } from '../src/main/mcp/audit'
+import type { McpMediaImportStore } from '../src/main/mcp/media-import'
 
 const target: DocumentTarget = {
   documentId: 'doc-123',
@@ -25,6 +27,8 @@ function gatewayWith(
   permissions: McpPermissionGate = { authorize: async () => undefined },
   documentFactory?: McpDocumentFactory,
   audit?: McpAuditLogger,
+  media?: McpMediaImportStore,
+  markdownImages?: MarkdownMcpImageWriter,
 ): ShellMcpGateway {
   const source: DocumentTargetSource = {
     listDocumentTargets: async () => documents,
@@ -82,6 +86,8 @@ function gatewayWith(
     audit,
     renderer,
     documentFactory,
+    media,
+    markdownImages,
   )
 }
 
@@ -335,6 +341,64 @@ describe('ShellMcpGateway', () => {
     expect(JSON.parse((result as { content: string }).content)).toMatchObject({
       action: 'markdown.apply_commands',
       input: { documentId: 'doc-123', expectedRevision: 3, commands: [{ op: 'redo' }] },
+    })
+  })
+
+  it('stages opaque media and inserts it only through the saved Markdown image writer', async () => {
+    const markdownTarget = { ...target, kind: 'markdown' as const }
+    const stage = (clientId: string, fileName: unknown) => {
+      expect(clientId).toBe('test-client')
+      expect(fileName).toBe('agent-image.png')
+      return { handle: 'media-123', fileName: 'agent-image.png', mimeType: 'image/png' as const }
+    }
+    const consume = (clientId: string, handle: unknown) => {
+      expect(clientId).toBe('test-client')
+      expect(handle).toBe('media-123')
+      return {
+        handle: 'media-123',
+        fileName: 'agent-image.png',
+        mimeType: 'image/png' as const,
+        bytes: Buffer.from('image'),
+      }
+    }
+    const markdownImages: MarkdownMcpImageWriter = {
+      insertImage: async (webContentsId, fileName, bytes) => {
+        expect(webContentsId).toBe(42)
+        expect(fileName).toBe('agent-image.png')
+        expect(bytes).toEqual(Buffer.from('image'))
+        return 'assets/agent-image.png'
+      },
+    }
+    const gateway = gatewayWith(
+      [markdownTarget],
+      { authorize: async () => undefined },
+      undefined,
+      undefined,
+      { stage, consume } as unknown as McpMediaImportStore,
+      markdownImages,
+    )
+    const staged = await gateway.handle(
+      request({ name: 'media.stage_image', input: { fileName: 'agent-image.png' } }),
+    )
+    expect(JSON.parse((staged as { content: string }).content)).toEqual({
+      mediaHandle: 'media-123',
+      fileName: 'agent-image.png',
+      mimeType: 'image/png',
+    })
+    const inserted = await gateway.handle(
+      request({
+        name: 'markdown.insert_image',
+        input: {
+          documentId: 'doc-123',
+          expectedRevision: 3,
+          mediaHandle: 'media-123',
+          alt: 'Generated image',
+        },
+      }),
+    )
+    expect(JSON.parse((inserted as { content: string }).content)).toMatchObject({
+      action: 'markdown.insert_image',
+      input: { src: 'assets/agent-image.png', alt: 'Generated image' },
     })
   })
 

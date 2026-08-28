@@ -55,6 +55,7 @@ export type RendererMcpAction =
   | 'markdown.insert_content'
   | 'markdown.replace_blocks'
   | 'markdown.apply_commands'
+  | 'markdown.insert_image'
   | 'sheets.get_workbook_context'
   | 'sheets.read_range'
   | 'sheets.find'
@@ -94,7 +95,10 @@ export class RendererMcpBridge {
     )
     ipcMain.on(REVISION_CHANNEL, (event, revision: unknown) => {
       if (typeof revision === 'number' && Number.isSafeInteger(revision) && revision >= 0) {
-        revisions.set(event.sender.id, revision)
+        // A renderer reload recreates its local tracker at zero while the
+        // document (and its opaque MCP ID) remains alive. Never let that
+        // lifecycle event make a previously valid CAS revision reusable.
+        revisions.set(event.sender.id, Math.max(revisions.get(event.sender.id) ?? 0, revision))
       }
     })
     ipcMain.on('mcp:renderer-ready', (event) => {
@@ -226,7 +230,7 @@ export class RendererMcpBridge {
       Number.isSafeInteger(response.result.revision) &&
       response.result.revision >= 0
     ) {
-      revisions.set(senderId, response.result.revision)
+      revisions.set(senderId, Math.max(revisions.get(senderId) ?? 0, response.result.revision))
     }
     this.pending.delete(response.requestId)
     clearTimeout(request.timer)

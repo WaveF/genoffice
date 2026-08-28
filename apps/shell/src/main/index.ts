@@ -165,6 +165,7 @@ import { convertPdfFileToXlsxLocalWithPrompt } from './pdf2xlsx-local'
 import { closePdfPasswordDialog, promptPdfPassword } from './pdf-password-dialog'
 import {
   configureMarkdownRuntime,
+  importMcpMarkdownImage,
   markdownFileRenamed,
   requestMarkdownClose,
   requestMarkdownSave,
@@ -188,6 +189,7 @@ import { showErrorDialog } from './error-dialog'
 import { normalizeRecentQuery, pageRecentPaths, statExistingPaths } from './recent-files'
 import { TabManager } from './tab-manager'
 import { LocalMcpBridge } from './mcp/bridge'
+import { McpMediaImportStore } from './mcp/media-import'
 import { RendererMcpBridge } from './mcp/renderer-bridge'
 import { ShellMcpGateway } from './mcp/gateway'
 import { AuthenticatedMcpPermissionGate } from './mcp/permissions'
@@ -2305,6 +2307,7 @@ let shellWindow: BrowserWindow | null = null
 let tabManager: TabManager | null = null
 let mcpBridge: LocalMcpBridge | null = null
 let rendererMcpBridge: RendererMcpBridge | null = null
+let mcpMediaImports: McpMediaImportStore | null = null
 
 /**
  * When the user creates a file from a specific project view, remember which
@@ -2761,7 +2764,11 @@ async function createMcpDocument(kind: DocumentKind): Promise<DocumentTarget> {
       tabId = manager.openSlidesTab()
       break
     case 'markdown':
-      tabId = manager.openMarkdownTab()
+      {
+        const filePath = uniquePathIn(defaultSaveDir(), `${tm('untitledMarkdown')}.md`)
+        writeFileSync(filePath, '')
+        tabId = manager.openMarkdownTab(filePath)
+      }
       break
     case 'sheets': {
       const filePath = uniquePathIn(defaultSaveDir(), `${tm('untitledSheet')}.xlsx`)
@@ -4264,8 +4271,10 @@ app.whenReady().then(async () => {
   if (tabManager) {
     try {
       rendererMcpBridge = new RendererMcpBridge()
+      mcpMediaImports = new McpMediaImportStore()
       mcpBridge = new LocalMcpBridge({
         userDataPath: app.getPath('userData'),
+        mediaImportDirectory: mcpMediaImports.directory,
         ...(existsSync(MCP_ADAPTER_PATH) ? { adapterPath: MCP_ADAPTER_PATH } : {}),
         gateway: new ShellMcpGateway(
           tabManager,
@@ -4274,6 +4283,8 @@ app.whenReady().then(async () => {
           new FileMcpAuditLogger(app.getPath('userData')),
           rendererMcpBridge,
           { create: createMcpDocument },
+          mcpMediaImports,
+          { insertImage: importMcpMarkdownImage },
         ),
       })
       await mcpBridge.start()
@@ -4281,6 +4292,8 @@ app.whenReady().then(async () => {
       // MCP is an optional integration: a startup failure must not prevent local editing.
       console.warn('Failed to start local MCP bridge', error)
       mcpBridge = null
+      mcpMediaImports?.stop()
+      mcpMediaImports = null
     }
   }
   // deferred to ready: labels need currentLang(), which reads app.getLocale()
@@ -4305,4 +4318,5 @@ app.on('before-quit', () => {
   markSheetsShuttingDown()
   stopSheetsSidecar()
   void mcpBridge?.stop()
+  mcpMediaImports?.stop()
 })
