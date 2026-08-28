@@ -1,7 +1,6 @@
 #!/usr/bin/env node
-// Repository-wide English-only guard: no Chinese may appear in tracked code
-// comments or documentation prose. Catch violations in the change that
-// introduces them.
+// Source-comment English-only guard. Product plans and user-facing docs may be
+// localized, so documentation prose is deliberately out of this check.
 //
 // Functional CJK string literals are fine (i18n resources, test fixture
 // text, zh-UI matchers), as are the AI prompt guides (runtime resources that
@@ -22,15 +21,13 @@ const root = spawnSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf
 const violations = []
 for (const file of git.stdout.trim().split('\n')) {
   const isCode = /\.(ts|tsx|mjs|cjs|js)$/.test(file)
-  const isDoc = /\.(md|html?)$/.test(file) && !file.includes('/ai/prompts/')
-  if (!isCode && !isDoc) continue
+  if (!isCode) continue
   const lines = readFileSync(join(root, file), 'utf8').split('\n')
   lines.forEach((line, index) => {
-    const text = isDoc
-      ? line
-      : (line.match(/(?:^|[^:'"])\/\/(.*)$/) ??
-          line.match(/^\s*\*(.*)$/) ??
-          line.match(/\/\*(.*)$/))?.[1]
+    const text =
+      (line.match(/(?:^|[^:'"])\/\/(.*)$/) ??
+        line.match(/^\s*\*(.*)$/) ??
+        line.match(/\/\*(.*)$/))?.[1]
     if (text !== undefined && HAN.test(text)) {
       violations.push(`  ${file}:${index + 1}: ${line.trim()}`)
     }
@@ -39,9 +36,8 @@ for (const file of git.stdout.trim().split('\n')) {
 
 if (violations.length > 0) {
   console.error(
-    `Chinese text found in code comments or docs:\n${violations.join('\n')}\n` +
-      'Comments and documentation must be English-only. Move CJK text into ' +
-      'string literals or rewrite the comment in English.',
+    `Chinese text found in source-code comments:\n${violations.join('\n')}\n` +
+      'Move CJK text into string literals or rewrite the comment in English.',
   )
   process.exit(1)
 }
