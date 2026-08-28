@@ -92,12 +92,14 @@ const createSlidesView = vi.fn(() => makeFakeView())
 const requestSlidesClose = vi.fn(() => Promise.resolve(true))
 const setActiveSlidesWebContents = vi.fn()
 const slidesIsDirty = vi.fn(() => false)
+const slidesRevision = vi.fn(() => 0)
 
 vi.mock('../../slides/src/main/slides-main', () => ({
   createSlidesView: (...args: unknown[]) => createSlidesView(...(args as [])),
   requestSlidesClose: (...args: unknown[]) => requestSlidesClose(...(args as [])),
   setActiveSlidesWebContents: (...args: unknown[]) => setActiveSlidesWebContents(...args),
   slidesIsDirty: (...args: unknown[]) => slidesIsDirty(...(args as [])),
+  slidesRevision: (...args: unknown[]) => slidesRevision(...(args as [])),
 }))
 
 import { TabManager } from '../src/main/tab-manager'
