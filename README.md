@@ -97,6 +97,10 @@ generation capabilities. The current MCP surface does not provide a general
 cross-editor image import workflow: see [the capability-gap record](docs/mcp-capability-gaps.md)
 before assuming generated images can be inserted.
 
+For connection setup, supported boundaries, and a reproducible Slides flow,
+see the [MCP adapter usage guide](docs/mcp-external-ai-usage.md) and the
+[Slides MCP MVP acceptance report](docs/slides-mcp-mvp-acceptance.md).
+
 ## Engine packages
 
 All pure TypeScript, no Electron dependency, unit-tested (except the UI kit):
@@ -163,9 +167,9 @@ back byte-for-byte, so documents keep working in Microsoft Office.
 
 **Does GenOffice work offline?**
 Document editing is fully local — files never leave your machine to be
-opened, edited, or saved. The AI features (agents, search, image tools) need
-a network connection, with either a Genspark sign-in or your own model API
-key (BYOK).
+opened, edited, or saved. The local MCP bridge does not require a GenOffice
+account or model API key. An external agent may separately need a network
+connection, depending on the model or tools selected by its user.
 
 **Can GenOffice edit PDF files?**
 Yes — real PDF text and image editing that rewrites the page content stream
@@ -179,10 +183,9 @@ covered too — on macOS and Windows the system OCR reads them, so they convert
 to editable text rather than a page image.
 
 **Can I use my own AI model or API key?**
-Yes. Besides the keyless Genspark sign-in, GenOffice supports bring your own
-key (BYOK) for Claude, OpenAI, Gemini, DeepSeek, Kimi, GLM, Qwen, Doubao,
-MiniMax, Grok, Mistral, and OpenRouter, plus any OpenAI-compatible endpoint
-— including local model servers.
+Yes — choose an MCP-capable external agent that supports the model or local
+model server you want to use. GenOffice itself does not accept, store, or
+route model-provider API keys.
 
 **Does GenOffice collect any data?**
 Official packaged builds send limited usage analytics by default, and you can
