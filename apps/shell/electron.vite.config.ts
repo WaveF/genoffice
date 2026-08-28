@@ -6,7 +6,26 @@ export default defineConfig({
   // Bundle everything into the shell main (same policy as apps/docs): the
   // imported docs/sheets main modules are TS source with no build artifacts,
   // so externalizing them would break Node ESM resolution at runtime.
-  main: {},
+  main: {
+    // Shell bundles the Slides main-process bridge. Preserve its low-level
+    // HarfBuzz factory and wasm imports without relying on package deep exports.
+    resolve: {
+      alias: {
+        'harfbuzzjs/dist/harfbuzz.js': resolve(
+          __dirname,
+          '../../node_modules/harfbuzzjs/dist/harfbuzz.js',
+        ),
+        'harfbuzzjs/dist/harfbuzz.wasm': resolve(
+          __dirname,
+          '../../node_modules/harfbuzzjs/dist/harfbuzz.wasm',
+        ),
+        'harfbuzzjs/dist/harfbuzz.wasm?url': `${resolve(
+          __dirname,
+          '../../node_modules/harfbuzzjs/dist/harfbuzz.wasm',
+        )}?url`,
+      },
+    },
+  },
   preload: {
     build: {
       rollupOptions: {
