@@ -35,7 +35,8 @@ export function handleMarkdownMcpRequest(
     | 'markdown.get_context'
     | 'markdown.read_blocks'
     | 'markdown.insert_content'
-    | 'markdown.replace_blocks',
+    | 'markdown.replace_blocks'
+    | 'markdown.apply_commands',
   input: Record<string, unknown>,
 ): unknown {
   const all = blocks(editor)
@@ -58,6 +59,28 @@ export function handleMarkdownMcpRequest(
     if (typeof content !== 'string' || content.length > 64 * 1024)
       throw new Error('bounded markdown content is required')
     editor.commands.setContent(content, { contentType: 'markdown' })
+    return { applied: true, blockCount: blocks(editor).length }
+  }
+  if (action === 'markdown.apply_commands') {
+    const commands = input.commands
+    if (!Array.isArray(commands) || commands.length === 0 || commands.length > 10)
+      throw new Error('commands must contain between 1 and 10 bounded commands')
+    for (const command of commands) {
+      if (
+        !command ||
+        typeof command !== 'object' ||
+        Array.isArray(command) ||
+        Object.keys(command).length !== 1 ||
+        !['undo', 'redo'].includes((command as { op?: unknown }).op as string)
+      ) {
+        throw new Error('only explicit undo and redo commands are supported')
+      }
+      const applied =
+        (command as { op: 'undo' | 'redo' }).op === 'undo'
+          ? editor.commands.undo()
+          : editor.commands.redo()
+      if (!applied) throw new Error(`unable to ${(command as { op: string }).op} document change`)
+    }
     return { applied: true, blockCount: blocks(editor).length }
   }
   const { start, limit } = asRange(input)

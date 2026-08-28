@@ -108,10 +108,16 @@ export interface MarkdownApi {
         | 'markdown.read_blocks'
         | 'markdown.insert_content'
         | 'markdown.replace_blocks'
+        | 'markdown.apply_commands'
       input: Record<string, unknown>
     }) => void,
   ): () => void
-  respondMcpRequest(response: { requestId: string; ok: boolean; result?: unknown; error?: string }): void
+  respondMcpRequest(response: {
+    requestId: string
+    ok: boolean
+    result?: unknown
+    error?: string
+  }): void
   reportMcpRevision(revision: number): void
   /**
    * Pick an image file and copy it into `assets/` next to the open document;

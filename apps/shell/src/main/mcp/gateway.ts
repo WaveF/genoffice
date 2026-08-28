@@ -267,11 +267,11 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
         },
       },
     },
-    ...(kind === 'docs'
+    ...(['docs', 'markdown'].includes(kind)
       ? [
           {
-            name: 'docs.apply_commands',
-            description: 'Apply a bounded sequence of explicit Docs undo or redo commands.',
+            name: `${kind}.apply_commands`,
+            description: `Apply a bounded sequence of explicit ${kind} undo or redo commands.`,
             inputSchema: {
               type: 'object',
               additionalProperties: false,
@@ -882,13 +882,13 @@ export class ShellMcpGateway implements McpBridgeGateway {
       name === 'docs.replace_blocks' ||
       name === 'markdown.insert_content' ||
       name === 'markdown.replace_blocks' ||
-      name === 'docs.apply_commands'
+      name === 'docs.apply_commands' ||
+      name === 'markdown.apply_commands'
     ) {
       const [kind] = name.split('.') as ['docs' | 'markdown']
-      const { documentId, expectedRevision } =
-        name === 'docs.apply_commands'
-          ? this.requireDocumentRevisionWithCommands(argumentsValue)
-          : this.requireDocumentRevisionWithContent(argumentsValue)
+      const { documentId, expectedRevision } = name.endsWith('.apply_commands')
+        ? this.requireDocumentRevisionWithCommands(argumentsValue)
+        : this.requireDocumentRevisionWithContent(argumentsValue)
       const target = await this.requireRendererTarget(documentId, kind)
       if (target.revision !== expectedRevision)
         throw new CapabilityError('conflict', 'Document changed since it was read', {

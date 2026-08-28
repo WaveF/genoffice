@@ -323,6 +323,21 @@ describe('ShellMcpGateway', () => {
     ).rejects.toMatchObject({ code: 'validation_error' })
   })
 
+  it('routes only bounded Markdown undo/redo commands through the renderer write queue', async () => {
+    const markdownTarget = { ...target, kind: 'markdown' as const }
+    const result = await gatewayWith([markdownTarget]).handle(
+      request({
+        name: 'markdown.apply_commands',
+        input: { documentId: 'doc-123', expectedRevision: 3, commands: [{ op: 'redo' }] },
+      }),
+    )
+    expect(result).toMatchObject({ mutated: true, revision: 3 })
+    expect(JSON.parse((result as { content: string }).content)).toMatchObject({
+      action: 'markdown.apply_commands',
+      input: { documentId: 'doc-123', expectedRevision: 3, commands: [{ op: 'redo' }] },
+    })
+  })
+
   it('requires a Sheets revision and sends operation batches through the renderer write queue', async () => {
     const sheetsTarget = { ...target, kind: 'sheets' as const }
     const result = await gatewayWith([sheetsTarget]).handle(
