@@ -177,3 +177,67 @@ jobs:
             e2e/artifacts
             e2e/test-results
           retention-days: 7
+
+  package-smoke:
+    name: Package smoke (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS
+            os: macos-latest
+            target: mac
+          - name: Windows
+            os: windows-latest
+            target: win
+          - name: Linux
+            os: ubuntu-22.04
+            target: linux
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable branch, 2026-07
+        with:
+          toolchain: stable
+
+      - name: Install macOS universal Rust targets
+        if: runner.os == 'macOS'
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
+      - name: Install Linux packaging tools
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install --yes rpm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build platform installer
+        run: npm run dist:${{ matrix.target }}
+
+      - name: Verify packaged MCP adapter
+        shell: bash
+        run: |
+          case "${{ matrix.target }}" in
+            mac) test -f apps/shell/release/mac-arm64/GenOffice.app/Contents/Resources/mcp/genoffice-mcp.mjs ;;
+            win) find apps/shell/release -type f -path '*resources/mcp/genoffice-mcp.mjs' -print -quit | grep -q . ;;
+            linux) find apps/shell/release -type f -path '*resources/mcp/genoffice-mcp.mjs' -print -quit | grep -q . ;;
+          esac
+
+      - name: Upload package artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: package-smoke-${{ matrix.target }}
+          path: apps/shell/release
+          retention-days: 7

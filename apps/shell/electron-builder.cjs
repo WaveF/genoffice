@@ -23,11 +23,14 @@
 
 const { execFileSync } = require('node:child_process')
 const { existsSync, rmSync } = require('node:fs')
-const { join } = require('node:path')
+const { dirname, isAbsolute, join } = require('node:path')
 
 const updateUrl = process.env.GENOFFICE_UPDATE_URL
 const ga4MeasurementId = process.env.GENOFFICE_GA4_MEASUREMENT_ID
 const ga4ApiSecret = process.env.GENOFFICE_GA4_API_SECRET
+const gskCliDir = dirname(require.resolve('@genspark/cli/package.json'))
+const gskCommanderDir = dirname(require.resolve('commander'))
+const harfbuzzSubsetWasm = require.resolve('harfbuzzjs/hb-subset.wasm')
 
 // GENOFFICE_MAC_X64=1 — opt into packaging the Intel (x64) dmg/zip alongside
 // arm64. Off by default: Intel packages must only ever ship signed with the
@@ -38,24 +41,24 @@ const ga4ApiSecret = process.env.GENOFFICE_GA4_API_SECRET
 // switch.
 const includeMacX64 = process.env.GENOFFICE_MAC_X64 === '1'
 
-// The gsk CLI tree below is copied verbatim from node_modules, and the
-// nested commander path depends on npm's current hoisting layout — fail the
-// build with a clear message if an install ever changes it, instead of
-// shipping an installer with a broken gsk runtime.
+// The gsk CLI tree below is copied verbatim from node_modules. Resolve its
+// runtime dependencies through Node instead of assuming npm's hoisting layout:
+// npm ci may place commander beside the CLI or at the workspace root.
 // LICENSES.chromium.html only exists after the Electron binary download —
 // since Electron 42 that no longer happens during `npm ci` (the postinstall
 // script was replaced by the lazy `install-electron` bin), and electron-builder
 // exits 0 on a missing extraResources source, so without this check the
 // installer would silently ship without the Chromium license.
 for (const rel of [
-  '../../node_modules/@genspark/cli',
-  '../../node_modules/@genspark/cli/node_modules/commander',
+  gskCliDir,
+  gskCommanderDir,
   '../../node_modules/ws',
   '../../node_modules/electron/dist/LICENSES.chromium.html',
   '../../node_modules/@embedpdf/pdfium/dist/pdfium.wasm',
-  '../pdf/node_modules/harfbuzzjs/hb-subset.wasm',
+  harfbuzzSubsetWasm,
 ]) {
-  if (!existsSync(join(__dirname, rel))) {
+  const source = isAbsolute(rel) ? rel : join(__dirname, rel)
+  if (!existsSync(source)) {
     throw new Error(
       `electron-builder extraResources source missing: ${rel} (npm hoisting changed?)`,
     )
@@ -246,7 +249,7 @@ const config = {
       to: 'wasm/pdfium.wasm',
     },
     {
-      from: '../pdf/node_modules/harfbuzzjs/hb-subset.wasm',
+      from: harfbuzzSubsetWasm,
       to: 'wasm/hb-subset.wasm',
     },
     // platform system-OCR helpers for scanned-page recovery (each exists only
@@ -261,11 +264,11 @@ const config = {
       to: 'ocr/win-ocr.exe',
     },
     {
-      from: '../../node_modules/@genspark/cli',
+      from: gskCliDir,
       to: 'gsk/node_modules/@genspark/cli',
     },
     {
-      from: '../../node_modules/@genspark/cli/node_modules/commander',
+      from: gskCommanderDir,
       to: 'gsk/node_modules/commander',
     },
     {
@@ -367,7 +370,10 @@ const config = {
     ],
     extraResources: [
       {
-        from: '../sheets/native/xlsx-engine/target/x86_64-pc-windows-gnu/release/xlsx-sidecar.exe',
+        // `native:build` runs on the Windows runner itself, so Cargo writes
+        // the MSVC host target to target/release. The target-specific config
+        // above statically links its CRT for clean-machine installs.
+        from: '../sheets/native/xlsx-engine/target/release/xlsx-sidecar.exe',
         to: 'native/xlsx-sidecar.exe',
       },
     ],

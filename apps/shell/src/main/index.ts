@@ -211,7 +211,7 @@ import type { DocumentKind, DocumentTarget } from '@genoffice/capabilities'
 // run silently quits and forwards its argv to the running installed GenOffice.
 // GENOFFICE_USER_DATA: test drivers point this at a scratch dir so an
 // automated instance can run alongside the dev instance (separate lock).
-if (!app.isPackaged)
+if (!app.isPackaged || process.env.GENOFFICE_USER_DATA)
   app.setPath(
     'userData',
     process.env.GENOFFICE_USER_DATA ?? join(app.getPath('appData'), 'GenOffice Dev'),
