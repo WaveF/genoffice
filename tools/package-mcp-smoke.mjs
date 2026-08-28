@@ -1,0 +1,196 @@
+#!/usr/bin/env node
+// Launch a packaged GenOffice build and verify its bundled MCP adapter can
+// reach the live local bridge. Linux callers must provide an X display.
+import { existsSync } from 'node:fs'
+import { mkdtemp, rm, stat } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
+import { spawn } from 'node:child_process'
+
+const root = resolve(import.meta.dirname, '..')
+const target = process.env.PACKAGE_SMOKE_TARGET
+
+const layouts = {
+  mac: {
+    app: join(
+      'apps',
+      'shell',
+      'release',
+      'mac-arm64',
+      'GenOffice.app',
+      'Contents',
+      'MacOS',
+      'GenOffice',
+    ),
+    adapter: join(
+      'apps',
+      'shell',
+      'release',
+      'mac-arm64',
+      'GenOffice.app',
+      'Contents',
+      'Resources',
+      'mcp',
+      'genoffice-mcp.mjs',
+    ),
+  },
+  win: {
+    app: join('apps', 'shell', 'release', 'win-unpacked', 'GenOffice.exe'),
+    adapter: join(
+      'apps',
+      'shell',
+      'release',
+      'win-unpacked',
+      'resources',
+      'mcp',
+      'genoffice-mcp.mjs',
+    ),
+  },
+  linux: {
+    app: join('apps', 'shell', 'release', 'linux-unpacked', 'genoffice'),
+    adapter: join(
+      'apps',
+      'shell',
+      'release',
+      'linux-unpacked',
+      'resources',
+      'mcp',
+      'genoffice-mcp.mjs',
+    ),
+  },
+}[target]
+
+if (!layouts)
+  throw new Error(`PACKAGE_SMOKE_TARGET must be mac, win, or linux (received ${target ?? 'unset'})`)
+
+const appPath = join(root, layouts.app)
+const adapterPath = join(root, layouts.adapter)
+for (const path of [appPath, adapterPath]) {
+  if (!existsSync(path)) throw new Error(`Packaged smoke target missing: ${path}`)
+}
+
+function sleep(ms) {
+  return new Promise((resolvePromise) => setTimeout(resolvePromise, ms))
+}
+
+async function waitForFile(path, timeoutMs = 30_000) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    try {
+      if ((await stat(path)).isFile()) return
+    } catch {
+      // The bridge creates the parent directory asynchronously.
+    }
+    await sleep(100)
+  }
+  throw new Error(`Timed out waiting for packaged bridge discovery: ${path}`)
+}
+
+function createMcpClient(discoveryPath) {
+  const child = spawn(process.execPath, [adapterPath, '--discovery', discoveryPath], {
+    stdio: ['pipe', 'pipe', 'pipe'],
+  })
+  let nextId = 1
+  let buffer = ''
+  const pending = new Map()
+  let stderr = ''
+  child.stdout.setEncoding('utf8')
+  child.stderr.setEncoding('utf8')
+  child.stdout.on('data', (chunk) => {
+    buffer += chunk
+    let boundary
+    while ((boundary = buffer.indexOf('\n')) >= 0) {
+      const line = buffer.slice(0, boundary)
+      buffer = buffer.slice(boundary + 1)
+      if (!line.trim()) continue
+      const response = JSON.parse(line)
+      const resolveResponse = pending.get(response.id)
+      if (resolveResponse) {
+        pending.delete(response.id)
+        resolveResponse(response)
+      }
+    }
+  })
+  child.stderr.on('data', (chunk) => {
+    stderr += chunk
+  })
+  child.once('error', (error) => {
+    for (const rejectResponse of pending.values()) rejectResponse(error)
+    pending.clear()
+  })
+  return {
+    async request(method, params) {
+      const id = nextId++
+      const response = new Promise((resolveResponse, rejectResponse) => {
+        const timer = setTimeout(() => {
+          pending.delete(id)
+          rejectResponse(
+            new Error(`Timed out waiting for MCP ${method}: ${stderr || 'no adapter stderr'}`),
+          )
+        }, 20_000)
+        pending.set(id, (value) => {
+          clearTimeout(timer)
+          resolveResponse(value)
+        })
+      })
+      child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', id, method, params })}\n`)
+      return response
+    },
+    close() {
+      child.stdin.end()
+      child.kill()
+    },
+  }
+}
+
+async function stopApp(child) {
+  if (child.exitCode !== null) return
+  if (process.platform === 'win32') {
+    await new Promise((resolvePromise) => {
+      const killer = spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'])
+      killer.once('exit', resolvePromise)
+      killer.once('error', resolvePromise)
+    })
+  } else {
+    child.kill('SIGTERM')
+  }
+}
+
+const userDataDir = await mkdtemp(join(tmpdir(), 'genoffice-package-mcp-'))
+const app = spawn(appPath, [], {
+  detached: process.platform !== 'win32',
+  env: {
+    ...process.env,
+    GENOFFICE_USER_DATA: userDataDir,
+    ...(target === 'linux' ? { ELECTRON_DISABLE_SANDBOX: '1' } : {}),
+  },
+  stdio: 'ignore',
+})
+let client
+try {
+  const discoveryPath = join(userDataDir, 'mcp', 'bridge.json')
+  await waitForFile(discoveryPath)
+  client = createMcpClient(discoveryPath)
+  const initialized = await client.request('initialize', {
+    protocolVersion: '2025-06-18',
+    clientInfo: { name: 'genoffice-package-smoke' },
+  })
+  if (initialized.result?.serverInfo?.name !== 'GenOffice') {
+    throw new Error('Packaged MCP adapter did not return GenOffice server info')
+  }
+  const tools = await client.request('tools/list', {})
+  if (!tools.result?.tools?.some((tool) => tool.name === 'create_document')) {
+    throw new Error('Packaged MCP adapter did not expose create_document')
+  }
+  const created = await client.request('tools/call', {
+    name: 'create_document',
+    arguments: { kind: 'slides' },
+  })
+  if (created.result?.isError)
+    throw new Error('Packaged MCP adapter could not create a Slides document')
+  process.stdout.write(`package-mcp-smoke: ${target} OK\n`)
+} finally {
+  client?.close()
+  await stopApp(app)
+  await rm(userDataDir, { recursive: true, force: true })
+}

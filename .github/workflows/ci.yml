@@ -234,6 +234,17 @@ jobs:
             linux) find apps/shell/release -type f -path '*resources/mcp/genoffice-mcp.mjs' -print -quit | grep -q . ;;
           esac
 
+      - name: Run packaged Shell MCP smoke
+        env:
+          PACKAGE_SMOKE_TARGET: ${{ matrix.target }}
+        shell: bash
+        run: |
+          if [ "${{ matrix.target }}" = "linux" ]; then
+            xvfb-run --auto-servernum -- node tools/package-mcp-smoke.mjs
+          else
+            node tools/package-mcp-smoke.mjs
+          fi
+
       - name: Upload package artifacts on failure
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
