@@ -9,7 +9,7 @@ vi.mock('electron', () => ({
 vi.mock('../src/main/fonts', () => ({ createSystemFontMetrics: () => ({}) }))
 
 import { SlidesMcpAdapter, waitForSlidesMcpSession } from '../src/main/mcp-adapter'
-import { sessions, type Session } from '../src/main/session-state'
+import { journalOps, sessions, type Session } from '../src/main/session-state'
 
 const WEB_CONTENTS_ID = 901
 
@@ -56,6 +56,25 @@ describe('SlidesMcpAdapter', () => {
     expect(session.opened.deck.size).toEqual(before)
     expect(adapter.redo(WEB_CONTENTS_ID, 2)).toEqual({ applied: true, revision: 3 })
     expect(session.opened.deck.size).toEqual({ cx: before.cx + 1000, cy: before.cy + 1000 })
+  })
+
+  it('rejects a stale MCP write after a manually journaled editor transaction', () => {
+    const before = { ...session.opened.deck.size }
+    const ops = [{ op: 'setSlideSize', cx: before.cx + 1000, cy: before.cy + 1000 }]
+
+    // The editor's normal transaction path journals every successful manual edit.
+    journalOps(session, 'edit', [{ op: { op: 'setSlideSize', cx: before.cx, cy: before.cy } }])
+    expect(session.revision).toBe(1)
+
+    try {
+      adapter.applyOps(WEB_CONTENTS_ID, ops, 0)
+      throw new Error('A stale MCP mutation unexpectedly succeeded')
+    } catch (error) {
+      expect(error).toMatchObject({
+        code: 'conflict',
+        details: { expectedRevision: 0, actualRevision: 1 },
+      })
+    }
   })
 
   it('renders a slide preview through the injected renderer-only callback', async () => {

@@ -116,6 +116,7 @@ test.describe('MCP stdio adapter + Shell bridge', () => {
     })
     const discoveryPath = join(launched.userDataDir, 'mcp', 'bridge.json')
     let client: StdioMcpClient | undefined
+    let competingClient: StdioMcpClient | undefined
     try {
       await waitForFile(discoveryPath)
       client = new StdioMcpClient(discoveryPath)
@@ -146,11 +147,35 @@ test.describe('MCP stdio adapter + Shell bridge', () => {
       ) as { documentId: string; revision: number }
       expect(created).toMatchObject({ documentId: expect.any(String), revision: 0 })
 
-      const added = await client.request('tools/call', {
+      competingClient = new StdioMcpClient(discoveryPath)
+      const competingInitialized = await competingClient.request('initialize', {
+        protocolVersion: '2025-06-18',
+        clientInfo: { name: 'genoffice-e2e-competing-client' },
+      })
+      expect(competingInitialized.result).toMatchObject({ serverInfo: { name: 'GenOffice' } })
+
+      const addSlideRequest = {
         name: 'slides.add_slide',
         arguments: { documentId: created.documentId, expectedRevision: 0, afterSlide: 0 },
+      }
+      const addResults = await Promise.all([
+        client.request('tools/call', addSlideRequest),
+        competingClient.request('tools/call', addSlideRequest),
+      ])
+      const successfulAdds = addResults.filter(
+        (response) => !(response.result as { isError?: boolean } | undefined)?.isError,
+      )
+      const conflictedAdds = addResults.filter(
+        (response) => (response.result as { isError?: boolean } | undefined)?.isError,
+      )
+      expect(successfulAdds).toHaveLength(1)
+      expect(JSON.parse(resultText(successfulAdds[0]))).toMatchObject({
+        applied: true,
+        revision: 1,
       })
-      expect(JSON.parse(resultText(added))).toMatchObject({ applied: true, revision: 1 })
+      expect(conflictedAdds).toHaveLength(1)
+      expect(conflictedAdds[0].result).toMatchObject({ isError: true })
+      expect(JSON.parse(resultText(conflictedAdds[0]))).toMatchObject({ code: 'conflict' })
 
       const editedDeck = await client.request('tools/call', {
         name: 'slides.get_deck_context',
@@ -177,6 +202,7 @@ test.describe('MCP stdio adapter + Shell bridge', () => {
       expect(JSON.parse(resultText(saved))).toMatchObject({ saved: true, revision: 2 })
       expect((await readdir(saveDir)).some((name) => name.endsWith('.pptx'))).toBe(true)
     } finally {
+      competingClient?.close()
       client?.close()
       await closeAndSaveVideo(launched, 'mcp-shell-slides')
     }
