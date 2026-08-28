@@ -2,7 +2,7 @@ import { mkdtemp, readFile, stat } from 'node:fs/promises'
 import { createConnection } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { CapabilityError } from '@genoffice/capabilities'
 import { LocalMcpBridge } from '../src/main/mcp/bridge'
 
@@ -26,17 +26,22 @@ function request(endpoint: string, payload: unknown): Promise<Record<string, unk
 describe('LocalMcpBridge', () => {
   it('writes a private discovery file and authenticates requests', async () => {
     const userDataPath = await mkdtemp(join(tmpdir(), 'genoffice-mcp-'))
+    const handle = vi.fn(async (request: { method: string; clientId: string }) => ({
+      method: request.method,
+      clientId: request.clientId,
+    }))
     const bridge = new LocalMcpBridge({
       userDataPath,
       adapterPath: '/Applications/GenOffice.app/Contents/Resources/mcp/genoffice-mcp.mjs',
-      gateway: {
-        handle: async (request) => ({ method: request.method, clientId: request.clientId }),
-      },
+      gateway: { handle },
     })
     await bridge.start()
     try {
       expect(bridge.discovery.endpoint.length).toBeLessThan(100)
-      const discovery = JSON.parse(await readFile(bridge.discoveryPath, 'utf8')) as Record<string, string>
+      const discovery = JSON.parse(await readFile(bridge.discoveryPath, 'utf8')) as Record<
+        string,
+        string
+      >
       expect(discovery.endpoint).toBe(bridge.discovery.endpoint)
       expect(discovery.adapterPath).toBe(
         '/Applications/GenOffice.app/Contents/Resources/mcp/genoffice-mcp.mjs',
@@ -63,8 +68,13 @@ describe('LocalMcpBridge', () => {
         params: {},
       })
       expect(denied).toEqual(
-        expect.objectContaining({ id: '2', ok: false, error: expect.objectContaining({ code: 'unauthorized' }) }),
+        expect.objectContaining({
+          id: '2',
+          ok: false,
+          error: expect.objectContaining({ code: 'unauthorized' }),
+        }),
       )
+      expect(handle).toHaveBeenCalledTimes(1)
     } finally {
       await bridge.stop()
     }
@@ -74,7 +84,9 @@ describe('LocalMcpBridge', () => {
     const userDataPath = await mkdtemp(join(tmpdir(), 'genoffice-mcp-'))
     const bridge = new LocalMcpBridge({
       userDataPath,
-      gateway: { handle: async () => Promise.reject(new CapabilityError('conflict', 'Document changed')) },
+      gateway: {
+        handle: async () => Promise.reject(new CapabilityError('conflict', 'Document changed')),
+      },
     })
     await bridge.start()
     try {

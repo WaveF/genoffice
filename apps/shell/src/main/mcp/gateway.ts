@@ -152,7 +152,8 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
   },
   {
     name: 'slides.delete_slide',
-    description: 'Delete one explicit slide ID or index after a one-time confirmation.',
+    description:
+      'Delete one explicit slide ID or index through the authenticated destructive-operation boundary.',
     inputSchema: {
       type: 'object',
       additionalProperties: false,

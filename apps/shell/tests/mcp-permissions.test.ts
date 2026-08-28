@@ -18,10 +18,23 @@ describe('AuthenticatedMcpPermissionGate', () => {
     const gate = new AuthenticatedMcpPermissionGate()
 
     await expect(
-      gate.authorize({ clientId: 'bridge-1', toolName: 'slides.apply_ops', risk: 'write', document }),
+      gate.authorize({
+        clientId: 'bridge-1',
+        toolName: 'slides.apply_ops',
+        risk: 'write',
+        document,
+      }),
     ).resolves.toBeUndefined()
     await expect(
-      gate.authorize({ clientId: 'bridge-1', toolName: 'slides.delete_slide', risk: 'destructive', document }),
+      gate.authorize({
+        clientId: 'bridge-1',
+        toolName: 'slides.delete_slide',
+        risk: 'destructive',
+        document,
+      }),
+    ).resolves.toBeUndefined()
+    await expect(
+      gate.authorize({ clientId: 'bridge-1', toolName: 'save_document', risk: 'file', document }),
     ).resolves.toBeUndefined()
   })
 })

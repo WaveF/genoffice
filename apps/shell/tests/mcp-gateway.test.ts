@@ -8,6 +8,7 @@ import {
   type SlidesMcpReader,
 } from '../src/main/mcp/gateway'
 import type { McpPermissionGate } from '../src/main/mcp/permissions'
+import type { McpAuditLogger } from '../src/main/mcp/audit'
 
 const target: DocumentTarget = {
   documentId: 'doc-123',
@@ -23,6 +24,7 @@ function gatewayWith(
   documents: DocumentTarget[] = [target],
   permissions: McpPermissionGate = { authorize: async () => undefined },
   documentFactory?: McpDocumentFactory,
+  audit?: McpAuditLogger,
 ): ShellMcpGateway {
   const source: DocumentTargetSource = {
     listDocumentTargets: async () => documents,
@@ -77,7 +79,7 @@ function gatewayWith(
       }),
     },
     permissions,
-    undefined,
+    audit,
     renderer,
     documentFactory,
   )
@@ -116,6 +118,11 @@ describe('ShellMcpGateway', () => {
         expect.objectContaining({ name: 'pdf.read_annotations' }),
       ]),
     )
+    const deleteSlide = (result as Array<{ name: string; description: string }>).find(
+      (tool) => tool.name === 'slides.delete_slide',
+    )
+    expect(deleteSlide?.description).toContain('authenticated destructive-operation boundary')
+    expect(deleteSlide?.description).not.toContain('confirmation')
   })
 
   it('does not expose arbitrary local-file access through the MCP tool surface', async () => {
@@ -459,6 +466,62 @@ describe('ShellMcpGateway', () => {
     )
     expect(added).toMatchObject({ mutated: true, revision: 4 })
     expect(deleted).toMatchObject({ mutated: true, revision: 4 })
+  })
+
+  it('uses destructive risk only for an explicit Slides deletion target', async () => {
+    const requests: Parameters<McpPermissionGate['authorize']>[0][] = []
+    const gateway = gatewayWith([target], {
+      authorize: async (permission) => {
+        requests.push(permission)
+      },
+    })
+
+    await gateway.handle(
+      request({
+        name: 'slides.delete_slide',
+        input: { documentId: 'doc-123', expectedRevision: 3, slide: 0 },
+      }),
+    )
+    expect(requests).toEqual([
+      expect.objectContaining({
+        toolName: 'slides.delete_slide',
+        risk: 'destructive',
+        document: expect.objectContaining({ documentId: 'doc-123' }),
+      }),
+    ])
+    await expect(
+      gateway.handle(
+        request({
+          name: 'slides.delete_slide',
+          input: { documentId: 'doc-123', expectedRevision: 3 },
+        }),
+      ),
+    ).rejects.toMatchObject({ code: 'validation_error' })
+  })
+
+  it('audits only metadata after a write, never its operation payload', async () => {
+    const events: unknown[] = []
+    const audit: McpAuditLogger = { record: async (event) => void events.push(event) }
+    await gatewayWith([target], { authorize: async () => undefined }, undefined, audit).handle(
+      request({
+        name: 'slides.apply_ops',
+        input: {
+          documentId: 'doc-123',
+          expectedRevision: 3,
+          ops: [{ op: 'setFill', target: { slide: 0, el: 'shape-1' }, fill: 'secret-content' }],
+        },
+      }),
+    )
+    expect(events).toEqual([
+      expect.objectContaining({
+        toolName: 'slides.apply_ops',
+        documentId: 'doc-123',
+        outcome: 'success',
+        mutated: true,
+        revision: 4,
+      }),
+    ])
+    expect(JSON.stringify(events)).not.toContain('secret-content')
   })
 
   it('rejects unknown, closed, and malformed document requests', async () => {

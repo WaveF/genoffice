@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -21,6 +21,8 @@ describe('FileMcpAuditLogger', () => {
     expect(log).toContain('slides.apply_ops')
     expect(log).not.toContain('base64')
     expect(log).not.toContain('document content')
+    expect((await stat(join(userDataPath, 'mcp'))).mode & 0o077).toBe(0)
+    expect((await stat(join(userDataPath, 'mcp', 'audit.jsonl'))).mode & 0o077).toBe(0)
   })
 
   it('rotates an oversized log before appending', async () => {
