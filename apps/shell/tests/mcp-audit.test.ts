@@ -28,8 +28,12 @@ describe('FileMcpAuditLogger', () => {
     const auditDir = join(userDataPath, 'mcp')
     await mkdir(auditDir)
     await writeFile(join(auditDir, 'audit.jsonl'), 'x'.repeat(1024 * 1024))
+    await writeFile(join(auditDir, 'audit.jsonl.1'), 'older retained event')
     const logger = new FileMcpAuditLogger(userDataPath)
     await logger.record({ at: 'now', clientId: 'c', toolName: 'ping', outcome: 'success' })
     expect(await readFile(join(auditDir, 'audit.jsonl.1'), 'utf8')).toHaveLength(1024 * 1024)
+    expect(await readFile(join(auditDir, 'audit.jsonl.1'), 'utf8')).not.toContain(
+      'older retained event',
+    )
   })
 })

@@ -23,6 +23,7 @@ import { buildPrintHtml } from './export/printHtml'
 import { resolveImageSrc } from './editor/localImage'
 import type { ExportFormat, SaveMode } from '../shared/ipc'
 import { handleMarkdownMcpRequest } from './mcp-adapter'
+import { McpRevisionTracker } from './mcp-revision'
 
 type LoadStatus = 'loading' | 'ready' | 'error'
 type SaveState = 'idle' | 'saving' | 'saved' | 'failed'
@@ -122,7 +123,7 @@ export default function App() {
   const dirtyRef = useRef(false)
   const savingRef = useRef(false)
   const envelopeRef = useRef<DocEnvelope>(EMPTY_ENVELOPE)
-  const mcpRevisionRef = useRef(0)
+  const mcpRevisionRef = useRef(new McpRevisionTracker())
   const editorRef = useRef<Editor | null>(null)
   const filePathRef = useRef<string | null>(null)
   const slashMenuRef = useRef<SlashMenuHandle>(null)
@@ -138,12 +139,14 @@ export default function App() {
   )
 
   const markDirty = useCallback(() => {
-    if (statusRef.current !== 'ready' || dirtyRef.current) return
-    dirtyRef.current = true
-    window.markdownApi.reportMcpRevision(++mcpRevisionRef.current)
-    setDirty(true)
-    setSaveState('idle')
-    window.markdownApi.setDirty(true)
+    if (statusRef.current !== 'ready') return
+    window.markdownApi.reportMcpRevision(mcpRevisionRef.current.advance())
+    if (!dirtyRef.current) {
+      dirtyRef.current = true
+      setDirty(true)
+      setSaveState('idle')
+      window.markdownApi.setDirty(true)
+    }
   }, [])
 
   const insertImage = useCallback(() => {
@@ -189,7 +192,10 @@ export default function App() {
         window.markdownApi.respondMcpRequest({
           requestId: request.requestId,
           ok: true,
-          result: { ...(result as Record<string, unknown>), revision: mcpRevisionRef.current },
+          result: {
+            ...(result as Record<string, unknown>),
+            revision: mcpRevisionRef.current.current,
+          },
         })
       } catch (error) {
         window.markdownApi.respondMcpRequest({

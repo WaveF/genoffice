@@ -1588,20 +1588,30 @@ export default function App() {
     metadata,
   })
 
-  const pushUndo = (coalesceKey?: string) => {
-    if (coalesceKey && coalesceKeyRef.current === coalesceKey) return
+  const advanceMcpRevision = () => {
+    mcpRevisionRef.current += 1
+    window.pdfApi.reportMcpRevision(mcpRevisionRef.current)
+  }
+
+  const pushUndo = (coalesceKey?: string, reportMcpMutation = true) => {
+    if (coalesceKey && coalesceKeyRef.current === coalesceKey) {
+      if (reportMcpMutation) advanceMcpRevision()
+      return
+    }
     coalesceKeyRef.current = coalesceKey ?? null
     setUndoStack((prev) => [...prev.slice(-49), snapshot()])
     setRedoStack([])
+    if (reportMcpMutation) advanceMcpRevision()
   }
 
-  /** Latest pushUndo for async callbacks: the AI edit path pushes undo after an awaited
-      validation, and the closure it started with may snapshot stale state by then */
+  /** Latest pushUndo for async callbacks after awaited validation, so they do not snapshot stale state. */
   const pushUndoRef = useRef(pushUndo)
   pushUndoRef.current = pushUndo
 
   mcpApplyOperationsRef.current = async (operations) => {
-    pushUndoRef.current()
+    // A batch is one atomic MCP mutation, so defer its single revision advance
+    // until every operation has completed successfully.
+    pushUndoRef.current(undefined, false)
     for (const operation of operations) {
       if (operation.op === 'add_note') {
         const id = newId()
@@ -1708,8 +1718,7 @@ export default function App() {
         )
       }
     }
-    mcpRevisionRef.current += 1
-    window.pdfApi.reportMcpRevision(mcpRevisionRef.current)
+    advanceMcpRevision()
   }
 
   const applySnapshot = (s: EditSnapshot) => {
@@ -1741,6 +1750,7 @@ export default function App() {
     setUndoStack((u) => u.slice(0, -1))
     applySnapshot(top)
     coalesceKeyRef.current = null
+    advanceMcpRevision()
   }
 
   const redo = () => {
@@ -1750,6 +1760,7 @@ export default function App() {
     setRedoStack((r) => r.slice(0, -1))
     applySnapshot(top)
     coalesceKeyRef.current = null
+    advanceMcpRevision()
   }
 
   // ── Full-text search ──

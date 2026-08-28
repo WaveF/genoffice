@@ -1,4 +1,4 @@
-import { appendFile, mkdir, rename, stat } from 'node:fs/promises'
+import { appendFile, mkdir, rename, rm, stat } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
 const MAX_AUDIT_BYTES = 1024 * 1024
@@ -30,6 +30,9 @@ export class FileMcpAuditLogger implements McpAuditLogger {
     await mkdir(dirname(this.path), { recursive: true, mode: 0o700 })
     try {
       if ((await stat(this.path)).size >= MAX_AUDIT_BYTES) {
+        // Retain exactly one bounded predecessor. Removing it explicitly keeps
+        // rotation portable on Windows, where rename does not replace a target.
+        await rm(`${this.path}.1`, { force: true })
         await rename(this.path, `${this.path}.1`)
       }
     } catch {
