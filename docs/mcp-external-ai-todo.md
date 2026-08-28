@@ -129,17 +129,20 @@
 | QLT-05 | 在 CI 中运行 `npm run typecheck`、受影响 workspace tests、`npm run lint`、`npm run format:check`。 | P0     | INF-01          | 已完成 | Codex  | `.github/workflows/ci.yml`                                          | 现有 PR/push CI 已运行 format、lint、typecheck、全量 unit tests 与 Electron E2E；新增 MCP E2E 自动纳入该 job。        | 既有 workflow |
 | QLT-06 | 执行 macOS、Windows、Linux 打包冒烟验证。                                                          | P1     | INF-07, QLT-03  | 已完成 | Codex  | 三个平台都能启动 Shell 和 adapter，且能完成授权与 Slides 基础调用。 | CI Run 8（`33144521227`）在三平台完成成品 Shell 启动、包内 adapter 初始化、`tools/list` 与 Slides `create_document`。 |
 
-## 9. MVP 完成定义
+## 9. Slides MCP MVP 收束验收
 
-以下全部完成，才可宣布“GenOffice Slides MCP MVP 可用”：
+本阶段不是新增编辑器能力；目标是将已实现的能力、测试和安全边界逐项审计并形成可发布结论。只有 `MVP-01` 至 `MVP-08` 全部完成，才可宣布“GenOffice Slides MCP MVP 可用”。若审计发现实现与既有任务描述不一致，应先新增或更新对应的原始任务，再回到本阶段继续收束。
 
-- [ ] DEC-01、DEC-02、DEC-03 已记录。
-- [ ] INF-01 至 INF-06、CAP-01 至 CAP-07、SEC-01 至 SEC-05 已完成。
-- [ ] SLD-01 至 SLD-08 已完成。
-- [x] QLT-01 至 QLT-06 已完成并在 CI 运行。
-- [ ] 外部 MCP 客户端可列出、读取并编辑指定的已打开 Slides 文档。
-- [ ] 写入具备权限确认、revision 冲突保护、原子回滚、UI undo/redo 和显式保存。
-- [ ] 内置 Slides AI UI 仍可保留作为迁移期回退，但不得与 MCP 写操作绕过同一 revision/权限边界。
+| ID     | 任务                                                                                      | 优先级 | 依赖                           | 状态   | 负责人 | 验收标准                                                                                                                        | 证据/记录 |
+| ------ | ----------------------------------------------------------------------------------------- | ------ | ------------------------------ | ------ | ------ | ------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| MVP-01 | 复核 MVP 范围与产品决策，明确已打开文档和受控空白文档的边界。                             | P0     | DEC-01..05                     | 未开始 | Codex  | `mcp-external-ai-decisions.md` 与实际公开 tools 一致；无任意本机路径打开、读取或写入能力。                                      |           |
+| MVP-02 | 逐项审计基础设施与安全前置条件，并回填 `INF-01..07`、`CAP-01..08`、`SEC-01..06` 状态。    | P0     | MVP-01, QLT-01..06             | 未开始 | Codex  | 每项均有代码、定向测试或 CI 证据；未满足项回到原任务，不以文档勾选替代实现。                                                    |           |
+| MVP-03 | 验证 Slides 的 documentId、revision 与并发写入契约。                                      | P0     | CAP-02..03, CAP-07, SLD-01..05 | 未开始 | Codex  | 人工/MCP 编辑均单调推进 revision；相同 revision 的并发写入仅一方成功，另一方返回结构化 `conflict`；关闭后 documentId 不可解析。 |           |
+| MVP-04 | 验证写入安全边界：bridge token、无逐次应用内授权、输入限制、审计和 destructive 操作约束。 | P0     | INF-03..05, SEC-01..06         | 未开始 | Codex  | 已认证请求不显示应用内确认窗；未认证/越界输入被拒绝；审计记录完整且不含文档内容；删除类操作满足专用约束。                       |           |
+| MVP-05 | 以独立 stdio MCP 客户端完成 Slides 端到端验收。                                           | P0     | MVP-01..04, SLD-01..08         | 未开始 | Codex  | 覆盖列出已打开文档、读取、dry-run、写入、conflict、undo、redo、save；不依赖 active Tab 作为写入目标。                           |           |
+| MVP-06 | 复核内置 AI 下线后的产品边界与 MCP 能力缺口。                                             | P1     | SUN-01..06, MED-01             | 未开始 | Codex  | 无可达的内置 AI UI/runtime/provider；确认外部生成图片插入仍为不阻塞的 `MED-01`，不把缺口误报为 MVP 已支持能力。                 |           |
+| MVP-07 | 复跑并归档质量门禁。                                                                      | P0     | MVP-02..06, QLT-01..06         | 未开始 | Codex  | 本地 typecheck/lint/format/test 与 CI 的 unit、E2E、macOS/Windows/Linux 成品包 MCP 冒烟均通过；记录具体 CI Run。                |           |
+| MVP-08 | 生成 MVP 验收报告，更新完成清单和对外连接说明。                                           | P0     | MVP-01..07                     | 未开始 | Codex  | 报告逐项引用证据、已知非阻塞缺口和复现步骤；本表全为已完成；README/连接文档不承诺未提供的图片导入或任意文件访问能力。           |           |
 
 ## 10. 每周跟踪模板
 
