@@ -158,10 +158,13 @@ async function stopApp(child) {
 
 const userDataDir = await mkdtemp(join(tmpdir(), 'genoffice-package-mcp-'))
 let appOutput = ''
+// CI hosts can export this for Electron tooling. A packaged desktop app must
+// remove it or Electron starts as plain Node and never creates the MCP bridge.
+const { ELECTRON_RUN_AS_NODE: _electronRunAsNode, ...hostEnv } = process.env
 const app = spawn(appPath, target === 'linux' ? ['--no-sandbox', '--disable-gpu'] : [], {
   detached: process.platform !== 'win32',
   env: {
-    ...process.env,
+    ...hostEnv,
     GENOFFICE_USER_DATA: userDataDir,
     ...(target === 'linux' ? { ELECTRON_DISABLE_SANDBOX: '1' } : {}),
   },
