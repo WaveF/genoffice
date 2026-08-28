@@ -29,7 +29,6 @@ import {
 import type { ApplyOutcome, ChangePlan } from '../domain/workbook.types'
 import { isSheetRemoved } from './edit-journal'
 import { fillFormulaCostError, quadraticFormulaError, type FormulaCostSheet } from './formula-cost'
-import { t } from './i18n/locale'
 import { buildLazyChangePlan } from './lazy-plan'
 import {
   lazyCellEditable,
@@ -640,7 +639,11 @@ export function proposeOperations(
       ctx.setPreview(plan)
       // All plans auto-apply (undo covers them); the caller awaits `applied`
       // so a failed apply is reported instead of silently claimed as done.
-      return { ok: true, plan, applied: autoApply ? ctx.autoApplySafePlan(plan) : Promise.resolve({ ok: true }) }
+      return {
+        ok: true,
+        plan,
+        applied: autoApply ? ctx.autoApplySafePlan(plan) : Promise.resolve({ ok: true }),
+      }
     } catch (error: unknown) {
       return {
         ok: false,
@@ -748,7 +751,11 @@ export function proposeOperations(
     ctx.setPreview(plan)
     // All plans auto-apply (undo covers them); on failure the preview
     // card stays up so the user can Apply manually.
-    return { ok: true, plan, applied: autoApply ? ctx.autoApplySafePlan(plan) : Promise.resolve({ ok: true }) }
+    return {
+      ok: true,
+      plan,
+      applied: autoApply ? ctx.autoApplySafePlan(plan) : Promise.resolve({ ok: true }),
+    }
   } catch (error: unknown) {
     return {
       ok: false,

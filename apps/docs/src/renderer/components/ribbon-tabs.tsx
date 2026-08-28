@@ -628,7 +628,6 @@ interface ReviewTabProps extends TabProps {
 }
 
 export function ReviewTab({
-  editor,
   hasDoc,
   dropdown,
   setDropdown,

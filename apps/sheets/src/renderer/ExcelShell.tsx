@@ -233,7 +233,7 @@ export interface PageLayoutEcho {
 
 export function ExcelShell({
   selectionFormat,
-  sheetHasContent,
+  sheetHasContent: _sheetHasContent,
   onGetSortColumns,
   onGetSheetProtection,
   onGetWorkbookProtection,
@@ -446,7 +446,6 @@ export function ExcelShell({
         <Ribbon
           activeTab={activeTab}
           selectionFormat={selectionFormat}
-          sheetHasContent={sheetHasContent}
           sheetProtected={onGetSheetProtection()}
           workbookProtected={onGetWorkbookProtection()}
           formulaBarVisible={formulaBarVisible}
@@ -1050,7 +1049,6 @@ function LinkDialog({
 function Ribbon({
   activeTab,
   selectionFormat,
-  sheetHasContent,
   sheetProtected,
   workbookProtected,
   formulaBarVisible,
@@ -1065,7 +1063,6 @@ function Ribbon({
 }: {
   readonly activeTab: RibbonTab
   readonly selectionFormat: SelectionFormat | null
-  readonly sheetHasContent: boolean
   readonly sheetProtected: boolean | null
   readonly workbookProtected: boolean | null
   /// View > Show echo for the formula bar toggle (app-level, not per sheet).

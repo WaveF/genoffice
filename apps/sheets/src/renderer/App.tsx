@@ -23,7 +23,6 @@ import {
   matrixBounds,
   measureImage,
   navigateToAnchor,
-  sniffImageMime,
   preloadEntireWorkbook,
   protectSheetGuard,
   pushVisualUndo,
@@ -43,11 +42,9 @@ import {
   installJournalSuppressionUndoFilter,
   installLoadAutoHeightGate,
   journalSuppression,
-  lazySheetScreenExtent,
   type ActiveWorkbook,
   type LazyWorkbookState,
   type UniverRuntime,
-  type UniverWorksheet,
 } from './univer-state'
 import { pushBulkFillUndo } from './bulk-fill-undo'
 import {
@@ -59,13 +56,9 @@ import {
   applyAiTableRowDelete,
   renameChartRefsForSheet,
 } from './workbook-ops'
-import {
-  lazyGateError,
-  proposeOperations as proposeOperationsImpl,
-  type PlanContext,
-} from './plan-operations'
+import { lazyGateError, type PlanContext } from './plan-operations'
 import { isNumericIdentifierText } from './cell-warning'
-import { consumePendingUndoCarry, undoStackDepth } from './undo-carry'
+import { consumePendingUndoCarry } from './undo-carry'
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
 import {
@@ -126,7 +119,6 @@ import {
   formatAddress,
   parseAddress,
   parseRange,
-  rangeCellCount,
 } from '../domain/cell-address'
 import { collectCellFormulaTexts, quadraticFormulaError } from './formula-cost'
 import {
@@ -137,19 +129,12 @@ import {
   type CellBounds,
 } from '../domain/chart-visual'
 import { InMemoryWorkbookAdapter } from '../domain/in-memory-workbook'
-import {
-  handleSheetsMcpRequest,
-  type SheetsMcpReadAction,
-} from './mcp-adapter'
+import { handleSheetsMcpRequest, type SheetsMcpReadAction } from './mcp-adapter'
 import { handleLazySheetsMcpReadRequest } from './mcp-lazy-reader'
 import { McpRevisionTracker } from './mcp-revision'
 import { cfRuleUnsaveableReason, iconSetSaveable } from '../gateway/xlsx-cf'
 import { installLazyFindBridge } from './lazy-find'
-import {
-  readMcpCells,
-  readMcpFormats,
-  type McpWorkbookReadContext,
-} from './mcp-workbook-readers'
+import { readMcpCells, readMcpFormats, type McpWorkbookReadContext } from './mcp-workbook-readers'
 import {
   installCrossHighlight,
   loadCrossHighlightPreference,
@@ -157,7 +142,6 @@ import {
   type CrossHighlightHandle,
 } from './cross-highlight'
 import type { ApplyOutcome, ChangePlan } from '../domain/workbook.types'
-import { ATTACHMENT_IMAGE_EXTS } from '../shared/desktop-api'
 import type {
   MenuAction,
   RecoveryPromptPayload,
@@ -186,12 +170,10 @@ import {
   MOVE_ROWS_MUTATION,
   MOVE_RANGE_MUTATION,
   NOTE_MUTATIONS,
-  PERSIST_TOOL_FIELD_MAX,
   pixelsToCharacterWidth,
   REMOVE_NUMFMT_MUTATION,
   REORDER_RANGE_MUTATION,
   ROW_COLUMN_MUTATIONS,
-  safeJsonInput,
   SET_FROZEN_MUTATION,
   SET_NUMFMT_MUTATION,
   TOGGLE_GRIDLINES_MUTATION,
@@ -376,27 +358,49 @@ export function App(): React.JSX.Element {
   const mcpApplyPlanRef = useRef<(plan: ChangePlan) => Promise<void>>(async () => {
     throw new Error('Workbook is not ready')
   })
-  const mcpLazyOperationsRef = useRef<(input: Record<string, unknown>) => Promise<unknown>>(async () => {
-    throw new Error('Workbook is not ready')
-  })
-  const mcpLazyReadRef = useRef<(action: SheetsMcpReadAction, input: Record<string, unknown>) => unknown | Promise<unknown>>(() => {
+  const mcpLazyOperationsRef = useRef<(input: Record<string, unknown>) => Promise<unknown>>(
+    async () => {
+      throw new Error('Workbook is not ready')
+    },
+  )
+  const mcpLazyReadRef = useRef<
+    (action: SheetsMcpReadAction, input: Record<string, unknown>) => unknown | Promise<unknown>
+  >(() => {
     throw new Error('Workbook is not ready')
   })
   const mcpUndoRef = useRef<(input: Record<string, unknown>) => Promise<unknown>>(async () => {
     throw new Error('Workbook is not ready')
   })
-  useEffect(() => window.desktopApi.onMcpRequest((request) => {
-    const result = request.action === 'sheets.undo'
-      ? mcpUndoRef.current(request.input)
-      : lazyWorkbookRef.current
-      ? request.action === 'sheets.apply_operations'
-        ? mcpLazyOperationsRef.current(request.input)
-        : mcpLazyReadRef.current(request.action, request.input)
-      : handleSheetsMcpRequest(adapterRef.current, request.action, request.input, mcpApplyPlanRef.current)
-    void Promise.resolve(result)
-      .then((result) => window.desktopApi.respondMcpRequest({ requestId: request.requestId, ok: true, result }))
-      .catch((error: unknown) => window.desktopApi.respondMcpRequest({ requestId: request.requestId, ok: false, error: error instanceof Error ? error.message : 'Sheets MCP request failed' }))
-  }), [])
+  useEffect(
+    () =>
+      window.desktopApi.onMcpRequest((request) => {
+        const result =
+          request.action === 'sheets.undo'
+            ? mcpUndoRef.current(request.input)
+            : lazyWorkbookRef.current
+              ? request.action === 'sheets.apply_operations'
+                ? mcpLazyOperationsRef.current(request.input)
+                : mcpLazyReadRef.current(request.action, request.input)
+              : handleSheetsMcpRequest(
+                  adapterRef.current,
+                  request.action,
+                  request.input,
+                  mcpApplyPlanRef.current,
+                )
+        void Promise.resolve(result)
+          .then((result) =>
+            window.desktopApi.respondMcpRequest({ requestId: request.requestId, ok: true, result }),
+          )
+          .catch((error: unknown) =>
+            window.desktopApi.respondMcpRequest({
+              requestId: request.requestId,
+              ok: false,
+              error: error instanceof Error ? error.message : 'Sheets MCP request failed',
+            }),
+          )
+      }),
+    [],
+  )
   const univerRef = useRef<UniverRuntime | null>(null)
   const lazyWorkbookRef = useRef<LazyWorkbookState | null>(null)
   /// Univer undo/redo stack occupancy (subscribed at mount): drives the QAT button gray states
@@ -428,8 +432,7 @@ export function App(): React.JSX.Element {
   const visualViewportKeyRef = useRef('')
   const demoVisualDisposablesRef = useRef<{ dispose(): void }[]>([])
   const demoVisualInstallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [prompt, setPrompt] = useState('')
-  const [preview, setPreview] = useState<ChangePlan | null>(null)
+  const [_preview, setPreview] = useState<ChangePlan | null>(null)
   const [_revision, setRevision] = useState(0)
   // Renderer-local source of truth for MCP CAS. React state updates are
   // asynchronous, while a second bridge request may arrive immediately after
@@ -704,13 +707,6 @@ export function App(): React.JSX.Element {
       refreshLazyVisuals,
       refreshDemoVisuals,
     }
-  }
-
-  function proposeOperations(
-    operations: readonly WorkbookOperation[],
-    summary: string,
-  ): { ok: true; plan: ChangePlan } | { ok: false; error: string } {
-    return proposeOperationsImpl(planContext(), operations, summary)
   }
 
   /** The shell can repeat its queued-open nudge while the renderer starts.
@@ -2036,7 +2032,8 @@ export function App(): React.JSX.Element {
   }
 
   mcpApplyPlanRef.current = async (plan) => {
-    if (lazyWorkbookRef.current) throw new Error('MCP workbook writes for imported files are not ready')
+    if (lazyWorkbookRef.current)
+      throw new Error('MCP workbook writes for imported files are not ready')
     const outcome = await autoApplySafePlan(plan)
     if (!outcome.ok) throw new Error(outcome.reason ?? 'Workbook changes were not applied')
     const revision = adapterRef.current.getSnapshot().revision
@@ -2045,13 +2042,21 @@ export function App(): React.JSX.Element {
 
   mcpLazyOperationsRef.current = async (input) => {
     const { expectedRevision, summary, operations, dryRun = false } = input
-    if (!Number.isSafeInteger(expectedRevision) || (expectedRevision as number) !== mcpRevisionRef.current.current) {
+    if (
+      !Number.isSafeInteger(expectedRevision) ||
+      (expectedRevision as number) !== mcpRevisionRef.current.current
+    ) {
       throw new Error('Workbook changed since it was read')
     }
     if (typeof summary !== 'string' || !Array.isArray(operations) || typeof dryRun !== 'boolean') {
       throw new Error('A complete Sheets operation batch is required')
     }
-    const proposed = proposeOperationsImpl(planContext(), operations as readonly WorkbookOperation[], summary, false)
+    const proposed = proposeOperationsImpl(
+      planContext(),
+      operations as readonly WorkbookOperation[],
+      summary,
+      false,
+    )
     if (!proposed.ok) throw new Error(proposed.error)
     const result = {
       revision: mcpRevisionRef.current.current,
@@ -2079,26 +2084,36 @@ export function App(): React.JSX.Element {
 
   mcpLazyReadRef.current = async (action, input) => {
     const readerContext: McpWorkbookReadContext = { univerRef, lazyWorkbookRef, adapterRef }
-    return handleLazySheetsMcpReadRequest({
-      getState: () => {
-        const state = lazyWorkbookRef.current
-        return state ? { preloadComplete: state.flags.preloadComplete, sheets: state.file.sheets } : null
+    return handleLazySheetsMcpReadRequest(
+      {
+        getState: () => {
+          const state = lazyWorkbookRef.current
+          return state
+            ? { preloadComplete: state.flags.preloadComplete, sheets: state.file.sheets }
+            : null
+        },
+        getWorksheet: (sheetId) =>
+          univerRef.current?.univerAPI.getActiveWorkbook()?.getSheetBySheetId(sheetId) ?? null,
+        getRevision: () => mcpRevisionRef.current.current,
+        ensureRangeLoaded: (worksheet, range) => {
+          const runtime = univerRef.current
+          if (!runtime) return Promise.resolve(false)
+          return ensureLazyRangeLoaded(runtime, lazyWorkbookRef, worksheet, range, () => undefined)
+        },
+        readCells: (sheetId, addresses) => readMcpCells(readerContext, addresses, sheetId),
+        readFormats: (sheetId, addresses) => readMcpFormats(readerContext, addresses, sheetId),
       },
-      getWorksheet: (sheetId) => univerRef.current?.univerAPI.getActiveWorkbook()?.getSheetBySheetId(sheetId) ?? null,
-      getRevision: () => mcpRevisionRef.current.current,
-      ensureRangeLoaded: (worksheet, range) => {
-        const runtime = univerRef.current
-        if (!runtime) return Promise.resolve(false)
-        return ensureLazyRangeLoaded(runtime, lazyWorkbookRef, worksheet, range, () => undefined)
-      },
-      readCells: (sheetId, addresses) => readMcpCells(readerContext, addresses, sheetId),
-      readFormats: (sheetId, addresses) => readMcpFormats(readerContext, addresses, sheetId),
-    }, action, input)
+      action,
+      input,
+    )
   }
 
   mcpUndoRef.current = async (input) => {
     const expectedRevision = input.expectedRevision
-    if (!Number.isSafeInteger(expectedRevision) || (expectedRevision as number) !== mcpRevisionRef.current.current) {
+    if (
+      !Number.isSafeInteger(expectedRevision) ||
+      (expectedRevision as number) !== mcpRevisionRef.current.current
+    ) {
       throw new Error('Workbook changed since it was read')
     }
     const before = mcpRevisionRef.current.current
@@ -2107,16 +2122,22 @@ export function App(): React.JSX.Element {
       const api = univerRef.current?.univerAPI
       if (!api) throw new Error('Workbook is not ready')
       await api.undo()
-      const revision = mcpRevisionRef.current.current === before
-        ? mcpRevisionRef.current.advance()
-        : mcpRevisionRef.current.current
+      const revision =
+        mcpRevisionRef.current.current === before
+          ? mcpRevisionRef.current.advance()
+          : mcpRevisionRef.current.current
       setRevision(revision)
       window.desktopApi.reportMcpRevision(revision)
       return { applied: true, revision }
     }
     if (!adapterRef.current.canUndo) throw new Error('No workbook change is available to undo')
     const receipt = adapterRef.current.undo()
-    loadSnapshotIntoUniver(univerRef.current, adapterRef.current.getSnapshot(), 'new-workbook', 'Untitled')
+    loadSnapshotIntoUniver(
+      univerRef.current,
+      adapterRef.current.getSnapshot(),
+      'new-workbook',
+      'Untitled',
+    )
     queueDemoVisualInstallForActiveSheet()
     commitMcpRevision(receipt.revision)
     setPreview(null)

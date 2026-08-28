@@ -20,7 +20,6 @@ import {
   dialog,
   ipcMain,
   Menu,
-  net,
   screen,
   session as electronSession,
   shell,
@@ -39,7 +38,6 @@ import {
   appMenuLabels,
   configuredDefaultSaveDir,
   contextMenuLabels,
-  fetchRemoteImage,
   installContextMenu,
   installNavigationGuard,
   safeExternalUrl,
@@ -1104,9 +1102,6 @@ interface SheetsTabSession {
 /** per-tab session state, keyed by webContents.id — replaces the old single-window closures
  * that `registerIpcHandlers`/`validateSender` used to capture, which broke as soon as a second
  * tab (or a closed-then-reopened tab) registered and overwrote the previous closure. */
-/// Same ceiling as local add_image (readLocalImage's 20MB check)
-const MAX_REMOTE_IMAGE_BYTES = 20 * 1024 * 1024
-
 const sheetsTabs = new Map<number, SheetsTabSession>()
 let activeSheetsWebContents: WebContents | null = null
 let pastedTempCleanupStarted = false
@@ -1339,20 +1334,6 @@ function pendingRecoveryFor(filePath: string): string | null {
   } catch {
     return null
   }
-}
-
-function readJson<T>(path: string, fallback: T): T {
-  try {
-    if (existsSync(path)) return JSON.parse(readFileSync(path, 'utf-8')) as T
-  } catch {
-    /* corrupted state file: fall back to defaults */
-  }
-  return fallback
-}
-
-function writeJson(path: string, value: unknown): void {
-  mkdirSync(join(path, '..'), { recursive: true })
-  writeFileSync(path, JSON.stringify(value, null, 2))
 }
 
 // Dev-only automation hooks: a fixed CDP port for driving the app from test

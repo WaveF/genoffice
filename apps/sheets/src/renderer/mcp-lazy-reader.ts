@@ -38,12 +38,21 @@ export async function handleLazySheetsMcpReadRequest<Worksheet>(
   const sheetId = typeof input.sheetId === 'string' ? input.sheetId : undefined
   const requestedRange =
     action === 'sheets.trace_formula'
-      ? typeof input.address === 'string' ? input.address : undefined
-      : typeof input.range === 'string' ? input.range : undefined
-  if (sheetId && requestedRange && !state.preloadComplete && state.sheets.some((sheet) => sheet.id === sheetId)) {
+      ? typeof input.address === 'string'
+        ? input.address
+        : undefined
+      : typeof input.range === 'string'
+        ? input.range
+        : undefined
+  if (
+    sheetId &&
+    requestedRange &&
+    !state.preloadComplete &&
+    state.sheets.some((sheet) => sheet.id === sheetId)
+  ) {
     const worksheet = deps.getWorksheet(sheetId)
     if (!worksheet) throw new Error('Sheet is not present')
-    let loaded = false
+    let loaded: boolean
     try {
       loaded = await deps.ensureRangeLoaded(worksheet, parseRange(requestedRange))
     } catch {
@@ -51,10 +60,14 @@ export async function handleLazySheetsMcpReadRequest<Worksheet>(
     }
     if (!loaded) throw new Error('Requested workbook range is not available yet')
   }
-  return handleSheetsMcpReadRequest({
-    revision: deps.getRevision(),
-    sheets: state.sheets.map((sheet) => ({ ...sheet })),
-    readCells: deps.readCells,
-    readFormats: deps.readFormats,
-  }, action, input)
+  return handleSheetsMcpReadRequest(
+    {
+      revision: deps.getRevision(),
+      sheets: state.sheets.map((sheet) => ({ ...sheet })),
+      readCells: deps.readCells,
+      readFormats: deps.readFormats,
+    },
+    action,
+    input,
+  )
 }
