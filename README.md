@@ -1,24 +1,20 @@
 # GenOffice
 
-**The world's first full-featured open-source AI Office suite.**
+**A full-featured open-source Office suite with local MCP control.**
 
 [![License: Apache-2.0](https://img.shields.io/github/license/genspark-ai/genoffice)](LICENSE)
 [![Latest release](https://img.shields.io/github/v/release/genspark-ai/genoffice)](https://github.com/genspark-ai/genoffice/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/genspark-ai/genoffice/total)](https://github.com/genspark-ai/genoffice/releases)
 
-[Website](https://genoffice.ai/) · [Download](https://github.com/genspark-ai/genoffice/releases/latest) · [Privacy](PRIVACY.md) · [Demo](https://www.youtube.com/watch?v=B2pLdMX95v4)
+[Website](https://genoffice.ai/) · [Download](https://github.com/genspark-ai/genoffice/releases/latest) · [Privacy](PRIVACY.md)
 
 GenOffice is a free, open-source alternative to Microsoft Office for macOS,
-Windows, and Linux, built around AI editing as a first-class workflow rather
-than a bolted-on chat box. It opens and saves the real Microsoft Office
-formats — Word (`.docx`), Excel (`.xlsx`), PowerPoint (`.pptx`) — and edits
-PDF and Markdown too: a word processor, spreadsheet, presentation editor,
-PDF editor, and Markdown editor as six Electron apps sharing one engine
-layer.
-
-[![Meet GenOffice — the world's first full-featured open-source AI Office (video)](https://img.youtube.com/vi/B2pLdMX95v4/maxresdefault.jpg)](https://www.youtube.com/watch?v=B2pLdMX95v4)
-
-[Watch the demo video on YouTube](https://www.youtube.com/watch?v=B2pLdMX95v4)
+Windows, and Linux. It opens and saves the real Microsoft Office formats —
+Word (`.docx`), Excel (`.xlsx`), PowerPoint (`.pptx`) — and edits PDF and
+Markdown too: a word processor, spreadsheet, presentation editor, PDF editor,
+and Markdown editor as six Electron apps sharing one engine layer. External
+AI clients can control supported open documents through the local MCP bridge;
+GenOffice itself does not embed a chat panel or model provider.
 
 ## Features
 
@@ -30,9 +26,7 @@ layer.
 - **Excel-compatible spreadsheets** — in-house engine with a Rust `.xlsx` sidecar, own charts, pivot tables, slicers.
 - **PowerPoint-compatible presentations** — in-house `.pptx` engine with masters, layouts, smart guides, non-destructive crop.
 - **Markdown to Word, fully local** — the same OOXML engine, no Pandoc, no cloud.
-- **AI that edits documents** — block-level edits with snapshots and diffs, document-aware agents.
-- **Bring your own key (BYOK)** — run the AI on your own API key: Claude, OpenAI, Gemini, DeepSeek, Kimi, GLM, Qwen, Doubao, MiniMax, Grok, Mistral, OpenRouter, or any OpenAI-compatible endpoint — or sign in with Genspark and skip keys entirely.
-- **Agent tools built in** — web/image search, image generation, media analysis.
+- **Local MCP bridge** — authenticated external agents can inspect and modify supported open documents through explicit document IDs and revision checks.
 - **Light / dark / system themes.**
 - **macOS, Windows, Linux.**
 - **Free & open-source (Apache-2.0).**
@@ -87,26 +81,21 @@ chmod +x GenOffice-<version>.AppImage
 | `apps/markdown` | **GenOffice Markdown** | `.md` / `.markdown` editor: Tiptap block editor over plain Markdown files — headings, lists, tables, images, code blocks — saved back as plain Markdown, hosted in shell tabs.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | `apps/shell`    | **GenOffice**          | The suite shell: home screen, tabbed hosting of the five editors, light/dark/system theme, auto-update.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
-Every app embeds the same AI panel: block-granular AI editing with version
-snapshots and diffs in docs, a tool-calling agent over workbook/slide/PDF
-state in the others.
+The Shell exposes a local authenticated MCP bridge for supported document
+operations. MCP tools use explicit document IDs and revisions rather than an
+editor's current selection or active tab.
 
 The whole suite ships light / dark / system UI themes built on shared design
 tokens (`packages/ui`), with a CI guard that keeps chrome colors on the token
 system. Document surfaces stay light in dark mode — Word-style dark chrome
 around white paper — so files render and export identically in both themes.
 
-**AI backends — Genspark sign-in or bring your own key.** By default the
-apps sign in to a Genspark account through a device-code flow — no model API
-key to enter — and model calls route through the Genspark proxy (Claude,
-GPT, and Gemini families). Or bring your own key (BYOK) in the AI settings:
-Claude, OpenAI, Gemini, DeepSeek, Kimi, GLM, Qwen, Doubao, MiniMax, Grok,
-Mistral, and OpenRouter are built in, plus a custom provider slot for any
-OpenAI-compatible endpoint (base URL + key), local servers included. A
-Genspark account also unlocks the Genspark ("gsk") tool endpoints the agents
-build on — web and image search, image generation and editing,
-image/audio/video analysis, and audio transcription — all reachable through
-`packages/ai-search` for anyone extending the agent layer.
+**External AI integration.** GenOffice does not embed a model provider, API
+key settings, or an AI chat panel. Connect an MCP-capable external agent to
+the local bridge; the agent supplies its own model, search, and image
+generation capabilities. The current MCP surface does not provide a general
+cross-editor image import workflow: see [the capability-gap record](docs/mcp-capability-gaps.md)
+before assuming generated images can be inserted.
 
 ## Engine packages
 
@@ -119,13 +108,7 @@ All pure TypeScript, no Electron dependency, unit-tested (except the UI kit):
 - `packages/pdf2docx` — local PDF → DOCX conversion: PDFium character-level
   extraction, pure-geometry layout analysis, rebuild through `docx-engine`;
   the same analysis drives the PDF app's PowerPoint and Excel exports.
-- `packages/file-parse` — text extraction for AI attachments (office formats,
-  text formats).
-- `packages/agent-core` — the AI agent loop and skill composition shared by
-  every app.
-- `packages/ai-provider` — provider abstraction and streaming for the model
-  backends.
-- `packages/ai-search` — Genspark auth + web/image search tools.
+- `packages/file-parse` — text extraction for office and text formats.
 - `packages/i18n`, `packages/ui`, `packages/project-store`,
   `packages/electron-utils` — shared i18n core, React UI kit, recent-files
   store, and Electron main-process helpers.

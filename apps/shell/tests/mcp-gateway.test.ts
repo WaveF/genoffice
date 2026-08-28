@@ -123,6 +123,9 @@ describe('ShellMcpGateway', () => {
     )
     expect(deleteSlide?.description).toContain('authenticated destructive-operation boundary')
     expect(deleteSlide?.description).not.toContain('confirmation')
+    expect((result as Array<{ name: string }>).map((tool) => tool.name)).not.toEqual(
+      expect.arrayContaining(['generate_image', 'images.generate', 'media.import', 'import_media']),
+    )
   })
 
   it('does not expose arbitrary local-file access through the MCP tool surface', async () => {

@@ -3131,7 +3131,7 @@ export function registerDocsIpc(): void {
     },
   )
 
-  // image attachments read raw bytes → base64; AiPanel puts them into the user message's images for multimodal
+  // Image attachments read raw bytes and expose a data URL to the local editor.
   ipcMain.handle('files:read-image', (_event, filePath: string): AttachmentImageResult => {
     const name = basename(filePath)
     const ext = name.split('.').pop()?.toLowerCase() ?? ''
