@@ -149,9 +149,13 @@ function createMcpClient(discoveryPath) {
       child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', id, method, params })}\n`)
       return response
     },
-    close() {
+    async close() {
       child.stdin.end()
       child.kill()
+      await new Promise((resolvePromise) => {
+        child.once('close', resolvePromise)
+        setTimeout(resolvePromise, 1_000).unref()
+      })
     },
   }
 }
@@ -167,6 +171,10 @@ async function stopApp(child) {
   } else {
     child.kill('SIGTERM')
   }
+  await new Promise((resolvePromise) => {
+    child.once('close', resolvePromise)
+    setTimeout(resolvePromise, 5_000).unref()
+  })
 }
 
 const userDataDir = await mkdtemp(join(tmpdir(), 'genoffice-package-mcp-'))
@@ -220,7 +228,15 @@ try {
     throw new Error('Packaged MCP adapter could not create a Slides document')
   process.stdout.write(`package-mcp-smoke: ${target} OK\n`)
 } finally {
-  client?.close()
+  await client?.close()
   await stopApp(app)
-  await rm(userDataDir, { recursive: true, force: true })
+  // Chromium can retain SQLite/WAL handles briefly after its parent exits,
+  // particularly on Windows runners. Cleanup is non-functional: retry it,
+  // then report a warning rather than hiding a successful MCP smoke result.
+  try {
+    await rm(userDataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    process.stdout.write(`::warning title=Packaged MCP smoke cleanup::${message}\n`)
+  }
 }
