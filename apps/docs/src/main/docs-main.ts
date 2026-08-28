@@ -19,7 +19,6 @@ import {
   dialog,
   ipcMain,
   nativeImage,
-  net,
   shell,
 } from 'electron'
 import {
@@ -2566,7 +2565,6 @@ export function registerDocsImagePasteIpc(): void {
       }
     },
   )
-
 }
 
 // ── project-store IPC (shared across docs / slides / sheets) ──────────────

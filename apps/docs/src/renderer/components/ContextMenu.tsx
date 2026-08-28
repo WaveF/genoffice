@@ -24,7 +24,6 @@ import { useSystemFontFamilies } from '../system-fonts'
 import { cssFontFamily } from '../line-metrics'
 import { setParaAttrs, activeParaAttrs } from './ribbon-tabs'
 import { setSelectionAlign } from '../editor/direction'
-import { IconSparkle } from './icons'
 import { useModalKeys } from './modal-keys'
 
 /**

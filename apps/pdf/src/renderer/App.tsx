@@ -4639,15 +4639,6 @@ export default function App() {
   const noteThreadsOn = (origIdx: number): NoteThreadItem[] =>
     threadsFromSaved(origIdx, savedNotes.get(origIdx) ?? [])
 
-  /** Async threads for any page: the visible-page cache when warm, pdf.js otherwise
-      (AI tools address arbitrary pages, not just the ones scrolled into view) */
-  const noteThreadsFor = async (origIdx: number): Promise<NoteThreadItem[]> => {
-    const cached = savedNotes.get(origIdx)
-    if (cached) return threadsFromSaved(origIdx, cached)
-    if (!doc) return threadsFromSaved(origIdx, [])
-    return threadsFromSaved(origIdx, (await loadSavedAnnots(doc, origIdx)).notes)
-  }
-
   /** Root pins DrawLayer renders for saved threads (pending roots render from drawings) */
   const savedNotePins = (origIdx: number): SavedNotePin[] =>
     noteThreadsOn(origIdx).flatMap((root) =>
