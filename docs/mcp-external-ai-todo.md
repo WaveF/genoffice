@@ -127,7 +127,7 @@
 | QLT-03 | 新增 Shell + Slides 端到端 MCP smoke test，并接入 CI。                                             | P0     | SLD-08          | 已完成 | Codex  | `e2e/mcp-shell-slides.spec.ts`                                      | 真实启动 Shell 与 stdio adapter，经本地 bridge 完成 Slides 创建、写入、读取、undo 与保存；纳入既有 E2E CI job。       | 待本轮提交    |
 | QLT-04 | 为 Docs/Markdown/Sheets/PDF 逐步增加相同 smoke test。                                              | P1     | 各 App MCP 测试 | 已完成 | Codex  | 每个已声明支持的文档类型都有 CI 覆盖。                              | 真实 stdio smoke 覆盖四类文档的新建、状态读取、renderer bridge 就绪与上下文读取；已修复 Markdown 启动崩溃。           |
 | QLT-05 | 在 CI 中运行 `npm run typecheck`、受影响 workspace tests、`npm run lint`、`npm run format:check`。 | P0     | INF-01          | 已完成 | Codex  | `.github/workflows/ci.yml`                                          | 现有 PR/push CI 已运行 format、lint、typecheck、全量 unit tests 与 Electron E2E；新增 MCP E2E 自动纳入该 job。        | 既有 workflow |
-| QLT-06 | 执行 macOS、Windows、Linux 打包冒烟验证。                                                          | P1     | INF-07, QLT-03  | 进行中 | Codex  | 三个平台都能启动 Shell 和 adapter，且能完成授权与 Slides 基础调用。 | 已新增三平台 CI 打包 gate；macOS 本地打包并从包内 adapter 完成 initialize。待 PR CI 回传 Windows/Linux 实机结果。     |
+| QLT-06 | 执行 macOS、Windows、Linux 打包冒烟验证。                                                          | P1     | INF-07, QLT-03  | 已完成 | Codex  | 三个平台都能启动 Shell 和 adapter，且能完成授权与 Slides 基础调用。 | CI Run 8（`33144521227`）在三平台完成成品 Shell 启动、包内 adapter 初始化、`tools/list` 与 Slides `create_document`。 |
 
 ## 9. MVP 完成定义
 
@@ -136,7 +136,7 @@
 - [ ] DEC-01、DEC-02、DEC-03 已记录。
 - [ ] INF-01 至 INF-06、CAP-01 至 CAP-07、SEC-01 至 SEC-05 已完成。
 - [ ] SLD-01 至 SLD-08 已完成。
-- [ ] QLT-01 至 QLT-05 已完成并在 CI 运行。
+- [x] QLT-01 至 QLT-06 已完成并在 CI 运行。
 - [ ] 外部 MCP 客户端可列出、读取并编辑指定的已打开 Slides 文档。
 - [ ] 写入具备权限确认、revision 冲突保护、原子回滚、UI undo/redo 和显式保存。
 - [ ] 内置 Slides AI UI 仍可保留作为迁移期回退，但不得与 MCP 写操作绕过同一 revision/权限边界。
