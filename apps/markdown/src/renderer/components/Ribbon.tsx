@@ -20,6 +20,7 @@ import {
   IconTaskList,
   IconUndo,
 } from './icons'
+import type { SourceBlock, SourceInline, SourceList } from '../markdown/sourceCommands'
 
 interface Props {
   editor: Editor | null
@@ -34,6 +35,19 @@ interface Props {
   onToggleFrontmatter: () => void
   sourceMode: boolean
   onToggleSourceMode: () => void
+  sourceCommands?: {
+    canUndo: boolean
+    canRedo: boolean
+    undo: () => void
+    redo: () => void
+    inline: (kind: SourceInline) => void
+    block: (kind: SourceBlock) => void
+    list: (kind: SourceList) => void
+    insertLink: (url: string) => void
+    insertTable: () => void
+    insertImage: () => void
+    insertHorizontalRule: () => void
+  }
 }
 
 type BlockStyle = 'paragraph' | 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'quote' | 'codeBlock'
@@ -152,6 +166,7 @@ export function Ribbon({
   onToggleFrontmatter,
   sourceMode,
   onToggleSourceMode,
+  sourceCommands,
 }: Props) {
   const { t } = useI18n()
   const [linkOpen, setLinkOpen] = useState(false)
@@ -195,17 +210,24 @@ export function Ribbon({
     inside: () => [linkAnchorRef.current],
   })
 
-  const off = disabled || !editor || !state || sourceMode
+  const off = disabled || !editor || !state
+  const sourceOff = disabled || !sourceCommands
+  const controlOff = sourceMode ? sourceOff : off
 
   const openLink = () => {
-    if (!editor) return
-    setLinkUrl(String(editor.getAttributes('link').href ?? ''))
+    if (!sourceMode && !editor) return
+    setLinkUrl(sourceMode ? '' : String(editor?.getAttributes('link').href ?? ''))
     setLinkOpen((v) => !v)
   }
 
   const applyLink = () => {
-    if (!editor) return
     const url = linkUrl.trim()
+    if (sourceMode) {
+      if (url) sourceCommands?.insertLink(url)
+      setLinkOpen(false)
+      return
+    }
+    if (!editor) return
     const chain = editor.chain().focus().extendMarkRange('link')
     if (url) chain.setLink({ href: url }).run()
     else chain.unsetLink().run()
@@ -225,7 +247,7 @@ export function Ribbon({
           className="qa-btn"
           data-tip={t('save')}
           aria-label={t('save')}
-          disabled={off || !dirty}
+          disabled={disabled || !dirty}
           onMouseDown={(e) => e.preventDefault()}
           onClick={onSave}
         >
@@ -236,9 +258,9 @@ export function Ribbon({
           className="qa-btn"
           data-tip={t('undo')}
           aria-label={t('undo')}
-          disabled={off || !state?.canUndo}
+          disabled={sourceMode ? sourceOff || !sourceCommands?.canUndo : off || !state?.canUndo}
           onMouseDown={(e) => e.preventDefault()}
-          onClick={() => editor?.chain().focus().undo().run()}
+          onClick={() => (sourceMode ? sourceCommands?.undo() : editor?.chain().focus().undo().run())}
         >
           <IconUndo size={16} />
         </button>
@@ -247,9 +269,9 @@ export function Ribbon({
           className="qa-btn"
           data-tip={t('redo')}
           aria-label={t('redo')}
-          disabled={off || !state?.canRedo}
+          disabled={sourceMode ? sourceOff || !sourceCommands?.canRedo : off || !state?.canRedo}
           onMouseDown={(e) => e.preventDefault()}
-          onClick={() => editor?.chain().focus().redo().run()}
+          onClick={() => (sourceMode ? sourceCommands?.redo() : editor?.chain().focus().redo().run())}
         >
           <IconRedo size={16} />
         </button>
@@ -270,12 +292,14 @@ export function Ribbon({
             <Dropdown
               className="rb-style"
               value={state?.style ?? 'paragraph'}
-              disabled={off}
+              disabled={controlOff}
               options={(Object.keys(STYLE_LABEL) as BlockStyle[]).map((s) => ({
                 value: s,
                 label: t(STYLE_LABEL[s]),
               }))}
-              onPick={(s) => editor && applyBlockStyle(editor, s)}
+              onPick={(s) =>
+                sourceMode ? sourceCommands?.block(s as SourceBlock) : editor && applyBlockStyle(editor, s)
+              }
             />
           </div>
         </div>
@@ -286,38 +310,46 @@ export function Ribbon({
           <div className="ribbon-group-items">
             <IconBtn
               title={t('bold')}
-              active={state?.bold}
-              disabled={off}
-              onClick={() => editor?.chain().focus().toggleBold().run()}
+              active={!sourceMode && state?.bold}
+              disabled={controlOff}
+              onClick={() =>
+                sourceMode ? sourceCommands?.inline('bold') : editor?.chain().focus().toggleBold().run()
+              }
             >
               <b>B</b>
             </IconBtn>
             <IconBtn
               title={t('italic')}
-              active={state?.italic}
-              disabled={off}
-              onClick={() => editor?.chain().focus().toggleItalic().run()}
+              active={!sourceMode && state?.italic}
+              disabled={controlOff}
+              onClick={() =>
+                sourceMode ? sourceCommands?.inline('italic') : editor?.chain().focus().toggleItalic().run()
+              }
             >
               <i>I</i>
             </IconBtn>
             <IconBtn
               title={t('strike')}
-              active={state?.strike}
-              disabled={off}
-              onClick={() => editor?.chain().focus().toggleStrike().run()}
+              active={!sourceMode && state?.strike}
+              disabled={controlOff}
+              onClick={() =>
+                sourceMode ? sourceCommands?.inline('strike') : editor?.chain().focus().toggleStrike().run()
+              }
             >
               <s>ab</s>
             </IconBtn>
             <IconBtn
               title={t('inlineCode')}
-              active={state?.code}
-              disabled={off}
-              onClick={() => editor?.chain().focus().toggleCode().run()}
+              active={!sourceMode && state?.code}
+              disabled={controlOff}
+              onClick={() =>
+                sourceMode ? sourceCommands?.inline('code') : editor?.chain().focus().toggleCode().run()
+              }
             >
               <IconInlineCode size={ICON} />
             </IconBtn>
             <span className="rb-link-anchor" ref={linkAnchorRef}>
-              <IconBtn title={t('link')} active={state?.link} disabled={off} onClick={openLink}>
+              <IconBtn title={t('link')} active={!sourceMode && state?.link} disabled={controlOff} onClick={openLink}>
                 <IconLink size={ICON} />
               </IconBtn>
               {linkOpen && (
@@ -347,25 +379,31 @@ export function Ribbon({
           <div className="ribbon-group-items">
             <IconBtn
               title={t('bulletList')}
-              active={state?.bullet}
-              disabled={off}
-              onClick={() => editor?.chain().focus().toggleBulletList().run()}
+              active={!sourceMode && state?.bullet}
+              disabled={controlOff}
+              onClick={() =>
+                sourceMode ? sourceCommands?.list('bullet') : editor?.chain().focus().toggleBulletList().run()
+              }
             >
               <IconBullets size={ICON} />
             </IconBtn>
             <IconBtn
               title={t('orderedList')}
-              active={state?.ordered}
-              disabled={off}
-              onClick={() => editor?.chain().focus().toggleOrderedList().run()}
+              active={!sourceMode && state?.ordered}
+              disabled={controlOff}
+              onClick={() =>
+                sourceMode ? sourceCommands?.list('ordered') : editor?.chain().focus().toggleOrderedList().run()
+              }
             >
               <IconNumbered size={ICON} />
             </IconBtn>
             <IconBtn
               title={t('taskList')}
-              active={state?.task}
-              disabled={off}
-              onClick={() => editor?.chain().focus().toggleTaskList().run()}
+              active={!sourceMode && state?.task}
+              disabled={controlOff}
+              onClick={() =>
+                sourceMode ? sourceCommands?.list('task') : editor?.chain().focus().toggleTaskList().run()
+              }
             >
               <IconTaskList size={ICON} />
             </IconBtn>
@@ -378,24 +416,28 @@ export function Ribbon({
           <div className="ribbon-group-items">
             <IconBtn
               title={t('insertTable')}
-              disabled={off}
+              disabled={controlOff}
               onClick={() =>
-                editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
+                sourceMode
+                  ? sourceCommands?.insertTable()
+                  : editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
               }
             >
               <IconTable size={ICON} />
             </IconBtn>
             <IconBtn
               title={t('insertImage')}
-              disabled={off || !imageEnabled}
-              onClick={onInsertImage}
+              disabled={controlOff || !imageEnabled}
+              onClick={() => (sourceMode ? sourceCommands?.insertImage() : onInsertImage())}
             >
               <IconPicture size={ICON} />
             </IconBtn>
             <IconBtn
               title={t('insertHr')}
-              disabled={off}
-              onClick={() => editor?.chain().focus().setHorizontalRule().run()}
+              disabled={controlOff}
+              onClick={() =>
+                sourceMode ? sourceCommands?.insertHorizontalRule() : editor?.chain().focus().setHorizontalRule().run()
+              }
             >
               <IconHr size={ICON} />
             </IconBtn>

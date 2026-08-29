@@ -136,6 +136,41 @@ test.describe('markdown editor', () => {
       await expect(editorPage.locator('.status-save')).toHaveText(/Saved|已保存/)
       expect(await readFile(mdPath, 'utf8')).toBe(source)
 
+      // Source-mode toolbar actions transform textarea text directly, without
+      // routing through the hidden rich-text editor.
+      await sourceEditor.fill('strong')
+      await sourceEditor.evaluate((element) => {
+        const textarea = element as HTMLTextAreaElement
+        textarea.focus()
+        textarea.setSelectionRange(0, textarea.value.length)
+        textarea.dispatchEvent(new Event('select', { bubbles: true }))
+      })
+      await editorPage.getByLabel('Bold').click()
+      await expect(sourceEditor).toHaveValue('**strong**')
+      await editorPage.getByLabel('Undo').click()
+      await expect(sourceEditor).toHaveValue('strong')
+
+      const tableSource = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |'
+      await sourceEditor.fill(tableSource)
+      await sourceEditor.evaluate((element) => {
+        const textarea = element as HTMLTextAreaElement
+        const at = textarea.value.indexOf('| 1 |') + 2
+        textarea.focus()
+        textarea.setSelectionRange(at, at)
+        textarea.dispatchEvent(new Event('select', { bubbles: true }))
+      })
+      await expect(editorPage.getByLabel('Markdown table actions')).toBeVisible()
+      await editorPage.getByLabel('Insert column right').click()
+      await expect(sourceEditor).toHaveValue(/\| A \|  \| B \|/)
+      await editorPage.getByLabel('Insert row below').click()
+      await expect(sourceEditor).toHaveValue(/\|  \|  \|  \|/)
+
+      await editorPage.getByLabel('Insert table').click()
+      await expect(sourceEditor).toHaveValue(/\| Column 1 \| Column 2 \| Column 3 \|/)
+      await sourceEditor.fill(source)
+      await editorPage.keyboard.press('ControlOrMeta+s')
+      await expect(editorPage.locator('.status-save')).toHaveText(/Saved|已保存/)
+
       await editorPage.getByLabel('Switch to rich text').click()
       const editor = editorPage.locator('.doc-editor')
       await expect(editor.locator('h1')).toHaveText('Source title')

@@ -32,6 +32,16 @@
 | MSUI-05 | 实现转换保真审计与用户提示。            | P1     | MSUI-02..04      | 已完成 | parser/serializer、UI       | 定义 Tiptap 不保证往返保留的 Markdown/HTML 扩展；切回 WYSIWYG 前提示潜在规范化；已支持 GFM 用例无提示且往返稳定。                        |
 | MSUI-06 | 完成单元、组件、E2E 与手工验收。        | P0     | MSUI-01..05      | 已完成 | Markdown/Shell/E2E          | 覆盖模式切换、标题/列表/表格/代码块/frontmatter/图片、保存、撤销、reload、MCP conflict 和不支持语法提示。                                |
 
+## C. 源码模式编辑工具
+
+| ID       | 任务                                                     | 优先级 | 依赖     | 状态   | 代码落点                                      | 验收标准                                                                                                                                    |
+| -------- | -------------------------------------------------------- | ------ | -------- | ------ | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| MSRCMD-01 | 实现 textarea 选区驱动的行内与块级 Markdown 变换。      | P0     | MSUI-02  | 已完成 | source commands、Ribbon、App                 | 加粗/斜体/删除线/行内代码、标题/引用/代码块、无序/有序/任务列表、链接和分隔线均直接改写源码，且不调用隐藏的富文本 editor。                |
+| MSRCMD-02 | 实现源码模式独立撤销/重做与光标恢复。                   | P0     | MSRCMD-01 | 已完成 | App source history                            | 工具栏及 Cmd/Ctrl+Z、Cmd/Ctrl+Shift+Z/Y 可恢复源码文本；操作后焦点和选区保持在 textarea。                                                  |
+| MSRCMD-03 | 支持源码模式下受控图片与默认 3×3 GFM 表格插入。         | P0     | MSRCMD-01 | 已完成 | App、source commands                          | 图片沿用受控 `pickImage`/`assets/` 生命周期，插入 `![alt](assets/...)`；表格按钮插入规范 3×3 GFM 表格。                                    |
+| MSRCMD-04 | 实现源码光标感知的 GFM 表格操作条。                     | P0     | MSRCMD-03 | 已完成 | SourceTableMenu、source commands              | 光标在合法 GFM 表格中时显示操作条；支持行/列增加、删除及删除表格；WYSIWYG TableMenu 在源码模式隐藏。                                      |
+| MSRCMD-05 | 完成单元、源码模式 UI E2E 与完整回归。                  | P0     | MSRCMD-01..04 | 已完成 | Markdown tests、`e2e/markdown-tab.spec.ts` | 覆盖选区格式化、列表、链接、撤销、3×3 表格、表格行列操作、保存、前端图片路径与既有 Markdown/MCP 回归。                                     |
+
 ## 完成条件
 
 - 当前分支完成的条件：`MSRC-01`～`MSRC-05` 全部完成、定向 tests/typecheck/E2E 通过且 MCP usage 已更新。

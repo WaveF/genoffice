@@ -17,6 +17,7 @@ import { setImageBaseDir } from './editor/localImage'
 import { Ribbon } from './components/Ribbon'
 import { SlashMenu, type SlashMenuHandle } from './components/SlashMenu'
 import { TableMenu } from './components/TableMenu'
+import { SourceTableMenu } from './components/SourceTableMenu'
 import { FrontmatterPanel } from './components/FrontmatterPanel'
 import { DOCX_MAX_IMAGE_PX, exportDocxBytes } from './export/docxExport'
 import { buildPrintHtml } from './export/printHtml'
@@ -30,6 +31,22 @@ import {
   sourceMayNormalizeInWysiwyg,
   type MarkdownEditorMode,
 } from './markdown/sourceMode'
+import {
+  editSourceTable,
+  hasSourceTableAt,
+  insertLinkSource,
+  insertSourceText,
+  insertTableSource,
+  toggleBlockSource,
+  toggleInlineSource,
+  toggleListSource,
+  type SourceBlock,
+  type SourceEdit,
+  type SourceInline,
+  type SourceList,
+  type SourceSelection,
+  type SourceTableOperation,
+} from './markdown/sourceCommands'
 
 type LoadStatus = 'loading' | 'ready' | 'error'
 type SaveState = 'idle' | 'saving' | 'saved' | 'failed'
@@ -127,6 +144,8 @@ export default function App() {
   const [editorMode, setEditorMode] = useState<MarkdownEditorMode>('wysiwyg')
   const [sourceText, setSourceText] = useState('')
   const [normalizationWarning, setNormalizationWarning] = useState(false)
+  const [sourceHistoryVersion, setSourceHistoryVersion] = useState(0)
+  const [sourceSelection, setSourceSelectionState] = useState<SourceSelection>({ start: 0, end: 0 })
 
   const statusRef = useRef<LoadStatus>('loading')
   const dirtyRef = useRef(false)
@@ -140,6 +159,9 @@ export default function App() {
   const sourceRef = useRef<HTMLTextAreaElement>(null)
   const editorModeRef = useRef<MarkdownEditorMode>('wysiwyg')
   const sourceTextRef = useRef('')
+  const sourceSelectionRef = useRef<SourceSelection>({ start: 0, end: 0 })
+  const pendingSourceSelectionRef = useRef<SourceSelection | null>(null)
+  const sourceHistoryRef = useRef<{ past: string[]; future: string[] }>({ past: [], future: [] })
 
   const zoomOut = useCallback(
     () => setZoom((value) => Math.max(MIN_ZOOM, Math.round(value) - ZOOM_STEP)),
@@ -299,6 +321,9 @@ export default function App() {
     if (!current || statusRef.current !== 'ready') return
     const completeSource = serializeDocText(envelopeRef.current, current.getMarkdown())
     sourceTextRef.current = completeSource
+    sourceSelectionRef.current = { start: 0, end: 0 }
+    sourceHistoryRef.current = { past: [], future: [] }
+    setSourceHistoryVersion((version) => version + 1)
     setSourceText(completeSource)
     setNormalizationWarning(false)
     setFmOpen(false)
@@ -335,20 +360,126 @@ export default function App() {
     else enterSourceMode()
   }, [enterSourceMode, enterWysiwygMode])
 
-  const onSourceChange = useCallback(
-    (value: string) => {
-      sourceTextRef.current = value
-      setSourceText(value)
+  const setSourceSelection = useCallback((selection: SourceSelection) => {
+    sourceSelectionRef.current = selection
+    setSourceSelectionState(selection)
+  }, [])
+
+  const applySourceEdit = useCallback(
+    (edit: SourceEdit, recordHistory = true) => {
+      const previous = sourceTextRef.current
+      if (edit.value === previous) return
+      if (recordHistory) {
+        sourceHistoryRef.current.past.push(previous)
+        if (sourceHistoryRef.current.past.length > 200) sourceHistoryRef.current.past.shift()
+        sourceHistoryRef.current.future = []
+        setSourceHistoryVersion((version) => version + 1)
+      }
+      sourceTextRef.current = edit.value
+      sourceSelectionRef.current = edit.selection
+      pendingSourceSelectionRef.current = edit.selection
+      setSourceText(edit.value)
+      setSourceSelection(edit.selection)
       setNormalizationWarning(false)
       markDirty()
     },
-    [markDirty],
+    [markDirty, setSourceSelection],
+  )
+
+  const onSourceChange = useCallback(
+    (value: string, selection: SourceSelection) => {
+      applySourceEdit({ value, selection })
+    },
+    [applySourceEdit],
+  )
+
+  const undoSource = useCallback(() => {
+    const previous = sourceHistoryRef.current.past.pop()
+    if (previous === undefined) return
+    sourceHistoryRef.current.future.push(sourceTextRef.current)
+    setSourceHistoryVersion((version) => version + 1)
+    applySourceEdit({ value: previous, selection: sourceSelectionRef.current }, false)
+  }, [applySourceEdit])
+
+  const redoSource = useCallback(() => {
+    const next = sourceHistoryRef.current.future.pop()
+    if (next === undefined) return
+    sourceHistoryRef.current.past.push(sourceTextRef.current)
+    setSourceHistoryVersion((version) => version + 1)
+    applySourceEdit({ value: next, selection: sourceSelectionRef.current }, false)
+  }, [applySourceEdit])
+
+  const currentSourceSelection = useCallback((): SourceSelection => {
+    const textarea = sourceRef.current
+    if (textarea) {
+      return { start: textarea.selectionStart, end: textarea.selectionEnd }
+    }
+    return sourceSelectionRef.current
+  }, [])
+
+  const applySourceCommand = useCallback(
+    (command: (value: string, selection: SourceSelection) => SourceEdit | null) => {
+      const selection = currentSourceSelection()
+      const edit = command(sourceTextRef.current, selection)
+      if (edit) applySourceEdit(edit)
+    },
+    [applySourceEdit, currentSourceSelection],
+  )
+
+  const insertSourceImage = useCallback(() => {
+    void (async () => {
+      const src = await window.markdownApi.pickImage()
+      if (!src) return
+      const alt = src.replace(/^.*[/\\]/, '').replace(/\.[^.]+$/, '') || 'image'
+      applySourceCommand((value, selection) =>
+        insertSourceText(value, selection, `![${alt}](${src})`),
+      )
+    })()
+  }, [applySourceCommand])
+
+  const sourceCommands = useMemo(
+    () => ({
+      canUndo: sourceHistoryRef.current.past.length > 0,
+      canRedo: sourceHistoryRef.current.future.length > 0,
+      undo: undoSource,
+      redo: redoSource,
+      inline: (kind: SourceInline) =>
+        applySourceCommand((value, selection) => toggleInlineSource(value, selection, kind)),
+      block: (kind: SourceBlock) =>
+        applySourceCommand((value, selection) => toggleBlockSource(value, selection, kind)),
+      list: (kind: SourceList) =>
+        applySourceCommand((value, selection) => toggleListSource(value, selection, kind)),
+      insertLink: (url: string) =>
+        applySourceCommand((value, selection) => insertLinkSource(value, selection, url)),
+      insertTable: () => applySourceCommand(insertTableSource),
+      insertImage: insertSourceImage,
+      insertHorizontalRule: () =>
+        applySourceCommand((value, selection) => insertSourceText(value, selection, '\n\n---\n\n')),
+    }),
+    [
+      applySourceCommand,
+      insertSourceImage,
+      redoSource,
+      sourceHistoryVersion,
+      undoSource,
+    ],
   )
 
   useEffect(() => {
-    if (editorMode === 'source') window.setTimeout(() => sourceRef.current?.focus(), 0)
+    if (editorMode === 'source') {
+      window.setTimeout(() => {
+        const textarea = sourceRef.current
+        if (!textarea) return
+        textarea.focus()
+        const selection = pendingSourceSelectionRef.current
+        if (selection) {
+          textarea.setSelectionRange(selection.start, selection.end)
+          pendingSourceSelectionRef.current = null
+        }
+      }, 0)
+    }
     else if (editor) window.setTimeout(() => editor.commands.focus('start'), 0)
-  }, [editor, editorMode])
+  }, [editor, editorMode, sourceText])
 
   /** Serialize and write to disk; false when canceled/failed (caller keeps the tab open) */
   const doSave = useCallback(async (mode: SaveMode, suggestedName?: string): Promise<boolean> => {
@@ -613,6 +744,7 @@ export default function App() {
         onToggleFrontmatter={() => setFmOpen((v) => !v)}
         sourceMode={editorMode === 'source'}
         onToggleSourceMode={toggleEditorMode}
+        sourceCommands={sourceCommands}
       />
       {status === 'loading' && <div className="center-note">{t('loading')}</div>}
       <div className="app-main" style={status === 'ready' ? undefined : { display: 'none' }}>
@@ -642,7 +774,42 @@ export default function App() {
                     aria-label="Markdown source"
                     spellCheck={false}
                     value={sourceText}
-                    onChange={(event) => onSourceChange(event.target.value)}
+                    onChange={(event) =>
+                      onSourceChange(event.target.value, {
+                        start: event.target.selectionStart,
+                        end: event.target.selectionEnd,
+                      })
+                    }
+                    onSelect={(event) =>
+                      setSourceSelection({
+                        start: event.currentTarget.selectionStart,
+                        end: event.currentTarget.selectionEnd,
+                      })
+                    }
+                    onKeyUp={(event) =>
+                      setSourceSelection({
+                        start: event.currentTarget.selectionStart,
+                        end: event.currentTarget.selectionEnd,
+                      })
+                    }
+                    onClick={(event) =>
+                      setSourceSelection({
+                        start: event.currentTarget.selectionStart,
+                        end: event.currentTarget.selectionEnd,
+                      })
+                    }
+                    onKeyDown={(event) => {
+                      if (!(event.metaKey || event.ctrlKey) || event.altKey) return
+                      const key = event.key.toLowerCase()
+                      if (key === 'z') {
+                        event.preventDefault()
+                        if (event.shiftKey) redoSource()
+                        else undoSource()
+                      } else if (key === 'y') {
+                        event.preventDefault()
+                        redoSource()
+                      }
+                    }}
                   />
                 </>
               ) : (
@@ -695,7 +862,14 @@ export default function App() {
         </div>
       </div>
       <SlashMenu ref={slashMenuRef} state={slashState} onDismiss={() => setSlashState(null)} />
-      <TableMenu editor={editor} scrollRef={scrollRef} zoom={zoom} />
+      {editorMode === 'wysiwyg' && <TableMenu editor={editor} scrollRef={scrollRef} zoom={zoom} />}
+      {editorMode === 'source' && hasSourceTableAt(sourceText, sourceSelection) && (
+        <SourceTableMenu
+          onOperation={(operation: SourceTableOperation) =>
+            applySourceCommand((value, selection) => editSourceTable(value, selection, operation))
+          }
+        />
+      )}
     </div>
   )
 }

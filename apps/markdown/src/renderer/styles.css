@@ -362,6 +362,21 @@ button {
   color: white;
 }
 
+.source-table-menu {
+  position: fixed;
+  z-index: 35;
+  right: 22px;
+  bottom: 46px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  box-shadow: 0 6px 18px color-mix(in srgb, #000 18%, transparent);
+}
+
 /* ---- tables ---- */
 
 .doc-editor .tableWrapper {
