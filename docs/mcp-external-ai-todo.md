@@ -1,4 +1,6 @@
-# GenOffice MCP 外部 AI 改造：执行与跟踪清单
+# 归档：GenOffice MCP 外部 AI 改造：执行与跟踪清单
+
+> **归档状态：历史完成记录，默认不再作为执行清单阅读。** 本清单记录 MCP 基础设施、编辑器能力提取、内置 AI 下线与 Slides MVP 收束的历史证据；其中仍保留的 `MED-01` 是后续跨编辑器图片导入的独立能力缺口，不自动继承为当前工作。新的 Markdown 原始源码写入与源码模式需求见 [Markdown 源码编辑与 MCP 写入清单](./markdown-source-editing-todo.md)。仅在追溯任务 ID、架构决策或历史验收证据时按需查阅本文件。
 
 关联方案：[外部 AI 通过 MCP 控制 GenOffice：改造方案](./mcp-external-ai-refactor-plan.md)
 
