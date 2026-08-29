@@ -23,6 +23,7 @@ import { DOCX_MAX_IMAGE_PX, exportDocxBytes } from './export/docxExport'
 import { buildPrintHtml } from './export/printHtml'
 import { resolveImageSrc } from './editor/localImage'
 import type { ExportFormat, SaveMode } from '../shared/ipc'
+import { UNSAVED_IMAGE_PLACEHOLDER_MARKDOWN } from '../shared/markdown-image'
 import { handleMarkdownMcpRequest } from './mcp-adapter'
 import { McpRevisionTracker } from './mcp-revision'
 import {
@@ -428,6 +429,12 @@ export default function App() {
 
   const insertSourceImage = useCallback(() => {
     void (async () => {
+      if (!filePathRef.current) {
+        applySourceCommand((value, selection) =>
+          insertSourceText(value, selection, UNSAVED_IMAGE_PLACEHOLDER_MARKDOWN),
+        )
+        return
+      }
       const src = await window.markdownApi.pickImage()
       if (!src) return
       const alt = src.replace(/^.*[/\\]/, '').replace(/\.[^.]+$/, '') || 'image'
@@ -738,7 +745,7 @@ export default function App() {
         onSave={() => void doSave('save')}
         autoSave={autoSave}
         onToggleAutoSave={setAutoSave}
-        imageEnabled={Boolean(filePath)}
+        imageEnabled={editorMode === 'source' || Boolean(filePath)}
         onInsertImage={insertImage}
         frontmatterOpen={fmOpen}
         onToggleFrontmatter={() => setFmOpen((v) => !v)}
