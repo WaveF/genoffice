@@ -122,6 +122,15 @@ export type MenuCommand =
 
 export type UiTheme = 'light' | 'dark' | 'system'
 
+/** Path-free snapshot supplied by the unified Shell font-catalog service. */
+export interface SystemFontCatalogSnapshot {
+  families: readonly string[]
+  source: 'cache' | 'scan' | 'none'
+  state: 'ready' | 'loading' | 'unavailable'
+  stale: boolean
+  refreshedAt: number | null
+}
+
 /** target file type of the AI create_document tool */
 export type CreateDocumentType = 'docx' | 'pdf' | 'md'
 
@@ -162,6 +171,8 @@ export interface DesktopApi {
   /** press on the shell chrome (tab strip is a sibling WebContentsView whose
    *  clicks produce no DOM event here) — dismiss open popovers */
   onChromePressed(handler: () => void): () => void
+  getSystemFontCatalog(): Promise<SystemFontCatalogSnapshot>
+  onSystemFontCatalogUpdated(handler: (snapshot: SystemFontCatalogSnapshot) => void): () => void
   openDocx(): Promise<OpenDocxResult>
   openDocxPath(path: string): Promise<OpenDocxResult>
   /** decrypt-and-open a password-protected docx (path from a needsPassword result) */

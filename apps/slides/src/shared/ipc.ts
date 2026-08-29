@@ -14,6 +14,15 @@ export type { SlideComment, SectionInfo } from '@genoffice/pptx-engine'
 
 export type UiTheme = 'light' | 'dark' | 'system'
 
+/** Path-free snapshot supplied by the unified Shell font-catalog service. */
+export interface SystemFontCatalogSnapshot {
+  families: readonly string[]
+  source: 'cache' | 'scan' | 'none'
+  state: 'ready' | 'loading' | 'unavailable'
+  stale: boolean
+  refreshedAt: number | null
+}
+
 /** Effects patch for setEffects (mirrors pptx-engine's EffectsPatch): null clears an
  * effect, undefined leaves it untouched. Distances/radii in EMU (12700 per pt),
  * colors #RRGGBB or #RRGGBBAA. */
@@ -1079,6 +1088,8 @@ export interface SlidesApi {
   /** press on the shell chrome (tab strip is a sibling WebContentsView whose
    *  clicks produce no DOM event here) — dismiss open popovers */
   onChromePressed: (handler: () => void) => () => void
+  getSystemFontCatalog: () => Promise<SystemFontCatalogSnapshot>
+  onSystemFontCatalogUpdated: (handler: (snapshot: SystemFontCatalogSnapshot) => void) => () => void
   /** snap the host window in/out of instant fullscreen for the slideshow
    *  (macOS simpleFullScreen — skips the animated Space transition) */
   setShowFullScreen: (on: boolean) => Promise<void>

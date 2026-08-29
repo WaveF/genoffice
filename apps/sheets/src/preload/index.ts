@@ -90,6 +90,13 @@ const desktopApi: DesktopApi = {
     ipcRenderer.on('app:chrome-pressed', listener)
     return () => ipcRenderer.removeListener('app:chrome-pressed', listener)
   },
+  getSystemFontCatalog: () => ipcRenderer.invoke('font-catalog:get'),
+  onSystemFontCatalogUpdated(handler) {
+    const listener = (_event: Electron.IpcRendererEvent, snapshot: Parameters<typeof handler>[0]) =>
+      handler(snapshot)
+    ipcRenderer.on('font-catalog:updated', listener)
+    return () => ipcRenderer.removeListener('font-catalog:updated', listener)
+  },
   async selectWorkbook() {
     const result: unknown = await ipcRenderer.invoke(IPC_CHANNELS.selectWorkbook)
     return result === null ? null : parseWorkbookFile(result)

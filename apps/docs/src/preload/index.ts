@@ -52,6 +52,13 @@ const api: DesktopApi = {
     ipcRenderer.on('app:chrome-pressed', listener)
     return () => ipcRenderer.removeListener('app:chrome-pressed', listener)
   },
+  getSystemFontCatalog: () => ipcRenderer.invoke('font-catalog:get'),
+  onSystemFontCatalogUpdated: (handler) => {
+    const listener = (_event: IpcRendererEvent, snapshot: Parameters<typeof handler>[0]) =>
+      handler(snapshot)
+    ipcRenderer.on('font-catalog:updated', listener)
+    return () => ipcRenderer.removeListener('font-catalog:updated', listener)
+  },
   openDocx: () => ipcRenderer.invoke('docs:open'),
   openDocxPath: (path: string) => ipcRenderer.invoke('docs:open-path', path),
   openDocxDecrypt: (path: string, password: string) =>

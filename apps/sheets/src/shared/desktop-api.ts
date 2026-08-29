@@ -2181,6 +2181,15 @@ export interface AttachmentImageResult {
 
 export type UiTheme = 'light' | 'dark' | 'system'
 
+/** Path-free snapshot supplied by the unified Shell font-catalog service. */
+export interface SystemFontCatalogSnapshot {
+  families: readonly string[]
+  source: 'cache' | 'scan' | 'none'
+  state: 'ready' | 'loading' | 'unavailable'
+  stale: boolean
+  refreshedAt: number | null
+}
+
 /** Autosave-recovery prompt raised by main during workbook open (strings pre-localized). */
 export interface RecoveryPromptPayload {
   title: string
@@ -2215,6 +2224,8 @@ export interface DesktopApi {
    * press for dismissing open popovers
    */
   onChromePressed(handler: () => void): () => void
+  getSystemFontCatalog(): Promise<SystemFontCatalogSnapshot>
+  onSystemFontCatalogUpdated(handler: (snapshot: SystemFontCatalogSnapshot) => void): () => void
   selectWorkbook(): Promise<WorkbookFile | null>
   readWorkbookRange(request: WorkbookRangeRequest): Promise<WorkbookRangeResult>
   readWorkbookFormulas(request: WorkbookFormulaCellsRequest): Promise<WorkbookFormulaCellsResult>
