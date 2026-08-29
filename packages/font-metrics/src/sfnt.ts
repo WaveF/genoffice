@@ -228,22 +228,42 @@ export function getFontIndex(): FontIndex {
  * The index is already shared by the PDF/Docs font lookup path, so callers in
  * the Electron main process do not trigger a second directory traversal.
  */
-export function listSystemFontFamilies(): string[] {
+export interface SystemFontFamilyEntry {
+  family: string
+  aliases: string[]
+}
+
+/**
+ * Return canonical display names plus alternate name-table family labels.
+ * Paths and face metadata deliberately remain inside the main process.
+ */
+export function listSystemFontFamilyEntries(): SystemFontFamilyEntry[] {
   const families = new Map<string, string>()
+  const aliases = new Map<string, Set<string>>()
   const seen = new Set<string>()
   for (const faces of getFontIndex().byFamily.values()) {
     for (const face of faces) {
       const key = `${face.path}#${face.offset}`
       if (seen.has(key)) continue
       seen.add(key)
-      for (const family of face.families) {
-        const display = family.trim()
-        const normalized = norm(display)
-        if (display && normalized && !families.has(normalized)) families.set(normalized, display)
-      }
+      const names = face.families.map((family) => family.trim()).filter(Boolean)
+      const canonical = names[0]
+      if (!canonical) continue
+      const normalized = norm(canonical)
+      if (!normalized) continue
+      if (!families.has(normalized)) families.set(normalized, canonical)
+      const familyAliases = aliases.get(normalized) ?? new Set<string>()
+      for (const name of names) if (norm(name) !== normalized) familyAliases.add(name)
+      aliases.set(normalized, familyAliases)
     }
   }
-  return [...families.values()].sort((a, b) => a.localeCompare(b))
+  return [...families.entries()]
+    .map(([key, family]) => ({ family, aliases: [...(aliases.get(key) ?? [])].sort((a, b) => a.localeCompare(b)) }))
+    .sort((a, b) => a.family.localeCompare(b.family))
+}
+
+export function listSystemFontFamilies(): string[] {
+  return listSystemFontFamilyEntries().map((entry) => entry.family)
 }
 
 // "bolditalic" deliberately has no atomic alternative: a BoldItalic face must yield

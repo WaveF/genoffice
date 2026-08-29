@@ -42,7 +42,9 @@ export function useSystemFontFamilies(): {
     void loadSystemFontFamilies().then(setFamilies)
   }, [])
   useEffect(() => {
-    return window.slidesApi.onSystemFontCatalogUpdated((snapshot) => {
+    const subscribe = window.slidesApi?.onSystemFontCatalogUpdated
+    if (!subscribe) return
+    return subscribe((snapshot) => {
       cached = normalize(snapshot.families)
       setFamilies(cached)
     })

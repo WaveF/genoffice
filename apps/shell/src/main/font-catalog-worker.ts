@@ -1,10 +1,10 @@
 import { parentPort } from 'node:worker_threads'
-import { listSystemFontFamilies } from '@genoffice/font-metrics'
+import { listSystemFontFamilyEntries } from '@genoffice/font-metrics'
 
 if (!parentPort) throw new Error('Font catalog worker requires a parent port.')
 
 try {
-  parentPort.postMessage({ ok: true, families: listSystemFontFamilies() })
+  parentPort.postMessage({ ok: true, entries: listSystemFontFamilyEntries() })
 } catch (error) {
   parentPort.postMessage({
     ok: false,

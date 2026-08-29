@@ -18,6 +18,8 @@ export type FontCatalogState = 'ready' | 'loading' | 'unavailable'
 
 export interface FontCatalogSnapshot {
   readonly families: readonly string[]
+  /** normalized alternate family label -> canonical display family */
+  readonly aliases: Readonly<Record<string, string>>
   readonly source: FontCatalogSource
   readonly state: FontCatalogState
   readonly stale: boolean
@@ -28,16 +30,22 @@ interface CacheFile {
   readonly version: number
   readonly refreshedAt: number
   readonly families: string[]
+  readonly aliases: Record<string, string>
+}
+
+export interface FontCatalogEntry {
+  readonly family: string
+  readonly aliases?: readonly string[]
 }
 
 export interface FontCatalogWorker {
-  enumerate(): Promise<readonly string[]>
+  enumerate(): Promise<readonly FontCatalogEntry[]>
 }
 
 export class ThreadedFontCatalogWorker implements FontCatalogWorker {
   constructor(private readonly workerPath: string) {}
 
-  enumerate(): Promise<readonly string[]> {
+  enumerate(): Promise<readonly FontCatalogEntry[]> {
     return new Promise((resolve, reject) => {
       const worker = new Worker(this.workerPath)
       worker.once('message', (message: unknown) => {
@@ -46,9 +54,15 @@ export class ThreadedFontCatalogWorker implements FontCatalogWorker {
           typeof message === 'object' &&
           message !== null &&
           (message as { ok?: unknown }).ok === true &&
-          Array.isArray((message as { families?: unknown }).families)
+          Array.isArray((message as { entries?: unknown }).entries)
         ) {
-          resolve((message as { families: unknown[] }).families.filter(isFamilyName))
+          resolve(
+            (message as { entries: unknown[] }).entries.flatMap((entry) =>
+              typeof entry === 'object' && entry !== null && isFamilyName((entry as FontCatalogEntry).family)
+                ? [{ family: (entry as FontCatalogEntry).family, aliases: Array.isArray((entry as FontCatalogEntry).aliases) ? (entry as FontCatalogEntry).aliases?.filter(isFamilyName) : [] }]
+                : [],
+            ),
+          )
           return
         }
         reject(new Error('Font catalog worker returned an invalid response.'))
@@ -70,18 +84,28 @@ function isFamilyName(value: unknown): value is string {
   )
 }
 
-function normalizeFamilies(values: readonly string[]): string[] {
+function normalizeEntries(values: readonly FontCatalogEntry[]): { families: string[]; aliases: Record<string, string> } {
   const seen = new Set<string>()
+  const canonicalByKey = new Map<string, string>()
   const families: string[] = []
+  const aliases: Record<string, string> = {}
   for (const value of values) {
-    const family = value.trim()
+    const family = value.family.trim()
     const key = family.normalize('NFKC').toLocaleLowerCase()
-    if (!isFamilyName(family) || !key || seen.has(key)) continue
-    seen.add(key)
-    families.push(family)
+    if (!isFamilyName(family) || !key) continue
+    const canonical = canonicalByKey.get(key) ?? family
+    if (!seen.has(key)) {
+      seen.add(key)
+      canonicalByKey.set(key, canonical)
+      families.push(canonical)
+    }
+    for (const alias of value.aliases ?? []) {
+      const aliasKey = alias.trim().normalize('NFKC').toLocaleLowerCase()
+      if (isFamilyName(alias) && aliasKey && aliasKey !== key) aliases[aliasKey] = canonical
+    }
     if (families.length === CACHE_MAX_FAMILIES) break
   }
-  return families.sort((a, b) => a.localeCompare(b))
+  return { families: families.sort((a, b) => a.localeCompare(b)), aliases }
 }
 
 function parseCache(input: unknown): CacheFile | null {
@@ -98,7 +122,8 @@ function parseCache(input: unknown): CacheFile | null {
   return {
     version: CACHE_VERSION,
     refreshedAt: value.refreshedAt as number,
-    families: normalizeFamilies(value.families as string[]),
+    families: normalizeEntries((value.families as string[]).map((family) => ({ family }))).families,
+    aliases: typeof value.aliases === 'object' && value.aliases !== null ? value.aliases as Record<string, string> : {},
   }
 }
 
@@ -106,6 +131,7 @@ function parseCache(input: unknown): CacheFile | null {
 export class FontCatalogService {
   private snapshot: FontCatalogSnapshot = {
     families: [],
+    aliases: {},
     source: 'none',
     state: 'loading',
     stale: true,
@@ -147,6 +173,7 @@ export class FontCatalogService {
       if (!cache) return
       this.snapshot = {
         families: cache.families,
+        aliases: cache.aliases,
         source: 'cache',
         state: 'ready',
         stale: this.now() - cache.refreshedAt > CACHE_TTL_MS,
@@ -163,10 +190,10 @@ export class FontCatalogService {
     this.publish()
     try {
       const refreshedAt = this.now()
-      const families = normalizeFamilies(await this.worker.enumerate())
-      const cache: CacheFile = { version: CACHE_VERSION, refreshedAt, families }
+      const catalog = normalizeEntries(await this.worker.enumerate())
+      const cache: CacheFile = { version: CACHE_VERSION, refreshedAt, ...catalog }
       await this.writeCache(cache)
-      this.snapshot = { families, source: 'scan', state: 'ready', stale: false, refreshedAt }
+      this.snapshot = { ...catalog, source: 'scan', state: 'ready', stale: false, refreshedAt }
     } catch {
       this.snapshot = {
         ...this.snapshot,

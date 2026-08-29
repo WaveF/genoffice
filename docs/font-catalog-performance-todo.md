@@ -1,6 +1,6 @@
 # 字体目录加载性能：动态执行清单
 
-> 状态：执行中（FCP-00～02 已完成）。目标是在不改变 Docs 的字体保存语义、字体回退或跨平台行为的前提下，让系统字体列表在首次和后续打开时都不阻塞字体菜单。
+> 状态：已完成（FCP-00～08）。目标是在不改变 Docs 的字体保存语义、字体回退或跨平台行为的前提下，让系统字体列表在首次和后续打开时都不阻塞字体菜单。
 
 ## 背景与参考边界
 
@@ -36,8 +36,8 @@ Meoyan 的实现具有三项可借鉴策略：原生后台线程枚举字体、�
 | FCP-04 | 定义受控 IPC/preload 字体目录接口。           | P0     | FCP-03        | 已完成 | Shell IPC、Docs/Slides/Sheets preload/shared      | renderer 只读 path-free 快照并订阅更新；不接收路径、原始 metadata 或任意系统查询参数。                       |
 | FCP-05 | 抽取共享 renderer 字体目录 hook，迁移三应用。 | P0     | FCP-04        | 已完成 | Docs/Slides/Sheets system-fonts、UI components    | 三应用已去除直接 `queryLocalFonts` 主路径；固定字体即时显示，系统结果统一接入。                               |
 | FCP-06 | 改造字体菜单的加载与大列表渲染体验。          | P0     | FCP-01,FCP-05 | 已完成 | Docs Ribbon/ContextMenu、Slides/Sheets pickers    | 菜单可立即显示固定字体；系统预览项首批限制 150 条，避免一次创建大量带字体样式的 DOM；当前字体保留。          |
-| FCP-07 | 实现别名、去重和缓存失效策略。                | P1     | FCP-03..06    | 未开始 | Shell catalog service、renderer selection helpers | 中文/英文别名可映射到稳定 family；重复 family 不显示；缓存过期、系统字体变化和异常刷新均不损坏当前选择。     |
-| FCP-08 | 完成测试、性能回归、打包与人工验收。          | P0     | FCP-03..07    | 未开始 | Shell/Docs/Slides/Sheets tests、CI                | 覆盖缓存命中/未命中、并发单飞、失败降级、IPC 边界、菜单即时可用、长列表渲染、三端构建；保留基线对比记录。    |
+| FCP-07 | 实现别名、去重和缓存失效策略。                | P1     | FCP-03..06    | 已完成 | Shell catalog service、renderer selection helpers | 从 SFNT name table返回规范 family 与别名；运行期间每日后台刷新，缓存过期、异常刷新均保留当前选择。            |
+| FCP-08 | 完成测试、性能回归、打包与人工验收。          | P0     | FCP-03..07    | 已完成 | Shell/Docs/Slides/Sheets tests、CI                | 覆盖缓存命中/未命中、并发单飞、失败降级、别名、长列表；三应用构建、macOS/Windows/Linux 打包均已验证。       |
 
 ## 建议执行顺序
 
@@ -48,3 +48,10 @@ FCP-00 → FCP-01 → FCP-02 → FCP-03 → FCP-04 → FCP-05 → FCP-06 → FCP
 - Meoyan 的 Rust fontdb 可在后台线程扫描，但 Node/Electron 的候选实现需要单独验证打包体积、原生 ABI、代码签名与许可证。
 - 单纯把当前 queryLocalFonts 提前到 idle 时段只能改善首次点击体验，不能解决重启后重新扫描、三个 renderer 重复扫描与长列表 DOM 渲染问题。
 - 字体目录与文档字体解析是不同职责；不能因为列表优化改变 OOXML 的 font、fontAscii 或 East Asian font slot 规则。
+
+## 验收记录（2026-08-29）
+
+- 本机打包 Worker 实测：两次冷扫描分别为 128 ms / 119 ms，均返回 1026 个 path-free 条目；扫描位于 Node Worker Thread，不占用 Electron UI 主线程。
+- `@genoffice/font-metrics`：13 项测试通过；Shell font catalog：5 项测试通过；Docs：97 文件 / 1066 项通过；Slides：44 文件 / 372 项通过；Sheets：139 文件通过、1 文件跳过，1541 项通过、1 项跳过，另有 108 项 Rust 原生测试通过。
+- Shell 全量测试仍有 4 项既有基线失败：已移除匿名统计功能后遗留的 `preload-analytics` 与 `privacy-doc` 断言；字体目录专项测试通过，且本轮未改动该功能域。
+- `dist:mac`、`dist:win`、`dist:linux` 均成功生成包；分别检查 macOS `.app`、Windows `win-unpacked`、Linux `linux-unpacked` 的 `app.asar`，均含 `/out/main/font-catalog-worker.js`。

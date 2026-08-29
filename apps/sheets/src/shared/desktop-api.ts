@@ -2184,6 +2184,7 @@ export type UiTheme = 'light' | 'dark' | 'system'
 /** Path-free snapshot supplied by the unified Shell font-catalog service. */
 export interface SystemFontCatalogSnapshot {
   families: readonly string[]
+  aliases: Readonly<Record<string, string>>
   source: 'cache' | 'scan' | 'none'
   state: 'ready' | 'loading' | 'unavailable'
   stale: boolean

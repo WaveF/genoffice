@@ -3240,6 +3240,7 @@ function broadcastChromePressed(exclude?: WebContents): void {
 function registerFontCatalogIpc(): void {
   const unavailable = () => ({
     families: [],
+    aliases: {},
     source: 'none' as const,
     state: 'unavailable' as const,
     stale: true,
@@ -4265,6 +4266,9 @@ app.whenReady().then(async () => {
   // a Worker Thread. The scan never runs on Electron's UI/main event loop.
   await fontCatalog.getSnapshot()
   void fontCatalog.refresh()
+  // Font installs/removals are platform-specific and do not expose one reliable
+  // cross-platform event. Revalidate daily without blocking the UI thread.
+  setInterval(() => void fontCatalog?.refresh(), 24 * 60 * 60 * 1000).unref()
   skillStore = new GenOfficeSkillStore(app.getPath('userData'), BUNDLED_SKILLS_PATH)
   createShellWindow()
   if (tabManager) {

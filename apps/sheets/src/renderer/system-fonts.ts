@@ -49,7 +49,9 @@ export function useSystemFontFamilies(): {
     void loadSystemFontFamilies().then(setFamilies)
   }, [])
   useEffect(() => {
-    return window.desktopApi.onSystemFontCatalogUpdated((snapshot) => {
+    const subscribe = window.desktopApi?.onSystemFontCatalogUpdated
+    if (!subscribe) return
+    return subscribe((snapshot) => {
       cached = normalize(snapshot.families)
       setFamilies(cached)
     })
