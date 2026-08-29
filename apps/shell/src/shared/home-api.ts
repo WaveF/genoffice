@@ -96,6 +96,18 @@ export interface HomeApi {
   setLanguage(lang: UiLanguage): Promise<void>
   /** Local MCP discovery details for the currently running Shell session. */
   getMcpConnectionInfo(): Promise<McpConnectionInfo>
+  /** List bundled and imported Markdown guidance skills without local paths. */
+  listSkills(): Promise<SkillSummary[]>
+  /** Read one skill for the settings preview. */
+  readSkill(id: string): Promise<SkillContent | null>
+  /** Import one UTF-8 Markdown skill through a native file picker. */
+  importSkill(): Promise<SkillSummary | null>
+  /** Export one skill through a native save dialog. */
+  exportSkill(id: string): Promise<boolean>
+  /** Enable or disable a skill for MCP discovery. */
+  setSkillEnabled(id: string, enabled: boolean): Promise<void>
+  /** Delete one imported skill. Built-in skills cannot be deleted. */
+  deleteSkill(id: string): Promise<void>
   /** Genspark account status (gsk login state; to be upgraded to a signup/account system later) */
   accountStatus(): Promise<AccountStatus>
   /** start Genspark login (opens the browser; accountStatus flips to logged-in on completion); returns whether the launch succeeded */
@@ -147,6 +159,20 @@ export interface McpConnectionInfo {
   available: boolean
   discoveryPath: string
   adapterPath?: string
+}
+
+export interface SkillSummary {
+  id: string
+  name: string
+  description: string
+  appliesTo: string[]
+  source: 'builtin' | 'custom'
+  enabled: boolean
+}
+
+export interface SkillContent {
+  summary: SkillSummary
+  content: string
 }
 
 /** 'starred' = went to GitHub or said "already starred" (never prompt again);
@@ -268,6 +294,12 @@ export const HOME_CHANNELS = {
   getLanguage: 'home:get-language',
   setLanguage: 'home:set-language',
   mcpConnectionInfo: 'home:mcp-connection-info',
+  listSkills: 'home:skills-list',
+  readSkill: 'home:skills-read',
+  importSkill: 'home:skills-import',
+  exportSkill: 'home:skills-export',
+  setSkillEnabled: 'home:skills-set-enabled',
+  deleteSkill: 'home:skills-delete',
   accountStatus: 'home:account-status',
   accountLogin: 'home:account-login',
   accountLoginEvent: 'home:account-login-event',

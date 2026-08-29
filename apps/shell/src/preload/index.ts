@@ -6,6 +6,8 @@ import type {
   CloudProjectsSnapshot,
   HomeApi,
   McpConnectionInfo,
+  SkillContent,
+  SkillSummary,
   RecentEntry,
   RecentPage,
   RenameResult,
@@ -128,6 +130,32 @@ const homeApi: HomeApi = {
       discoveryPath: typeof value?.discoveryPath === 'string' ? value.discoveryPath : '',
       ...(typeof value?.adapterPath === 'string' ? { adapterPath: value.adapterPath } : {}),
     }
+  },
+  async listSkills(): Promise<SkillSummary[]> {
+    const result: unknown = await ipcRenderer.invoke(HOME_CHANNELS.listSkills)
+    return Array.isArray(result) ? (result as SkillSummary[]) : []
+  },
+  async readSkill(id: string): Promise<SkillContent | null> {
+    if (typeof id !== 'string') throw new Error('Invalid skill ID.')
+    const result: unknown = await ipcRenderer.invoke(HOME_CHANNELS.readSkill, id)
+    return result && typeof result === 'object' ? (result as SkillContent) : null
+  },
+  async importSkill(): Promise<SkillSummary | null> {
+    const result: unknown = await ipcRenderer.invoke(HOME_CHANNELS.importSkill)
+    return result && typeof result === 'object' ? (result as SkillSummary) : null
+  },
+  async exportSkill(id: string): Promise<boolean> {
+    if (typeof id !== 'string') throw new Error('Invalid skill ID.')
+    return (await ipcRenderer.invoke(HOME_CHANNELS.exportSkill, id)) === true
+  },
+  async setSkillEnabled(id: string, enabled: boolean): Promise<void> {
+    if (typeof id !== 'string' || typeof enabled !== 'boolean')
+      throw new Error('Invalid skill state.')
+    await ipcRenderer.invoke(HOME_CHANNELS.setSkillEnabled, id, enabled)
+  },
+  async deleteSkill(id: string): Promise<void> {
+    if (typeof id !== 'string') throw new Error('Invalid skill ID.')
+    await ipcRenderer.invoke(HOME_CHANNELS.deleteSkill, id)
   },
   async accountStatus() {
     const result: unknown = await ipcRenderer.invoke(HOME_CHANNELS.accountStatus)

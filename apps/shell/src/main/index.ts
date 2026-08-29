@@ -21,7 +21,13 @@ import {
   shell,
   webContents,
 } from 'electron'
-import type { MenuItemConstructorOptions, NativeImage, WebContents } from 'electron'
+import type {
+  MenuItemConstructorOptions,
+  NativeImage,
+  OpenDialogOptions,
+  SaveDialogOptions,
+  WebContents,
+} from 'electron'
 import menuDocxIcon1x from './assets/menu-docx.png?asset'
 import menuDocxIcon2x from './assets/menu-docx@2x.png?asset'
 import menuXlsxIcon1x from './assets/menu-xlsx.png?asset'
@@ -187,6 +193,7 @@ import { RendererMcpBridge } from './mcp/renderer-bridge'
 import { ShellMcpGateway } from './mcp/gateway'
 import { AuthenticatedMcpPermissionGate } from './mcp/permissions'
 import { FileMcpAuditLogger } from './mcp/audit'
+import { GenOfficeSkillStore } from './skills'
 import { SlidesMcpAdapter, waitForSlidesMcpSession } from '../../../slides/src/main/mcp-adapter'
 import type { DocumentKind, DocumentTarget } from '@genoffice/capabilities'
 
@@ -244,6 +251,9 @@ const SIDECAR_BIN = app.isPackaged
 const MCP_ADAPTER_PATH = app.isPackaged
   ? join(process.resourcesPath, 'mcp', 'genoffice-mcp.mjs')
   : join(app.getAppPath(), '..', '..', 'packages', 'genoffice-mcp', 'dist', 'genoffice-mcp.mjs')
+const BUNDLED_SKILLS_PATH = app.isPackaged
+  ? join(process.resourcesPath, 'skills')
+  : join(app.getAppPath(), 'resources', 'skills')
 
 configureDocsRuntime({
   preloadPath: join(DOCS_OUT, 'preload', 'index.js'),
@@ -2227,6 +2237,12 @@ let tabManager: TabManager | null = null
 let mcpBridge: LocalMcpBridge | null = null
 let rendererMcpBridge: RendererMcpBridge | null = null
 let mcpMediaImports: McpMediaImportStore | null = null
+let skillStore: GenOfficeSkillStore | null = null
+
+function requireSkillStore(): GenOfficeSkillStore {
+  if (!skillStore) throw new Error('Skills are not initialized')
+  return skillStore
+}
 
 /**
  * When the user creates a file from a specific project view, remember which
@@ -2991,6 +3007,56 @@ function registerHomeIpc(): void {
       discoveryPath,
       ...(existsSync(MCP_ADAPTER_PATH) ? { adapterPath: MCP_ADAPTER_PATH } : {}),
     }
+  })
+
+  ipcMain.handle(HOME_CHANNELS.listSkills, () => requireSkillStore().list())
+  ipcMain.handle(HOME_CHANNELS.readSkill, async (_event, id: unknown) => {
+    if (typeof id !== 'string') return null
+    try {
+      return await requireSkillStore().read(id, true)
+    } catch {
+      return null
+    }
+  })
+  ipcMain.handle(HOME_CHANNELS.importSkill, async () => {
+    const options: OpenDialogOptions = {
+      title: '导入技能',
+      properties: ['openFile'],
+      filters: [{ name: 'Markdown skill', extensions: ['md'] }],
+    }
+    const result = shellWindow
+      ? await dialog.showOpenDialog(shellWindow, options)
+      : await dialog.showOpenDialog(options)
+    const path = result.filePaths[0]
+    if (result.canceled || !path) return null
+    return requireSkillStore().importFromPath(path)
+  })
+  ipcMain.handle(HOME_CHANNELS.exportSkill, async (_event, id: unknown): Promise<boolean> => {
+    if (typeof id !== 'string') return false
+    try {
+      const { summary } = await requireSkillStore().read(id, true)
+      const options: SaveDialogOptions = {
+        title: '导出技能',
+        defaultPath: `${summary.id}.md`,
+        filters: [{ name: 'Markdown skill', extensions: ['md'] }],
+      }
+      const result = shellWindow
+        ? await dialog.showSaveDialog(shellWindow, options)
+        : await dialog.showSaveDialog(options)
+      if (result.canceled || !result.filePath) return false
+      await requireSkillStore().exportToPath(id, result.filePath)
+      return true
+    } catch {
+      return false
+    }
+  })
+  ipcMain.handle(HOME_CHANNELS.setSkillEnabled, async (_event, id: unknown, enabled: unknown) => {
+    if (typeof id !== 'string' || typeof enabled !== 'boolean') return
+    await requireSkillStore().setEnabled(id, enabled)
+  })
+  ipcMain.handle(HOME_CHANNELS.deleteSkill, async (_event, id: unknown) => {
+    if (typeof id !== 'string') return
+    await requireSkillStore().remove(id)
   })
 
   ipcMain.handle(
@@ -4166,6 +4232,7 @@ app.whenReady().then(async () => {
     // settings write failures must never block startup
   }
   startSheetsCaptureServer()
+  skillStore = new GenOfficeSkillStore(app.getPath('userData'), BUNDLED_SKILLS_PATH)
   createShellWindow()
   if (tabManager) {
     try {
@@ -4184,6 +4251,7 @@ app.whenReady().then(async () => {
           { create: createMcpDocument },
           mcpMediaImports,
           { insertImage: importMcpMarkdownImage },
+          skillStore,
         ),
       })
       await mcpBridge.start()

@@ -236,6 +236,10 @@ const config = {
       from: '../../packages/genoffice-mcp/dist',
       to: 'mcp',
     },
+    {
+      from: 'resources/skills',
+      to: 'skills',
+    },
     // PDF text editing engines: the bundled main resolves these under
     // Resources/wasm when node_modules is absent (apps/pdf/src/main/wasm-path.ts)
     {

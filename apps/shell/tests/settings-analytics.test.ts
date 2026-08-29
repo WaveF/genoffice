@@ -48,6 +48,27 @@ describe('Settings MCP setup', () => {
         discoveryPath: '/tmp/GenOffice/mcp/bridge.json',
         adapterPath: '/tmp/GenOffice/genoffice-mcp.mjs',
       }),
+      listSkills: async () => [
+        {
+          id: 'slides-guide',
+          name: 'Slides guide',
+          description: 'Create presentation content safely.',
+          appliesTo: ['slides'],
+          source: 'builtin',
+          enabled: true,
+        },
+      ],
+      readSkill: async () => ({
+        summary: {
+          id: 'slides-guide',
+          name: 'Slides guide',
+          description: 'Create presentation content safely.',
+          appliesTo: ['slides'],
+          source: 'builtin',
+          enabled: true,
+        },
+        content: '# Slides guide',
+      }),
     } as unknown as HomeApi
 
     await act(async () => {
@@ -79,7 +100,17 @@ describe('Settings MCP setup', () => {
       expect.stringContaining('/tmp/GenOffice/mcp/bridge.json'),
     )
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining('不要要求用户提供 documentId'))
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('skills.list'))
     expect(host.querySelector('.set-mcp-prompt')).toBeNull()
     expect(host.querySelector('.set-mcp-status-dot.online')).not.toBeNull()
+
+    await click(
+      Array.from(host.querySelectorAll<HTMLButtonElement>('.set-nav-item')).find(
+        (button) => button.textContent === '技能',
+      )!,
+    )
+    expect(host.textContent).toContain('Slides guide')
+    await click(host.querySelector<HTMLButtonElement>('.set-skill-main')!)
+    expect(host.querySelector('.set-skill-preview')?.textContent).toContain('# Slides guide')
   })
 })

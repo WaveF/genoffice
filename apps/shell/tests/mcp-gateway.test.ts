@@ -5,6 +5,7 @@ import {
   type DocumentTargetSource,
   type McpDocumentFactory,
   type MarkdownMcpImageWriter,
+  type McpSkillSource,
   type RendererMcpReader,
   type SlidesMcpReader,
 } from '../src/main/mcp/gateway'
@@ -29,6 +30,7 @@ function gatewayWith(
   audit?: McpAuditLogger,
   media?: McpMediaImportStore,
   markdownImages?: MarkdownMcpImageWriter,
+  skills?: McpSkillSource,
 ): ShellMcpGateway {
   const source: DocumentTargetSource = {
     listDocumentTargets: async () => documents,
@@ -88,6 +90,7 @@ function gatewayWith(
     documentFactory,
     media,
     markdownImages,
+    skills,
   )
 }
 
@@ -113,6 +116,8 @@ describe('ShellMcpGateway', () => {
     expect(result).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ name: 'list_open_documents' }),
+        expect.objectContaining({ name: 'skills.list' }),
+        expect.objectContaining({ name: 'skills.read' }),
         expect.objectContaining({ name: 'create_document' }),
         expect.objectContaining({ name: 'slides.apply_ops' }),
         expect.objectContaining({ name: 'slides.render_preview' }),
@@ -133,6 +138,54 @@ describe('ShellMcpGateway', () => {
     expect((result as Array<{ name: string }>).map((tool) => tool.name)).not.toEqual(
       expect.arrayContaining(['generate_image', 'images.generate', 'media.import', 'import_media']),
     )
+  })
+
+  it('lists and reads only enabled skills without using document access', async () => {
+    const skills: McpSkillSource = {
+      list: async () => [
+        {
+          id: 'slides-guide',
+          name: 'Slides guide',
+          description: '',
+          appliesTo: ['slides'],
+          source: 'builtin',
+          enabled: true,
+        },
+      ],
+      read: async (id) => ({
+        summary: {
+          id,
+          name: 'Slides guide',
+          description: '',
+          appliesTo: ['slides'],
+          source: 'builtin',
+          enabled: true,
+        },
+        content: '# Slides guide',
+      }),
+    }
+    const gateway = gatewayWith(
+      [target],
+      { authorize: async () => undefined },
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      skills,
+    )
+
+    await expect(
+      gateway.handle(request({ name: 'skills.list', input: {} })),
+    ).resolves.toMatchObject({
+      content: JSON.stringify(await skills.list(false)),
+      mutated: false,
+    })
+    await expect(
+      gateway.handle(request({ name: 'skills.read', input: { skillId: 'slides-guide' } })),
+    ).resolves.toMatchObject({
+      content: JSON.stringify(await skills.read('slides-guide', false)),
+      mutated: false,
+    })
   })
 
   it('does not expose arbitrary local-file access through the MCP tool surface', async () => {

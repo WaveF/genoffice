@@ -16,6 +16,33 @@ import { assertSafeMcpInput } from './input-guard'
 import type { RendererMcpAction } from './renderer-bridge'
 import type { McpMediaImportStore } from './media-import'
 
+export interface McpSkillSource {
+  list(includeDisabled?: boolean): Promise<
+    Array<{
+      id: string
+      name: string
+      description: string
+      appliesTo: string[]
+      source: 'builtin' | 'custom'
+      enabled: boolean
+    }>
+  >
+  read(
+    id: string,
+    includeDisabled?: boolean,
+  ): Promise<{
+    summary: {
+      id: string
+      name: string
+      description: string
+      appliesTo: string[]
+      source: 'builtin' | 'custom'
+      enabled: boolean
+    }
+    content: string
+  }>
+}
+
 /** Small interface keeps the gateway unit-testable without an Electron runtime. */
 export interface DocumentTargetSource {
   listDocumentTargets(): Promise<DocumentTarget[]>
@@ -122,6 +149,21 @@ const DOCUMENT_REVISION_INPUT_SCHEMA = {
 const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
   LIST_OPEN_DOCUMENTS,
   GET_DOCUMENT_STATUS,
+  {
+    name: 'skills.list',
+    description: 'List enabled GenOffice Markdown guidance skills relevant to document work.',
+    inputSchema: { type: 'object', additionalProperties: false },
+  },
+  {
+    name: 'skills.read',
+    description: 'Read one enabled GenOffice guidance skill by its opaque public skill ID.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['skillId'],
+      properties: { skillId: { type: 'string', minLength: 1, maxLength: 64 } },
+    },
+  },
   {
     name: 'create_document',
     description: 'Create one blank document in GenOffice and return its opaque document ID.',
@@ -520,7 +562,9 @@ function withAuthoritativeRevision(result: unknown, revision: number): unknown {
   if (!isRecord(result)) return result
   const rendererRevision = result.revision
   const authoritativeRevision =
-    typeof rendererRevision === 'number' && Number.isSafeInteger(rendererRevision) && rendererRevision >= 0
+    typeof rendererRevision === 'number' &&
+    Number.isSafeInteger(rendererRevision) &&
+    rendererRevision >= 0
       ? Math.max(revision, rendererRevision)
       : revision
   return { ...result, revision: authoritativeRevision }
@@ -543,6 +587,7 @@ export class ShellMcpGateway implements McpBridgeGateway {
     private readonly documentFactory?: McpDocumentFactory,
     private readonly media?: McpMediaImportStore,
     private readonly markdownImages?: MarkdownMcpImageWriter,
+    private readonly skills?: McpSkillSource,
   ) {}
 
   async handle(request: McpBridgeRequest): Promise<unknown> {
@@ -581,6 +626,16 @@ export class ShellMcpGateway implements McpBridgeGateway {
         throw new CapabilityError('cancelled', 'MCP request was cancelled')
       const target = await this.documents.findDocumentTarget(documentId)
       return GET_DOCUMENT_STATUS.execute(target, { documentId }, context)
+    }
+    if (name === 'skills.list') {
+      this.assertEmptyArguments(argumentsValue)
+      return toolResult(JSON.stringify(await this.requireSkills().list(false)))
+    }
+    if (name === 'skills.read') {
+      if (Object.keys(argumentsValue).length !== 1 || typeof argumentsValue.skillId !== 'string')
+        throw new CapabilityError('validation_error', 'skills.read requires only skillId')
+      const skill = await this.requireSkills().read(argumentsValue.skillId, false)
+      return toolResult(JSON.stringify(skill))
     }
     if (name === 'create_document') {
       const kind = argumentsValue.kind
@@ -975,7 +1030,7 @@ export class ShellMcpGateway implements McpBridgeGateway {
         ? this.requireDocumentRevisionWithCommands(argumentsValue)
         : name === 'markdown.set_source'
           ? this.requireDocumentRevisionWithSource(argumentsValue)
-        : this.requireDocumentRevisionWithContent(argumentsValue)
+          : this.requireDocumentRevisionWithContent(argumentsValue)
       const target = await this.requireRendererTarget(documentId, kind)
       if (target.revision !== expectedRevision)
         throw new CapabilityError('conflict', 'Document changed since it was read', {
@@ -1410,6 +1465,11 @@ export class ShellMcpGateway implements McpBridgeGateway {
   private requireMedia(): McpMediaImportStore {
     if (!this.media) throw new CapabilityError('not_running', 'MCP media import is unavailable')
     return this.media
+  }
+
+  private requireSkills(): McpSkillSource {
+    if (!this.skills) throw new CapabilityError('renderer_unavailable', 'Skills are unavailable')
+    return this.skills
   }
 
   private requireMarkdownImages(): MarkdownMcpImageWriter {
