@@ -496,6 +496,9 @@
 }
 
 .set-mcp-prompt {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 180px;
   margin: 0;
   padding: 12px;
   border: 1px solid var(--border-subtle);
@@ -512,6 +515,7 @@
   white-space: pre-wrap;
   word-break: break-word;
   user-select: text;
+  resize: vertical;
 }
 
 /* ── AI model pane ── */

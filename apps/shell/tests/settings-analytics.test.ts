@@ -101,7 +101,9 @@ describe('Settings MCP setup', () => {
     )
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining('不要要求用户提供 documentId'))
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining('skills.list'))
-    expect(host.querySelector('.set-mcp-prompt')).toBeNull()
+    const prompt = host.querySelector<HTMLTextAreaElement>('.set-mcp-prompt')
+    expect(prompt?.readOnly).toBe(true)
+    expect(prompt?.value).toContain('media.stage_image')
     expect(host.querySelector('.set-mcp-status-dot.online')).not.toBeNull()
 
     await click(
