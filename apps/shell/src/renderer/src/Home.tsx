@@ -736,13 +736,14 @@ function SettingsEntry() {
       >
         <span className="account-avatar" aria-hidden="true">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <circle cx="8" cy="8" r="2.2" stroke="currentColor" strokeWidth="1.4" />
             <path
-              d="M8 1.8v1.4M8 12.8v1.4M14.2 8h-1.4M3.2 8H1.8M12.4 3.6l-1 1M4.6 11.4l-1 1M12.4 12.4l-1-1M4.6 4.6l-1-1"
+              d="M6.2 1.5h3.6l.34 1.38c.4.17.77.38 1.12.66l1.36-.42 1.8 3.12-1.02.98c.05.22.08.47.08.73s-.03.51-.08.73l1.02.98-1.8 3.12-1.36-.42c-.35.28-.72.49-1.12.66l-.34 1.38H6.2l-.34-1.38c-.4-.17-.77-.38-1.12-.66l-1.36.42-1.8-3.12 1.02-.98A3.7 3.7 0 0 1 2.52 8c0-.26.03-.51.08-.73L1.58 6.29l1.8-3.12 1.36.42c.35-.28.72-.49 1.12-.66L6.2 1.5Z"
               stroke="currentColor"
-              strokeWidth="1.25"
+              strokeWidth="1.15"
               strokeLinecap="round"
+              strokeLinejoin="round"
             />
+            <circle cx="8" cy="8" r="2.05" stroke="currentColor" strokeWidth="1.15" />
           </svg>
         </span>
         <span className="account-text">
