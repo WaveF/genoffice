@@ -188,7 +188,17 @@ export default function App() {
     if (!editor) return
     return window.markdownApi.onMcpRequest((request) => {
       try {
+        const revisionBefore = mcpRevisionRef.current.current
         const result = handleMarkdownMcpRequest(editor, request.action, request.input)
+        // Tiptap normally emits onUpdate synchronously. Keep MCP compare-and-set
+        // sound even if a whole-document source replacement produces no update
+        // event (for example, a parser-normalized equivalent document).
+        if (
+          request.action === 'markdown.set_source' &&
+          mcpRevisionRef.current.current === revisionBefore
+        ) {
+          markDirty()
+        }
         window.markdownApi.respondMcpRequest({
           requestId: request.requestId,
           ok: true,
@@ -205,7 +215,7 @@ export default function App() {
         })
       }
     })
-  }, [editor])
+  }, [editor, markDirty])
 
   useEffect(() => {
     setImageBaseDir(filePath ? dirOf(filePath) : null)

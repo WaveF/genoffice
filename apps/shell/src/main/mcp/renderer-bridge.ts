@@ -54,6 +54,7 @@ export type RendererMcpAction =
   | 'markdown.read_blocks'
   | 'markdown.insert_content'
   | 'markdown.replace_blocks'
+  | 'markdown.set_source'
   | 'markdown.apply_commands'
   | 'markdown.insert_image'
   | 'sheets.get_workbook_context'

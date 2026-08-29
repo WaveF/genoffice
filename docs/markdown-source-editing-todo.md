@@ -13,11 +13,11 @@
 
 | ID      | 任务                                                                          | 优先级 | 依赖           | 状态   | 代码落点                                    | 验收标准                                                                                                                                    |
 | ------- | ----------------------------------------------------------------------------- | ------ | -------------- | ------ | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| MSRC-01 | 定义 `markdown.set_source` 的受限 schema 与语义。                             | P0     | CAP-03, RBR-01 | 未开始 | Shell gateway、MCP tool descriptor          | 仅接受 `documentId`、`expectedRevision`、完整 `source`；最大长度明确；不接受局部 range、路径、URL 或 bytes；文档说明其覆盖整篇 Markdown。   |
-| MSRC-02 | 在 Markdown renderer adapter 中以 `contentType: 'markdown'` 解析完整 source。 | P0     | MSRC-01        | 未开始 | `apps/markdown/src/renderer/mcp-adapter.ts` | `# 标题`、列表、引用、表格、任务列表和受控本地图片 Markdown 被解析成对应块；普通 `markdown.insert_content` 继续保持“插入纯文本”的既有语义。 |
-| MSRC-03 | 接入 revision、写队列、权限与审计边界。                                       | P0     | MSRC-01..02    | 未开始 | Shell MCP gateway                           | stale revision 返回 `conflict`；认证后按 write 风险审计；失败时不部分写入；返回 authoritative revision。                                    |
-| MSRC-04 | 增加单测和真实 stdio E2E。                                                    | P0     | MSRC-01..03    | 未开始 | Markdown/Shell tests、`e2e/`                | 覆盖标题与列表解析、文本插入仍为文本、stale conflict、undo/redo、保存后 `.md` 原文、关闭/重载后的读回。                                     |
-| MSRC-05 | 更新 MCP usage 与“复制给 AI 使用”提示词。                                     | P1     | MSRC-04        | 未开始 | usage 文档、Shell Settings                  | Agent 指引优先用 `markdown.set_source` 创建完整结构化文档；不要求用户提供 documentId；明确与 `insert_content` 的差异。                      |
+| MSRC-01 | 定义 `markdown.set_source` 的受限 schema 与语义。                             | P0     | CAP-03, RBR-01 | 已完成 | Shell gateway、MCP tool descriptor          | 仅接受 `documentId`、`expectedRevision`、完整 `source`；最大长度明确；不接受局部 range、路径、URL 或 bytes；文档说明其覆盖整篇 Markdown。   |
+| MSRC-02 | 在 Markdown renderer adapter 中以 `contentType: 'markdown'` 解析完整 source。 | P0     | MSRC-01        | 已完成 | `apps/markdown/src/renderer/mcp-adapter.ts` | `# 标题`、列表、引用、表格、任务列表和受控本地图片 Markdown 被解析成对应块；普通 `markdown.insert_content` 继续保持“插入纯文本”的既有语义。 |
+| MSRC-03 | 接入 revision、写队列、权限与审计边界。                                       | P0     | MSRC-01..02    | 已完成 | Shell MCP gateway                           | stale revision 返回 `conflict`；认证后按 write 风险审计；失败时不部分写入；返回 authoritative revision。                                    |
+| MSRC-04 | 增加单测和真实 stdio E2E。                                                    | P0     | MSRC-01..03    | 已完成 | Markdown/Shell tests、`e2e/`                | 覆盖标题与列表解析、文本插入仍为文本、stale conflict、undo/redo、保存后 `.md` 原文、关闭/重载后的读回。                                     |
+| MSRC-05 | 更新 MCP usage 与“复制给 AI 使用”提示词。                                     | P1     | MSRC-04        | 已完成 | usage 文档、Shell Settings                  | Agent 指引优先用 `markdown.set_source` 创建完整结构化文档；不要求用户提供 documentId；明确与 `insert_content` 的差异。                      |
 
 ## B. 专用分支：Markdown 源码模式 UI
 

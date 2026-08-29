@@ -315,6 +315,21 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
     ...(kind === 'markdown'
       ? [
           {
+            name: 'markdown.set_source',
+            description:
+              'Replace one complete Markdown document from bounded raw Markdown source. This parses Markdown structure; use markdown.insert_content for literal text.',
+            inputSchema: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['documentId', 'expectedRevision', 'source'],
+              properties: {
+                documentId: { type: 'string', minLength: 1, maxLength: 128 },
+                expectedRevision: { type: 'integer', minimum: 0 },
+                source: { type: 'string', maxLength: 65536 },
+              },
+            },
+          },
+          {
             name: 'markdown.insert_image',
             description: 'Insert one previously staged image into a saved Markdown document.',
             inputSchema: {
@@ -502,7 +517,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function withAuthoritativeRevision(result: unknown, revision: number): unknown {
-  return isRecord(result) ? { ...result, revision } : result
+  if (!isRecord(result)) return result
+  const rendererRevision = result.revision
+  const authoritativeRevision =
+    typeof rendererRevision === 'number' && Number.isSafeInteger(rendererRevision) && rendererRevision >= 0
+      ? Math.max(revision, rendererRevision)
+      : revision
+  return { ...result, revision: authoritativeRevision }
 }
 
 function executionContext(request: McpBridgeRequest): ExecutionContext {
@@ -945,12 +966,15 @@ export class ShellMcpGateway implements McpBridgeGateway {
       name === 'docs.replace_blocks' ||
       name === 'markdown.insert_content' ||
       name === 'markdown.replace_blocks' ||
+      name === 'markdown.set_source' ||
       name === 'docs.apply_commands' ||
       name === 'markdown.apply_commands'
     ) {
       const [kind] = name.split('.') as ['docs' | 'markdown']
       const { documentId, expectedRevision } = name.endsWith('.apply_commands')
         ? this.requireDocumentRevisionWithCommands(argumentsValue)
+        : name === 'markdown.set_source'
+          ? this.requireDocumentRevisionWithSource(argumentsValue)
         : this.requireDocumentRevisionWithContent(argumentsValue)
       const target = await this.requireRendererTarget(documentId, kind)
       if (target.revision !== expectedRevision)
@@ -1299,6 +1323,30 @@ export class ShellMcpGateway implements McpBridgeGateway {
       throw new CapabilityError(
         'validation_error',
         'documentId, expectedRevision, and bounded undo/redo commands are required',
+      )
+    }
+    return base
+  }
+
+  private requireDocumentRevisionWithSource(argumentsValue: Record<string, unknown>): {
+    documentId: string
+    expectedRevision: number
+  } {
+    const base = this.requireDocumentRevision({
+      documentId: argumentsValue.documentId,
+      expectedRevision: argumentsValue.expectedRevision,
+    })
+    const source = argumentsValue.source
+    if (
+      typeof source !== 'string' ||
+      source.length > 64 * 1024 ||
+      Object.keys(argumentsValue).some(
+        (key) => !['documentId', 'expectedRevision', 'source'].includes(key),
+      )
+    ) {
+      throw new CapabilityError(
+        'validation_error',
+        'documentId, expectedRevision, and complete bounded Markdown source are required',
       )
     }
     return base

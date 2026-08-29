@@ -42,4 +42,6 @@ node "<adapterPath from bridge.json>" --discovery "/absolute/path/to/GenOffice/m
 
 Docs 与 Markdown 支持 document-scoped blocks 读取、文本插入/替换及受限 `apply_commands`（最多 10 个 `undo`/`redo`）；实际 schema 仍以 `tools/list` 为准。Sheets、PDF 的能力边界也应以该实时 schema 为准。
 
+要一次写入完整的结构化 Markdown（标题、列表、引用、表格、任务列表等），使用 `markdown.set_source({"documentId","expectedRevision","source"})`。它会以 Markdown 语义解析并**整体覆盖**当前文档，`source` 最大 64 KiB；不接受局部 range、路径、URL 或 bytes。`markdown.insert_content` 则始终是追加字面文本：例如传入 `# 标题` 会插入包含井号的正文，而不会创建标题。写入前先通过 `list_open_documents` 或 `create_document` 获取目标，不要向用户索要 `documentId`。
+
 所有类型都不支持任意路径文件访问。Markdown 额外提供受控本地图片流程：discovery 的 `mediaImportDirectory` 是该次会话唯一可写的图片暂存目录。Agent 先把 PNG/JPEG/GIF 写入该目录（文件名，不含路径），调用 `media.stage_image({"fileName":"image.png"})` 获得一次性、连接绑定的 `mediaHandle`，再以 `markdown.insert_image` 写入一个已保存 Markdown 文档。bridge 会校验格式（PNG/JPEG/GIF）、文件大小（≤8 MiB）、像素数（≤24 MP）、路径和软链接，成功 stage 后立刻删除暂存源文件，并把副本写入文档同级 `assets/`。不接受路径、URL 或 base64/bytes；Slides、Docs、Sheets 的图片导入仍属于后续 `MED-01` 范围。完整发布范围、复现步骤与已知缺口见 [Slides MCP MVP 验收报告](./slides-mcp-mvp-acceptance.md)。

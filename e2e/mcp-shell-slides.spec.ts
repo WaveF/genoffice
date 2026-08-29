@@ -550,6 +550,131 @@ test.describe('MCP stdio adapter + Shell bridge', () => {
     }
   })
 
+  test('replaces complete Markdown source through the real bridge and preserves it after save/reload', async () => {
+    const saveDir = await mkdtemp(join(tmpdir(), 'genoffice-mcp-markdown-source-save-'))
+    const launched = await launchShell({
+      onboardingSeen: true,
+      defaultSaveDir: saveDir,
+      videoDir: 'mcp-shell-markdown-source',
+    })
+    const discoveryPath = join(launched.userDataDir, 'mcp', 'bridge.json')
+    let client: StdioMcpClient | undefined
+    try {
+      await waitForFile(discoveryPath)
+      client = new StdioMcpClient(discoveryPath)
+      await client.request('initialize', {
+        protocolVersion: '2025-06-18',
+        clientInfo: { name: 'genoffice-e2e-markdown-source' },
+      })
+      const created = JSON.parse(
+        resultText(
+          await client.request('tools/call', {
+            name: 'create_document',
+            arguments: { kind: 'markdown' },
+          }),
+        ),
+      ) as { documentId: string }
+      const markdown = await waitForPageWithUrl(launched.app, 'markdown/out')
+      await requestUntilRendererReady(client, 'markdown.get_context', {
+        documentId: created.documentId,
+      })
+      const initial = JSON.parse(
+        resultText(
+          await client.request('tools/call', {
+            name: 'get_document_status',
+            arguments: { documentId: created.documentId },
+          }),
+        ),
+      ) as { revision: number }
+      const source =
+        '# Source title\n\n- first item\n- second item\n\n> source quote\n\n| Name | Value |\n| --- | --- |\n| source | 1 |\n\n- [ ] follow up'
+      const replaced = await client.request('tools/call', {
+        name: 'markdown.set_source',
+        arguments: {
+          documentId: created.documentId,
+          expectedRevision: initial.revision,
+          source,
+        },
+      })
+      const replacedRevision = JSON.parse(resultText(replaced)) as { revision: number }
+      expect(replacedRevision.revision).toBeGreaterThan(initial.revision)
+
+      const stale = await client.request('tools/call', {
+        name: 'markdown.set_source',
+        arguments: { documentId: created.documentId, expectedRevision: initial.revision, source: '# stale' },
+      })
+      expect(stale.result).toMatchObject({ isError: true })
+      expect(JSON.parse(resultText(stale))).toMatchObject({ code: 'conflict' })
+
+      const undone = JSON.parse(
+        resultText(
+          await client.request('tools/call', {
+            name: 'markdown.apply_commands',
+            arguments: {
+              documentId: created.documentId,
+              expectedRevision: replacedRevision.revision,
+              commands: [{ op: 'undo' }],
+            },
+          }),
+        ),
+      ) as { revision: number }
+      const redone = JSON.parse(
+        resultText(
+          await client.request('tools/call', {
+            name: 'markdown.apply_commands',
+            arguments: {
+              documentId: created.documentId,
+              expectedRevision: undone.revision,
+              commands: [{ op: 'redo' }],
+            },
+          }),
+        ),
+      ) as { revision: number }
+      expect(redone.revision).toBeGreaterThan(undone.revision)
+
+      await markdown.keyboard.press('ControlOrMeta+s')
+      const savedFile = (await readdir(saveDir)).find((file) => file.endsWith('.md'))
+      expect(savedFile).toBeDefined()
+      const saved = await readFile(join(saveDir, savedFile!), 'utf8')
+      expect(saved).toContain('# Source title')
+      expect(saved).toContain('- first item')
+      expect(saved).toContain('- [ ] follow up')
+
+      await markdown.reload()
+      const deadline = Date.now() + 15_000
+      let reloaded: JsonRpcResponse | undefined
+      for (;;) {
+        const candidate = await requestUntilRendererReady(client, 'markdown.read_blocks', {
+          documentId: created.documentId,
+        })
+        const parsed = JSON.parse(resultText(candidate)) as { blocks?: unknown[] }
+        if (parsed.blocks?.length || Date.now() >= deadline) {
+          reloaded = candidate
+          break
+        }
+        await new Promise((resolvePromise) => setTimeout(resolvePromise, 100))
+      }
+      expect(JSON.parse(resultText(reloaded!))).toMatchObject({
+        blocks: expect.arrayContaining([
+          expect.objectContaining({ text: '# Source title' }),
+          expect.objectContaining({ text: '- first item\n- second item' }),
+        ]),
+      })
+      const statusAfterReload = JSON.parse(
+        resultText(
+          await client.request('tools/call', {
+            name: 'get_document_status',
+            arguments: { documentId: created.documentId },
+          }),
+        ),
+      ) as { revision: number }
+      expect(statusAfterReload.revision).toBe(redone.revision)
+    } finally {
+      client?.close()
+      await closeAndSaveVideo(launched, 'mcp-shell-markdown-source')
+    }
+  })
+
   test('imports one staged image into Markdown owned assets through the real bridge', async () => {
     const saveDir = await mkdtemp(join(tmpdir(), 'genoffice-mcp-markdown-media-save-'))
     const launched = await launchShell({

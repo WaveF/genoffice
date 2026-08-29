@@ -11,6 +11,7 @@ type MarkdownMcpRequest = {
     | 'markdown.read_blocks'
     | 'markdown.insert_content'
     | 'markdown.replace_blocks'
+    | 'markdown.set_source'
     | 'markdown.apply_commands'
     | 'markdown.insert_image'
   input: Record<string, unknown>

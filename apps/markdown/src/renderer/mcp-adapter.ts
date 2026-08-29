@@ -36,6 +36,7 @@ export function handleMarkdownMcpRequest(
     | 'markdown.read_blocks'
     | 'markdown.insert_content'
     | 'markdown.replace_blocks'
+    | 'markdown.set_source'
     | 'markdown.apply_commands'
     | 'markdown.insert_image',
   input: Record<string, unknown>,
@@ -61,6 +62,13 @@ export function handleMarkdownMcpRequest(
       throw new Error('bounded markdown content is required')
     editor.commands.setContent(content, { contentType: 'markdown' })
     return { applied: true, blockCount: blocks(editor).length }
+  }
+  if (action === 'markdown.set_source') {
+    const source = input.source
+    if (typeof source !== 'string' || source.length > 64 * 1024)
+      throw new Error('complete bounded Markdown source is required')
+    editor.commands.setContent(source, { contentType: 'markdown' })
+    return { applied: true, blockCount: blocks(editor).length, sourceLength: source.length }
   }
   if (action === 'markdown.apply_commands') {
     const commands = input.commands

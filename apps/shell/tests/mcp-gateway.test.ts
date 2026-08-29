@@ -118,6 +118,7 @@ describe('ShellMcpGateway', () => {
         expect.objectContaining({ name: 'slides.render_preview' }),
         expect.objectContaining({ name: 'docs.get_context' }),
         expect.objectContaining({ name: 'markdown.read_blocks' }),
+        expect.objectContaining({ name: 'markdown.set_source' }),
         expect.objectContaining({ name: 'sheets.read_range' }),
         expect.objectContaining({ name: 'pdf.read_page_context' }),
         expect.objectContaining({ name: 'pdf.search' }),
@@ -342,6 +343,48 @@ describe('ShellMcpGateway', () => {
       action: 'markdown.apply_commands',
       input: { documentId: 'doc-123', expectedRevision: 3, commands: [{ op: 'redo' }] },
     })
+  })
+
+  it('replaces complete Markdown source through the revision-checked write boundary', async () => {
+    const markdownTarget = { ...target, kind: 'markdown' as const }
+    const permissionRequests: Parameters<McpPermissionGate['authorize']>[0][] = []
+    const result = await gatewayWith([markdownTarget], {
+      authorize: async (permission) => permissionRequests.push(permission),
+    }).handle(
+      request({
+        name: 'markdown.set_source',
+        input: { documentId: 'doc-123', expectedRevision: 3, source: '# Source\n\n- item' },
+      }),
+    )
+    expect(result).toMatchObject({ mutated: true, revision: 3 })
+    expect(JSON.parse((result as { content: string }).content)).toMatchObject({
+      action: 'markdown.set_source',
+      input: { documentId: 'doc-123', expectedRevision: 3, source: '# Source\n\n- item' },
+    })
+    expect(permissionRequests).toEqual([
+      expect.objectContaining({ toolName: 'markdown.set_source', risk: 'write' }),
+    ])
+    await expect(
+      gatewayWith([markdownTarget]).handle(
+        request({
+          name: 'markdown.set_source',
+          input: { documentId: 'doc-123', expectedRevision: 2, source: '# stale' },
+        }),
+      ),
+    ).rejects.toMatchObject({ code: 'conflict' })
+    await expect(
+      gatewayWith([markdownTarget]).handle(
+        request({
+          name: 'markdown.set_source',
+          input: {
+            documentId: 'doc-123',
+            expectedRevision: 3,
+            source: '# invalid',
+            start: 0,
+          },
+        }),
+      ),
+    ).rejects.toMatchObject({ code: 'validation_error' })
   })
 
   it('stages opaque media and inserts it only through the saved Markdown image writer', async () => {
