@@ -40,7 +40,7 @@ node "<adapterPath from bridge.json>" --discovery "/absolute/path/to/GenOffice/m
 - 所有文档写操作使用 `expectedRevision`，过期请求返回 `conflict`。
 - discovery 文件权限限制为当前用户；不要复制、上传或提交其中的 token。
 
-Docs 与 Markdown 支持 document-scoped blocks 读取、文本插入/替换及受限 `apply_commands`（最多 10 个 `undo`/`redo`）；实际 schema 仍以 `tools/list` 为准。Sheets、PDF 的能力边界也应以该实时 schema 为准。
+Docs 与 Markdown 支持 document-scoped blocks 读取、文本插入/替换及受限 `apply_commands`（最多 10 个 `undo`/`redo`）；实际 schema 仍以 `tools/list` 为准。Docs 额外提供 `docs.apply_operations`：它以原生 blocks/runs 原子创建或格式化标题、段落、列表、粗体/斜体/下划线/删除线、字体、字号、前景色、高亮色、对齐和缩进。编辑现有 Docs 时先读取 blocks，使用返回的 `blockId` 与同一 `expectedRevision`；复杂批次可先 `dryRun: true`。该工具不解析 Markdown，`docs.insert_content` / `docs.replace_blocks` 仍只写入字面文本。应先通过 `skills.list` / `skills.read` 阅读内置的 `docs-authoring` 指引。Sheets、PDF 的能力边界也应以该实时 schema 为准。
 
 要一次写入完整的结构化 Markdown（标题、列表、引用、表格、任务列表等），使用 `markdown.set_source({"documentId","expectedRevision","source"})`。它会以 Markdown 语义解析并**整体覆盖**当前文档，`source` 最大 64 KiB；不接受局部 range、路径、URL 或 bytes。`markdown.insert_content` 则始终是追加字面文本：例如传入 `# 标题` 会插入包含井号的正文，而不会创建标题。写入前先通过 `list_open_documents` 或 `create_document` 获取目标，不要向用户索要 `documentId`。
 

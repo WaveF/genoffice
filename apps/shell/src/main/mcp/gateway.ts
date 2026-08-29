@@ -389,6 +389,27 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
         ]
       : []),
   ]),
+  {
+    name: 'docs.apply_operations',
+    description:
+      'Atomically create or format bounded native Docs blocks and text runs. Read Docs blocks first and use blockId with expectedRevision when editing existing content; this does not parse Markdown.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['documentId', 'expectedRevision', 'operations'],
+      properties: {
+        documentId: { type: 'string', minLength: 1, maxLength: 128 },
+        expectedRevision: { type: 'integer', minimum: 0 },
+        dryRun: { type: 'boolean' },
+        operations: {
+          type: 'array',
+          minItems: 1,
+          maxItems: 32,
+          items: { type: 'object' },
+        },
+      },
+    },
+  },
   ...(
     [
       ['sheets', 'get_workbook_context'],
@@ -1058,6 +1079,37 @@ export class ShellMcpGateway implements McpBridgeGateway {
         updated.revision,
       )
     }
+    if (name === 'docs.apply_operations') {
+      const { documentId, expectedRevision, dryRun } =
+        this.requireDocumentRevisionWithOperations(argumentsValue)
+      const target = await this.requireRendererTarget(documentId, 'docs')
+      if (target.revision !== expectedRevision)
+        throw new CapabilityError('conflict', 'Document changed since it was read', {
+          expectedRevision,
+          actualRevision: target.revision,
+        })
+      const result = await this.writeQueue.enqueue(target.documentId, context.signal, async () => {
+        if (!dryRun)
+          await this.requirePermissions().authorize({
+            clientId: context.clientId,
+            toolName: name,
+            risk: 'write',
+            document: target,
+          })
+        return this.requireRenderer().request(
+          target.webContentsId,
+          'docs.apply_operations',
+          argumentsValue,
+          context.signal,
+        )
+      })
+      const updated = await this.requireRendererTarget(documentId, 'docs')
+      return toolResult(
+        JSON.stringify(withAuthoritativeRevision(result, updated.revision)),
+        !dryRun,
+        updated.revision,
+      )
+    }
     if (name === 'markdown.insert_image') {
       const { documentId, expectedRevision, mediaHandle, alt } =
         this.requireMarkdownImageInput(argumentsValue)
@@ -1381,6 +1433,35 @@ export class ShellMcpGateway implements McpBridgeGateway {
       )
     }
     return base
+  }
+
+  private requireDocumentRevisionWithOperations(argumentsValue: Record<string, unknown>): {
+    documentId: string
+    expectedRevision: number
+    dryRun: boolean
+  } {
+    const base = this.requireDocumentRevision({
+      documentId: argumentsValue.documentId,
+      expectedRevision: argumentsValue.expectedRevision,
+    })
+    const { operations } = argumentsValue
+    const dryRun = argumentsValue.dryRun ?? false
+    if (
+      !Array.isArray(operations) ||
+      operations.length === 0 ||
+      operations.length > 32 ||
+      !operations.every(isRecord) ||
+      typeof dryRun !== 'boolean' ||
+      Object.keys(argumentsValue).some(
+        (key) => !['documentId', 'expectedRevision', 'operations', 'dryRun'].includes(key),
+      ) ||
+      JSON.stringify(operations).length > 64 * 1024
+    )
+      throw new CapabilityError(
+        'validation_error',
+        'documentId, expectedRevision, and bounded Docs operations are required',
+      )
+    return { ...base, dryRun }
   }
 
   private requireDocumentRevisionWithSource(argumentsValue: Record<string, unknown>): {

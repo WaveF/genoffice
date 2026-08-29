@@ -122,6 +122,7 @@ describe('ShellMcpGateway', () => {
         expect.objectContaining({ name: 'slides.apply_ops' }),
         expect.objectContaining({ name: 'slides.render_preview' }),
         expect.objectContaining({ name: 'docs.get_context' }),
+        expect.objectContaining({ name: 'docs.apply_operations' }),
         expect.objectContaining({ name: 'markdown.read_blocks' }),
         expect.objectContaining({ name: 'markdown.set_source' }),
         expect.objectContaining({ name: 'sheets.read_range' }),
@@ -381,6 +382,47 @@ describe('ShellMcpGateway', () => {
         }),
       ),
     ).rejects.toMatchObject({ code: 'validation_error' })
+  })
+
+  it('routes native Docs operation batches with revision, permission, and dry-run boundaries', async () => {
+    const docsTarget = { ...target, kind: 'docs' as const }
+    const permissions: unknown[] = []
+    const gateway = gatewayWith([docsTarget], {
+      authorize: async (request) => {
+        permissions.push(request)
+      },
+    })
+    const input = {
+      documentId: 'doc-123',
+      expectedRevision: 3,
+      operations: [
+        {
+          op: 'insert_blocks',
+          blocks: [{ type: 'heading', headingLevel: 1, runs: [{ text: 'Report' }] }],
+        },
+      ],
+    }
+    const result = await gateway.handle(request({ name: 'docs.apply_operations', input }))
+    expect(result).toMatchObject({ mutated: true, revision: 3 })
+    expect(permissions).toHaveLength(1)
+    expect(JSON.parse((result as { content: string }).content)).toMatchObject({
+      action: 'docs.apply_operations',
+      input,
+    })
+
+    const dryRun = await gateway.handle(
+      request({ name: 'docs.apply_operations', input: { ...input, dryRun: true } }),
+    )
+    expect(dryRun).toMatchObject({ mutated: false, revision: 3 })
+    expect(permissions).toHaveLength(1)
+    await expect(
+      gateway.handle(
+        request({
+          name: 'docs.apply_operations',
+          input: { ...input, expectedRevision: 2 },
+        }),
+      ),
+    ).rejects.toMatchObject({ code: 'conflict' })
   })
 
   it('routes only bounded Markdown undo/redo commands through the renderer write queue', async () => {

@@ -89,6 +89,68 @@ describe('StdioMcpServer', () => {
     ])
   })
 
+  it('passes a native Docs rich-format batch through the stdio MCP boundary unchanged', async () => {
+    const input = new PassThrough()
+    const output = new PassThrough()
+    output.setEncoding('utf8')
+    let response = ''
+    output.on('data', (chunk: string) => {
+      response += chunk
+    })
+    const calls: Array<{ name: string; input: Record<string, unknown> }> = []
+    const server = new StdioMcpServer({
+      input,
+      output,
+      backend: {
+        listTools: async () => [
+          {
+            name: 'docs.apply_operations',
+            description: 'Native Docs rich formatting',
+            inputSchema: { type: 'object' },
+          },
+        ],
+        callTool: async (name, toolInput) => {
+          calls.push({ name, input: toolInput })
+          return { content: JSON.stringify({ applied: true }), mutated: true, revision: 7 }
+        },
+      },
+    })
+    server.start()
+    const operation = {
+      op: 'insert_blocks',
+      blocks: [
+        {
+          type: 'heading',
+          headingLevel: 1,
+          runs: [{ text: 'Report', style: { bold: true, color: '1F4E79' } }],
+        },
+      ],
+    }
+    input.write('{"jsonrpc":"2.0","id":1,"method":"initialize"}\n')
+    input.write(
+      `${JSON.stringify({
+        jsonrpc: '2.0',
+        id: 2,
+        method: 'tools/call',
+        params: {
+          name: 'docs.apply_operations',
+          arguments: { documentId: 'doc-123', expectedRevision: 6, operations: [operation] },
+        },
+      })}\n`,
+    )
+    await tick()
+    expect(calls).toEqual([
+      {
+        name: 'docs.apply_operations',
+        input: { documentId: 'doc-123', expectedRevision: 6, operations: [operation] },
+      },
+    ])
+    const result = JSON.parse(response.trim().split('\n')[1]!).result as Record<string, unknown>
+    expect(result).toMatchObject({
+      structuredContent: { mutated: true, revision: 7 },
+    })
+  })
+
   it('aborts an in-flight bridge request when the stdio client disconnects', async () => {
     const input = new PassThrough()
     const output = new PassThrough()

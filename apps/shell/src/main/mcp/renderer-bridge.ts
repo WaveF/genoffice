@@ -50,6 +50,7 @@ export type RendererMcpAction =
   | 'docs.insert_content'
   | 'docs.replace_blocks'
   | 'docs.apply_commands'
+  | 'docs.apply_operations'
   | 'markdown.get_context'
   | 'markdown.read_blocks'
   | 'markdown.insert_content'
