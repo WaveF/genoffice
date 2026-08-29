@@ -23,7 +23,7 @@ describe('FontCatalogService', () => {
     const cachePath = join(dir, 'font-catalog-v1.json')
     writeFileSync(
       cachePath,
-      JSON.stringify({ version: 1, refreshedAt: 100, families: ['Arial', 'PingFang SC'] }),
+      JSON.stringify({ version: 2, refreshedAt: 100, families: ['Arial', 'PingFang SC'] }),
     )
     const scan = worker(['Arial', 'Arial ', 'PingFang SC', 'Noto Sans CJK SC'])
     const service = new FontCatalogService(cachePath, scan, () => 200)
@@ -40,12 +40,12 @@ describe('FontCatalogService', () => {
       state: 'ready',
       stale: false,
     })
-    expect(JSON.parse(readFileSync(cachePath, 'utf8'))).toMatchObject({ version: 1, refreshedAt: 200 })
+    expect(JSON.parse(readFileSync(cachePath, 'utf8'))).toMatchObject({ version: 2, refreshedAt: 200 })
   })
 
   it('deduplicates concurrent refreshes and preserves a usable cache on scan failure', async () => {
     const cachePath = join(dir, 'font-catalog-v1.json')
-    writeFileSync(cachePath, JSON.stringify({ version: 1, refreshedAt: 100, families: ['Arial'] }))
+    writeFileSync(cachePath, JSON.stringify({ version: 2, refreshedAt: 100, families: ['Arial'] }))
     const enumerate = vi.fn(async () => {
       throw new Error('scan unavailable')
     })
@@ -80,11 +80,36 @@ describe('FontCatalogService', () => {
     })
   })
 
+  it('filters internal macOS names and replaces obfuscated primary names with a public alias', async () => {
+    const service = new FontCatalogService(
+      join(dir, 'font-catalog-v2.json'),
+      {
+        enumerate: async () => [
+          { family: '.SF NS', aliases: ['System Font'] },
+          { family: '.CJK Symbols Fallback SC' },
+          { family: '_____ Heavy', aliases: ['演示云顶黑 Heavy', '演示云顶黑'] },
+          { family: '______-____ckt.cn Bold', aliases: ['CKTKingkong'] },
+          { family: '____No Alias' },
+        ],
+      },
+      () => 200,
+    )
+
+    await expect(service.refresh()).resolves.toMatchObject({
+      families: ['CKTKingkong', '演示云顶黑'],
+      aliases: {
+        '_____ heavy': '演示云顶黑',
+        '演示云顶黑 heavy': '演示云顶黑',
+        '______-____ckt.cn bold': 'CKTKingkong',
+      },
+    })
+  })
+
   it('marks an expired cache stale while preserving its families for immediate use', async () => {
     const cachePath = join(dir, 'font-catalog-v1.json')
     writeFileSync(
       cachePath,
-      JSON.stringify({ version: 1, refreshedAt: 0, families: ['Arial'], aliases: {} }),
+      JSON.stringify({ version: 2, refreshedAt: 0, families: ['Arial'], aliases: {} }),
     )
     const service = new FontCatalogService(cachePath, worker([]), () => 8 * 24 * 60 * 60 * 1000)
 

@@ -55,3 +55,4 @@ FCP-00 → FCP-01 → FCP-02 → FCP-03 → FCP-04 → FCP-05 → FCP-06 → FCP
 - `@genoffice/font-metrics`：13 项测试通过；Shell font catalog：5 项测试通过；Docs：97 文件 / 1066 项通过；Slides：44 文件 / 372 项通过；Sheets：139 文件通过、1 文件跳过，1541 项通过、1 项跳过，另有 108 项 Rust 原生测试通过。
 - Shell 全量测试仍有 4 项既有基线失败：已移除匿名统计功能后遗留的 `preload-analytics` 与 `privacy-doc` 断言；字体目录专项测试通过，且本轮未改动该功能域。
 - `dist:mac`、`dist:win`、`dist:linux` 均成功生成包；分别检查 macOS `.app`、Windows `win-unpacked`、Linux `linux-unpacked` 的 `app.asar`，均含 `/out/main/font-catalog-worker.js`。
+- 后续清理：字体候选列表过滤 macOS `.` 前缀内部/回退字体；对 `_` 前缀的第三方异常主名称优先显示同一字体的公开别名。缓存 schema 升级至 v2。

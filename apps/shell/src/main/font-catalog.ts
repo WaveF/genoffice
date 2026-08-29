@@ -8,7 +8,7 @@ export const FONT_CATALOG_CHANNELS = {
   updated: 'font-catalog:updated',
 } as const
 
-const CACHE_VERSION = 1
+const CACHE_VERSION = 2
 const CACHE_MAX_BYTES = 512 * 1024
 const CACHE_MAX_FAMILIES = 4096
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000
@@ -84,13 +84,38 @@ function isFamilyName(value: unknown): value is string {
   )
 }
 
+/** macOS reserves dot-prefixed families for private UI/fallback faces. */
+function isInternalFamilyName(name: string): boolean {
+  return name.startsWith('.')
+}
+
+function displayFamilyFor(entry: FontCatalogEntry): { family: string; aliases: readonly string[] } | null {
+  const rawFamily = entry.family.trim()
+  if (!isFamilyName(rawFamily) || isInternalFamilyName(rawFamily)) return null
+  const aliases = (entry.aliases ?? []).map((alias) => alias.trim()).filter(isFamilyName)
+  if (!rawFamily.startsWith('_')) return { family: rawFamily, aliases }
+
+  // Some third-party fonts ship an obfuscated primary name but expose a normal
+  // localized or Latin family alias in the same SFNT name table. Prefer it.
+  const candidates = aliases.filter((alias) => !alias.startsWith('_') && !isInternalFamilyName(alias))
+  const styleSuffix = /(?:\s|-)(?:bold|italic|oblique|regular|medium|light|heavy|black|thin)$/i
+  const display = [...candidates].sort((a, b) => {
+    const aHasStyle = styleSuffix.test(a) ? 1 : 0
+    const bHasStyle = styleSuffix.test(b) ? 1 : 0
+    return aHasStyle - bHasStyle || a.length - b.length || a.localeCompare(b)
+  })[0]
+  return display ? { family: display, aliases: [rawFamily, ...aliases] } : null
+}
+
 function normalizeEntries(values: readonly FontCatalogEntry[]): { families: string[]; aliases: Record<string, string> } {
   const seen = new Set<string>()
   const canonicalByKey = new Map<string, string>()
   const families: string[] = []
   const aliases: Record<string, string> = {}
   for (const value of values) {
-    const family = value.family.trim()
+    const display = displayFamilyFor(value)
+    if (!display) continue
+    const { family } = display
     const key = family.normalize('NFKC').toLocaleLowerCase()
     if (!isFamilyName(family) || !key) continue
     const canonical = canonicalByKey.get(key) ?? family
@@ -99,9 +124,15 @@ function normalizeEntries(values: readonly FontCatalogEntry[]): { families: stri
       canonicalByKey.set(key, canonical)
       families.push(canonical)
     }
-    for (const alias of value.aliases ?? []) {
+    for (const alias of display.aliases) {
       const aliasKey = alias.trim().normalize('NFKC').toLocaleLowerCase()
-      if (isFamilyName(alias) && aliasKey && aliasKey !== key) aliases[aliasKey] = canonical
+      if (
+        isFamilyName(alias) &&
+        !isInternalFamilyName(alias) &&
+        aliasKey &&
+        aliasKey !== key
+      )
+        aliases[aliasKey] = canonical
     }
     if (families.length === CACHE_MAX_FAMILIES) break
   }
