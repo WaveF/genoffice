@@ -314,9 +314,7 @@ export function SettingsModal({ onClose }: { onClose: () => void; [key: string]:
                     <h3 className="set-pane-title">技能</h3>
                     <p className="set-skills-desc">供已连接 AI 阅读的 Markdown 操作指导。</p>
                   </div>
-                  <button className="set-btn primary" onClick={importSkill}>
-                    导入 Markdown
-                  </button>
+                  <button className="set-btn primary" onClick={importSkill}>导入</button>
                 </div>
                 <div className="set-skills-list">
                   {skills.map((skill) => (
