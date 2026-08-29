@@ -499,7 +499,11 @@ export function RibbonHomeTab({ rb }: { rb: RibbonTabCtx }) {
                   {systemFontFamilies.some(matchesFontFilter) && (
                     <>
                       <div className="rb-menu-group-label">{t('ribbonFontsSystem')}</div>
-                      {systemFontFamilies.filter(matchesFontFilter).map((f) => (
+                      {systemFontFamilies
+                        .filter(matchesFontFilter)
+                        // Keep preview-styled rows bounded on every render.
+                        .slice(0, 150)
+                        .map((f) => (
                         <button
                           key={f}
                           className={f === curFontFamily ? 'on' : ''}

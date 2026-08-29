@@ -2289,7 +2289,7 @@ function Ribbon({
   const fontGroups = fontFamilyGroups(systemFontFamilies, echoFamily)
   const familyOptions = [
     ...fontGroups.common.map((family) => ({ value: family, label: family })),
-    ...fontGroups.system.map((family, index) => ({
+    ...fontGroups.system.slice(0, 150).map((family, index) => ({
       value: family,
       label: family,
       sep: index === 0,

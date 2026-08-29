@@ -2586,6 +2586,9 @@ function RibbonInner({
                             <div className="rb-menu-group-label">{t('ribbonFontsSystem')}</div>
                             {systemFontFamilies
                               .filter((f) => f !== bodyFontName)
+                              // The editable family box remains an escape hatch for every
+                              // installed face; cap preview-styled rows to keep first open fast.
+                              .slice(0, 150)
                               .map((f) => (
                                 <button
                                   key={f}

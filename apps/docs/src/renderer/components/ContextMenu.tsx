@@ -543,7 +543,7 @@ export function FontDialog({ editor, onClose }: { editor: Editor; onClose: () =>
                   label: f,
                   render: <span style={{ fontFamily: cssFontFamily(f) }}>{f}</span>,
                 })),
-                ...systemFontFamilies.map((f): DropdownOption => ({
+                ...systemFontFamilies.slice(0, 150).map((f): DropdownOption => ({
                   value: f,
                   label: f,
                   render: (

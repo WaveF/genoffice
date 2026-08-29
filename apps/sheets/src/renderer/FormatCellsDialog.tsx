@@ -172,7 +172,7 @@ export function FormatCellsDialog({
   const { families: systemFontFamilies, load: loadSystemFonts } = useSystemFontFamilies()
   // the dialog opens from a click, so activation is still live here
   useEffect(() => loadSystemFonts(), [loadSystemFonts])
-  const fontGroups = fontFamilyGroups(systemFontFamilies, draft.family)
+  const fontGroups = fontFamilyGroups(systemFontFamilies.slice(0, 150), draft.family)
   const sizeOptions =
     !draft.size || FONT_SIZES.includes(draft.size)
       ? FONT_SIZES
