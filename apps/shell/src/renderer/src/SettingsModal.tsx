@@ -131,7 +131,7 @@ function connectionPrompt(info: McpConnectionInfo): string {
   const adapter = info.adapterPath
     ? `node "${info.adapterPath}" --discovery "${info.discoveryPath}"`
     : `genoffice-mcp --discovery "${info.discoveryPath}"`
-  return `请连接正在运行的 GenOffice 本地 MCP，并只操作其明确公开的工具。\n\n1. 使用以下 stdio 命令配置 MCP：\n${adapter}\n\n2. discovery 文件：${info.discoveryPath}\n其中包含本机会话 token；不要在回复、日志或仓库中泄露、复制或提交它。\n\n3. 连接后先调用 tools/list，以实时 schema 为准。所有写操作必须携带 documentId 和 expectedRevision；发生 conflict 时先重新读取再重试。\n\n4. Markdown 插图：先把 PNG/JPEG/GIF 写入 discovery 中的 mediaImportDirectory，再调用 media.stage_image，然后用返回的 mediaHandle 调用 markdown.insert_image。不要传任意路径、URL、base64 或图片 bytes。`
+  return `请连接正在运行的 GenOffice 本地 MCP，并只操作其明确公开的工具。\n\n1. 使用以下 stdio 命令配置 MCP：\n${adapter}\n\n2. discovery 文件：${info.discoveryPath}\n其中包含本机会话 token；不要在回复、日志或仓库中泄露、复制或提交它。\n\n3. 连接后先调用 tools/list，以实时 schema 为准。不要要求用户提供 documentId：先调用 list_open_documents，根据用户所说的文档标题或当前上下文选择目标；若用户要求新建，直接调用 create_document(kind)。若有多个候选且无法判断，向用户展示标题/类型并请其选择，不要展示或索要 documentId。\n\n4. 除 create_document、media.stage_image 和 activate_document 等例外外，文档写操作必须携带 documentId 和 expectedRevision；发生 conflict 时先重新读取再重试。\n\n5. Markdown 插图：先把 PNG/JPEG/GIF 写入 discovery 中的 mediaImportDirectory，再调用 media.stage_image，然后用返回的 mediaHandle 调用 markdown.insert_image。不要传任意路径、URL、base64 或图片 bytes；不要把 mediaImportDirectory 写入共享日志或云端记忆。`
 }
 
 export function SettingsModal({ onClose }: { onClose: () => void; [key: string]: unknown }) {

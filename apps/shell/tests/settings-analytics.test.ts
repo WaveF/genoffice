@@ -78,6 +78,7 @@ describe('Settings MCP setup', () => {
     expect(writeText).toHaveBeenCalledWith(
       expect.stringContaining('/tmp/GenOffice/mcp/bridge.json'),
     )
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('不要要求用户提供 documentId'))
     expect(host.querySelector('.set-mcp-prompt')).toBeNull()
     expect(host.querySelector('.set-mcp-status-dot.online')).not.toBeNull()
   })
