@@ -32,6 +32,8 @@ interface Props {
   onInsertImage: () => void
   frontmatterOpen: boolean
   onToggleFrontmatter: () => void
+  sourceMode: boolean
+  onToggleSourceMode: () => void
 }
 
 type BlockStyle = 'paragraph' | 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'quote' | 'codeBlock'
@@ -148,6 +150,8 @@ export function Ribbon({
   onInsertImage,
   frontmatterOpen,
   onToggleFrontmatter,
+  sourceMode,
+  onToggleSourceMode,
 }: Props) {
   const { t } = useI18n()
   const [linkOpen, setLinkOpen] = useState(false)
@@ -191,7 +195,7 @@ export function Ribbon({
     inside: () => [linkAnchorRef.current],
   })
 
-  const off = disabled || !editor || !state
+  const off = disabled || !editor || !state || sourceMode
 
   const openLink = () => {
     if (!editor) return
@@ -403,9 +407,19 @@ export function Ribbon({
         <div className="ribbon-group">
           <div className="ribbon-group-items">
             <IconBtn
+              title={sourceMode ? 'Switch to rich text' : 'Edit Markdown source'}
+              active={sourceMode}
+              disabled={disabled}
+              onClick={onToggleSourceMode}
+            >
+              <span className="rb-source-glyph" aria-hidden>
+                &lt;/&gt;
+              </span>
+            </IconBtn>
+            <IconBtn
               title={t('fmProperties')}
               active={frontmatterOpen}
-              disabled={disabled}
+              disabled={disabled || sourceMode}
               onClick={onToggleFrontmatter}
             >
               <IconProperties size={ICON} />

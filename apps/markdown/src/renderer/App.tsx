@@ -24,6 +24,12 @@ import { resolveImageSrc } from './editor/localImage'
 import type { ExportFormat, SaveMode } from '../shared/ipc'
 import { handleMarkdownMcpRequest } from './mcp-adapter'
 import { McpRevisionTracker } from './mcp-revision'
+import {
+  imageSourcesFromMarkdown,
+  rewriteMarkdownImageSources,
+  sourceMayNormalizeInWysiwyg,
+  type MarkdownEditorMode,
+} from './markdown/sourceMode'
 
 type LoadStatus = 'loading' | 'ready' | 'error'
 type SaveState = 'idle' | 'saving' | 'saved' | 'failed'
@@ -118,6 +124,9 @@ export default function App() {
   const [fmText, setFmText] = useState('')
   const [autoSave, setAutoSave] = useState(() => localStorage.getItem('mdapp.autoSave') === '1')
   const [zoom, setZoom] = useState(100)
+  const [editorMode, setEditorMode] = useState<MarkdownEditorMode>('wysiwyg')
+  const [sourceText, setSourceText] = useState('')
+  const [normalizationWarning, setNormalizationWarning] = useState(false)
 
   const statusRef = useRef<LoadStatus>('loading')
   const dirtyRef = useRef(false)
@@ -128,6 +137,9 @@ export default function App() {
   const filePathRef = useRef<string | null>(null)
   const slashMenuRef = useRef<SlashMenuHandle>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const sourceRef = useRef<HTMLTextAreaElement>(null)
+  const editorModeRef = useRef<MarkdownEditorMode>('wysiwyg')
+  const sourceTextRef = useRef('')
 
   const zoomOut = useCallback(
     () => setZoom((value) => Math.max(MIN_ZOOM, Math.round(value) - ZOOM_STEP)),
@@ -147,6 +159,11 @@ export default function App() {
       setSaveState('idle')
       window.markdownApi.setDirty(true)
     }
+  }, [])
+
+  const setMode = useCallback((next: MarkdownEditorMode) => {
+    editorModeRef.current = next
+    setEditorMode(next)
   }, [])
 
   const insertImage = useCallback(() => {
@@ -188,6 +205,11 @@ export default function App() {
     if (!editor) return
     return window.markdownApi.onMcpRequest((request) => {
       try {
+        if (editorModeRef.current === 'source') {
+          throw new Error(
+            'Markdown source mode has unsynchronized edits; switch back to WYSIWYG before MCP access',
+          )
+        }
         const revisionBefore = mcpRevisionRef.current.current
         const result = handleMarkdownMcpRequest(editor, request.action, request.input)
         // Tiptap normally emits onUpdate synchronously. Keep MCP compare-and-set
@@ -272,6 +294,62 @@ export default function App() {
     [markDirty],
   )
 
+  const enterSourceMode = useCallback(() => {
+    const current = editorRef.current
+    if (!current || statusRef.current !== 'ready') return
+    const completeSource = serializeDocText(envelopeRef.current, current.getMarkdown())
+    sourceTextRef.current = completeSource
+    setSourceText(completeSource)
+    setNormalizationWarning(false)
+    setFmOpen(false)
+    setMode('source')
+  }, [setMode])
+
+  const applySourceToWysiwyg = useCallback(() => {
+    const current = editorRef.current
+    if (!current || statusRef.current !== 'ready') return
+    const completeSource = sourceTextRef.current
+    const envelope = parseDocText(completeSource)
+    envelopeRef.current = envelope
+    setFmText(frontmatterInner(envelope.frontmatter))
+    current
+      .chain()
+      .setMeta('addToHistory', false)
+      .setMeta('uiOnly', true)
+      .setContent(stripLegacyFencedDivs(envelope.body), { contentType: 'markdown' })
+      .run()
+    setNormalizationWarning(false)
+    setMode('wysiwyg')
+  }, [setMode])
+
+  const enterWysiwygMode = useCallback(() => {
+    if (sourceMayNormalizeInWysiwyg(sourceTextRef.current)) {
+      setNormalizationWarning(true)
+      return
+    }
+    applySourceToWysiwyg()
+  }, [applySourceToWysiwyg])
+
+  const toggleEditorMode = useCallback(() => {
+    if (editorModeRef.current === 'source') enterWysiwygMode()
+    else enterSourceMode()
+  }, [enterSourceMode, enterWysiwygMode])
+
+  const onSourceChange = useCallback(
+    (value: string) => {
+      sourceTextRef.current = value
+      setSourceText(value)
+      setNormalizationWarning(false)
+      markDirty()
+    },
+    [markDirty],
+  )
+
+  useEffect(() => {
+    if (editorMode === 'source') window.setTimeout(() => sourceRef.current?.focus(), 0)
+    else if (editor) window.setTimeout(() => editor.commands.focus('start'), 0)
+  }, [editor, editorMode])
+
   /** Serialize and write to disk; false when canceled/failed (caller keeps the tab open) */
   const doSave = useCallback(async (mode: SaveMode, suggestedName?: string): Promise<boolean> => {
     const current = editorRef.current
@@ -281,17 +359,29 @@ export default function App() {
     try {
       // edits landing while the write is in flight (AI streaming, fast typing)
       // must keep the document dirty — compare doc identity after the await
+      const savingSource = editorModeRef.current === 'source'
+      const sourceAtSave = sourceTextRef.current
       const docAtSave = current.state.doc
       const fmAtSave = envelopeRef.current.frontmatter
-      const body = current.getMarkdown()
-      const text = serializeDocText(envelopeRef.current, body)
-      const imageSources = imageSourcesFromEditor(current)
+      const text = savingSource
+        ? sourceAtSave
+        : serializeDocText(envelopeRef.current, current.getMarkdown())
+      const imageSources = savingSource
+        ? imageSourcesFromMarkdown(parseDocText(sourceAtSave).body)
+        : imageSourcesFromEditor(current)
       const result = await window.markdownApi.save({ text, imageSources, mode, suggestedName })
       if (result.ok && 'path' in result) {
-        const unchanged =
-          editorRef.current?.state.doc === docAtSave && envelopeRef.current.frontmatter === fmAtSave
+        const unchanged = savingSource
+          ? sourceTextRef.current === sourceAtSave
+          : editorRef.current?.state.doc === docAtSave && envelopeRef.current.frontmatter === fmAtSave
         if (result.imageRewrites?.length && editorRef.current) {
-          applyImageRewrites(editorRef.current, result.imageRewrites)
+          if (savingSource) {
+            const rewritten = rewriteMarkdownImageSources(sourceTextRef.current, result.imageRewrites)
+            sourceTextRef.current = rewritten
+            setSourceText(rewritten)
+          } else {
+            applyImageRewrites(editorRef.current, result.imageRewrites)
+          }
         }
         setImageBaseDir(dirOf(result.path))
         setFilePath(result.path)
@@ -521,14 +611,46 @@ export default function App() {
         onInsertImage={insertImage}
         frontmatterOpen={fmOpen}
         onToggleFrontmatter={() => setFmOpen((v) => !v)}
+        sourceMode={editorMode === 'source'}
+        onToggleSourceMode={toggleEditorMode}
       />
       {status === 'loading' && <div className="center-note">{t('loading')}</div>}
       <div className="app-main" style={status === 'ready' ? undefined : { display: 'none' }}>
         <div className="app-content">
           <div className="editor-scroll" ref={scrollRef}>
             <div className="doc-page" style={{ zoom: zoom / 100 }}>
-              {fmOpen && <FrontmatterPanel value={fmText} onChange={onFrontmatterChange} />}
-              <EditorContent editor={editor} />
+              {editorMode === 'source' ? (
+                <>
+                  {normalizationWarning && (
+                    <div className="source-normalization-warning" role="alert">
+                      <span>
+                        This source contains extensions that rich-text mode may normalize.
+                      </span>
+                      <div className="source-warning-actions">
+                        <button type="button" onClick={() => setNormalizationWarning(false)}>
+                          Keep editing source
+                        </button>
+                        <button type="button" onClick={applySourceToWysiwyg}>
+                          Switch and normalize
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  <textarea
+                    ref={sourceRef}
+                    className="markdown-source-editor"
+                    aria-label="Markdown source"
+                    spellCheck={false}
+                    value={sourceText}
+                    onChange={(event) => onSourceChange(event.target.value)}
+                  />
+                </>
+              ) : (
+                <>
+                  {fmOpen && <FrontmatterPanel value={fmText} onChange={onFrontmatterChange} />}
+                  <EditorContent editor={editor} />
+                </>
+              )}
             </div>
           </div>
           <footer className="status-bar">

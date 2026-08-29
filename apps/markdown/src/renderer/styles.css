@@ -308,6 +308,60 @@ button {
   height: auto;
 }
 
+.markdown-source-editor {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: calc(100vh - 190px);
+  border: 0;
+  outline: 0;
+  resize: vertical;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 14px;
+  line-height: 1.65;
+  tab-size: 2;
+  white-space: pre;
+}
+
+.source-normalization-warning {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 9px 12px;
+  border: 1px solid color-mix(in srgb, var(--warning, #b76a00) 40%, var(--border));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--warning, #b76a00) 10%, var(--bg-content));
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.source-warning-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
+.source-warning-actions button {
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text-primary);
+  padding: 4px 8px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.source-warning-actions button:last-child {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: white;
+}
+
 /* ---- tables ---- */
 
 .doc-editor .tableWrapper {
@@ -349,6 +403,13 @@ button {
   background: var(--surface);
   user-select: none;
   color: var(--text-primary);
+}
+
+.rb-source-glyph {
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: -1px;
 }
 
 /* slim quick-access row above the toolbar (save / undo / redo / autosave),

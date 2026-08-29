@@ -109,6 +109,58 @@ test.describe('markdown editor', () => {
     }
   })
 
+  test('edits complete Markdown source with frontmatter and returns to rich text', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'genoffice-md-source-'))
+    await mkdir(join(dir, 'assets'))
+    const PNG_1PX =
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+    await writeFile(join(dir, 'assets', 'source.png'), Buffer.from(PNG_1PX, 'base64'))
+    const mdPath = join(dir, 'source.md')
+    await writeFile(mdPath, '---\ntitle: Before\n---\n\n# Before\n')
+    const source =
+      '---\ntitle: Source mode\n---\n\n# Source title\n\n- first\n- second\n\n![source image](assets/source.png)\n'
+
+    const launched = await launchShell({
+      onboardingSeen: true,
+      videoDir: 'markdown-source-mode',
+      openFile: mdPath,
+    })
+    const { app } = launched
+    try {
+      const editorPage = await waitForPageWithUrl(app, 'markdown/out')
+      await editorPage.getByLabel('Edit Markdown source').click()
+      const sourceEditor = editorPage.getByLabel('Markdown source')
+      await expect(sourceEditor).toHaveValue(/title: Before/)
+      await sourceEditor.fill(source)
+      await editorPage.keyboard.press('ControlOrMeta+s')
+      await expect(editorPage.locator('.status-save')).toHaveText(/Saved|已保存/)
+      expect(await readFile(mdPath, 'utf8')).toBe(source)
+
+      await editorPage.getByLabel('Switch to rich text').click()
+      const editor = editorPage.locator('.doc-editor')
+      await expect(editor.locator('h1')).toHaveText('Source title')
+      await expect(editor.locator('ul')).toContainText('first')
+      await expect(editor.locator('img[alt="source image"]')).toBeVisible()
+
+      await editorPage.getByLabel('Edit Markdown source').click()
+      await expect(sourceEditor).toHaveValue(/title: Source mode/)
+      await expect(sourceEditor).toHaveValue(/# Source title/)
+
+      await sourceEditor.fill('<details><summary>Unsupported HTML</summary></details>\n')
+      await editorPage.getByLabel('Switch to rich text').click()
+      const warning = editorPage.getByRole('alert')
+      await expect(warning).toContainText('may normalize')
+      await expect(sourceEditor).toHaveValue(/<details>/)
+      await warning.getByRole('button', { name: 'Keep editing source' }).click()
+      await expect(warning).toHaveCount(0)
+      await sourceEditor.fill(source)
+      await editorPage.keyboard.press('ControlOrMeta+s')
+      await expect(editorPage.locator('.status-save')).toHaveText(/Saved|已保存/)
+    } finally {
+      await closeAndSaveVideo(launched, 'markdown-source-mode')
+    }
+  })
+
   test('ribbon bold serializes as GFM; quick-access save and undo work', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'genoffice-md-'))
     const mdPath = join(dir, 'style.md')

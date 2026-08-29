@@ -25,12 +25,12 @@
 
 | ID      | 任务                                    | 优先级 | 依赖             | 状态   | 代码落点                    | 验收标准                                                                                                                                 |
 | ------- | --------------------------------------- | ------ | ---------------- | ------ | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| MSUI-01 | 定义源码模式状态机与切换契约。          | P0     | MSRC-02          | 未开始 | Markdown renderer/App state | 模式仅为 `wysiwyg` / `source`；切换明确 source-of-truth、dirty/revision、焦点与 selection 行为；源码模式展示完整文件（含 frontmatter）。 |
-| MSUI-02 | 实现源码编辑器与切换入口。              | P0     | MSUI-01          | 未开始 | Ribbon/App/styles           | 源码模式可直接键入、粘贴、复制完整 Markdown；WYSIWYG 模式保持现有 block editor；切换不丢失已支持的语法。                                 |
-| MSUI-03 | 实现保存、图片资源和 frontmatter 协调。 | P0     | MSUI-01..02      | 未开始 | App、asset lifecycle        | 源码模式保存 textarea 原文；保存时仍校验/回收本地 `assets/`；frontmatter 不重复、不丢失；图片在两种模式均可正确显示与保存。              |
-| MSUI-04 | 处理 MCP 与源码模式并发。               | P0     | MSRC-03, MSUI-02 | 未开始 | renderer bridge/adapter     | MCP 请求不会静默覆盖未同步源码；选择“提交 source 后执行”或受控 `renderer_unavailable`/validation 错误之一，并有明确测试。                |
-| MSUI-05 | 实现转换保真审计与用户提示。            | P1     | MSUI-02..04      | 未开始 | parser/serializer、UI       | 定义 Tiptap 不保证往返保留的 Markdown/HTML 扩展；切回 WYSIWYG 前提示潜在规范化；已支持 GFM 用例无提示且往返稳定。                        |
-| MSUI-06 | 完成单元、组件、E2E 与手工验收。        | P0     | MSUI-01..05      | 未开始 | Markdown/Shell/E2E          | 覆盖模式切换、标题/列表/表格/代码块/frontmatter/图片、保存、撤销、reload、MCP conflict 和不支持语法提示。                                |
+| MSUI-01 | 定义源码模式状态机与切换契约。          | P0     | MSRC-02          | 已完成 | Markdown renderer/App state | 模式仅为 `wysiwyg` / `source`；切换明确 source-of-truth、dirty/revision、焦点与 selection 行为；源码模式展示完整文件（含 frontmatter）。 |
+| MSUI-02 | 实现源码编辑器与切换入口。              | P0     | MSUI-01          | 已完成 | Ribbon/App/styles           | 源码模式可直接键入、粘贴、复制完整 Markdown；WYSIWYG 模式保持现有 block editor；切换不丢失已支持的语法。                                 |
+| MSUI-03 | 实现保存、图片资源和 frontmatter 协调。 | P0     | MSUI-01..02      | 已完成 | App、asset lifecycle        | 源码模式保存 textarea 原文；保存时仍校验/回收本地 `assets/`；frontmatter 不重复、不丢失；图片在两种模式均可正确显示与保存。              |
+| MSUI-04 | 处理 MCP 与源码模式并发。               | P0     | MSRC-03, MSUI-02 | 已完成 | renderer bridge/adapter     | MCP 请求不会静默覆盖未同步源码；选择“提交 source 后执行”或受控 `renderer_unavailable`/validation 错误之一，并有明确测试。                |
+| MSUI-05 | 实现转换保真审计与用户提示。            | P1     | MSUI-02..04      | 已完成 | parser/serializer、UI       | 定义 Tiptap 不保证往返保留的 Markdown/HTML 扩展；切回 WYSIWYG 前提示潜在规范化；已支持 GFM 用例无提示且往返稳定。                        |
+| MSUI-06 | 完成单元、组件、E2E 与手工验收。        | P0     | MSUI-01..05      | 已完成 | Markdown/Shell/E2E          | 覆盖模式切换、标题/列表/表格/代码块/frontmatter/图片、保存、撤销、reload、MCP conflict 和不支持语法提示。                                |
 
 ## 完成条件
 

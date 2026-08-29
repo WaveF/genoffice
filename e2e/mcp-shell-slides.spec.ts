@@ -640,6 +640,27 @@ test.describe('MCP stdio adapter + Shell bridge', () => {
       expect(saved).toContain('- first item')
       expect(saved).toContain('- [ ] follow up')
 
+      // Source mode deliberately owns unsynchronized raw text. The renderer
+      // rejects all MCP access instead of applying a change behind the user's
+      // textarea, and leaving source mode restores normal MCP availability.
+      await markdown.getByLabel('Edit Markdown source').click()
+      await expect(markdown.getByLabel('Markdown source')).toHaveValue(/# Source title/)
+      const blocked = await client.request('tools/call', {
+        name: 'markdown.insert_content',
+        arguments: {
+          documentId: created.documentId,
+          expectedRevision: redone.revision,
+          content: 'must not be inserted',
+        },
+      })
+      expect(blocked.result).toMatchObject({ isError: true })
+      expect(JSON.parse(resultText(blocked))).toMatchObject({
+        code: 'renderer_unavailable',
+        message: expect.stringContaining('source mode'),
+      })
+      await expect(markdown.getByLabel('Markdown source')).toHaveValue(/# Source title/)
+      await markdown.getByLabel('Switch to rich text').click()
+
       await markdown.reload()
       const deadline = Date.now() + 15_000
       let reloaded: JsonRpcResponse | undefined
