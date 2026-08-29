@@ -1,4 +1,6 @@
-# Markdown 源码编辑与 MCP 写入：执行清单
+# 归档：Markdown 源码编辑与 MCP 写入：执行清单
+
+> **归档状态：历史完成记录，默认不再作为执行清单阅读。** `MSRC-01`～`05`、`MSUI-01`～`06` 与 `MSRCMD-01`～`05` 均已在 `codex/markdown-source-mode` 实现并验证。后续 Docs 富格式 MCP 工作见 [Docs 富格式 MCP 执行清单](./docs-rich-format-mcp-todo.md)。仅在追溯 Markdown 源码模式的设计、验收与任务 ID 时按需查阅。
 
 ## 目标与边界
 
@@ -34,13 +36,13 @@
 
 ## C. 源码模式编辑工具
 
-| ID       | 任务                                                     | 优先级 | 依赖     | 状态   | 代码落点                                      | 验收标准                                                                                                                                    |
-| -------- | -------------------------------------------------------- | ------ | -------- | ------ | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| MSRCMD-01 | 实现 textarea 选区驱动的行内与块级 Markdown 变换。      | P0     | MSUI-02  | 已完成 | source commands、Ribbon、App                 | 加粗/斜体/删除线/行内代码、标题/引用/代码块、无序/有序/任务列表、链接和分隔线均直接改写源码，且不调用隐藏的富文本 editor。                |
-| MSRCMD-02 | 实现源码模式独立撤销/重做与光标恢复。                   | P0     | MSRCMD-01 | 已完成 | App source history                            | 工具栏及 Cmd/Ctrl+Z、Cmd/Ctrl+Shift+Z/Y 可恢复源码文本；操作后焦点和选区保持在 textarea。                                                  |
-| MSRCMD-03 | 支持源码模式下受控图片与默认 3×3 GFM 表格插入。         | P0     | MSRCMD-01 | 已完成 | App、source commands                          | 图片沿用受控 `pickImage`/`assets/` 生命周期，插入 `![alt](assets/...)`；表格按钮插入规范 3×3 GFM 表格。                                    |
-| MSRCMD-04 | 实现源码光标感知的 GFM 表格操作条。                     | P0     | MSRCMD-03 | 已完成 | SourceTableMenu、source commands              | 光标在合法 GFM 表格中时显示操作条；支持行/列增加、删除及删除表格；WYSIWYG TableMenu 在源码模式隐藏。                                      |
-| MSRCMD-05 | 完成单元、源码模式 UI E2E 与完整回归。                  | P0     | MSRCMD-01..04 | 已完成 | Markdown tests、`e2e/markdown-tab.spec.ts` | 覆盖选区格式化、列表、链接、撤销、3×3 表格、表格行列操作、保存、前端图片路径与既有 Markdown/MCP 回归。                                     |
+| ID        | 任务                                               | 优先级 | 依赖          | 状态   | 代码落点                                   | 验收标准                                                                                                                   |
+| --------- | -------------------------------------------------- | ------ | ------------- | ------ | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
+| MSRCMD-01 | 实现 textarea 选区驱动的行内与块级 Markdown 变换。 | P0     | MSUI-02       | 已完成 | source commands、Ribbon、App               | 加粗/斜体/删除线/行内代码、标题/引用/代码块、无序/有序/任务列表、链接和分隔线均直接改写源码，且不调用隐藏的富文本 editor。 |
+| MSRCMD-02 | 实现源码模式独立撤销/重做与光标恢复。              | P0     | MSRCMD-01     | 已完成 | App source history                         | 工具栏及 Cmd/Ctrl+Z、Cmd/Ctrl+Shift+Z/Y 可恢复源码文本；操作后焦点和选区保持在 textarea。                                  |
+| MSRCMD-03 | 支持源码模式下受控图片与默认 3×3 GFM 表格插入。    | P0     | MSRCMD-01     | 已完成 | App、source commands                       | 图片沿用受控 `pickImage`/`assets/` 生命周期，插入 `![alt](assets/...)`；表格按钮插入规范 3×3 GFM 表格。                    |
+| MSRCMD-04 | 实现源码光标感知的 GFM 表格操作条。                | P0     | MSRCMD-03     | 已完成 | SourceTableMenu、source commands           | 光标在合法 GFM 表格中时显示操作条；支持行/列增加、删除及删除表格；WYSIWYG TableMenu 在源码模式隐藏。                       |
+| MSRCMD-05 | 完成单元、源码模式 UI E2E 与完整回归。             | P0     | MSRCMD-01..04 | 已完成 | Markdown tests、`e2e/markdown-tab.spec.ts` | 覆盖选区格式化、列表、链接、撤销、3×3 表格、表格行列操作、保存、前端图片路径与既有 Markdown/MCP 回归。                     |
 
 ## 完成条件
 
