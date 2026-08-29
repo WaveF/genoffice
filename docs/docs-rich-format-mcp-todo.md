@@ -1,6 +1,6 @@
-# Docs 富格式 MCP：动态执行清单
+# 归档：Docs 富格式 MCP：动态执行清单
 
-> 状态：未开始。该清单解决外部 Agent 将 Markdown 字面量写入 `.docx` 的问题，但核心目标不是把 Docs 变成 Markdown 编辑器，而是将 Docs 已有的富文本能力以受控、结构化、可审计的 MCP 操作公开。
+> **归档状态：历史完成记录，默认不再作为执行清单阅读。** DFM-00 至 DFM-08 已在已删除的专用分支完成，并已合并进 codex/mcp-external-ai-plan（提交 a0fe531）。后续表格、链接、图片与编号定义能力见 docs-rich-format-mcp-followups.md；仅在追溯格式化 MCP 的设计、验收或任务 ID 时按需查阅本文件。
 
 ## 已确认的产品边界
 
