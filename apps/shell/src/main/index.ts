@@ -194,6 +194,12 @@ import { ShellMcpGateway } from './mcp/gateway'
 import { AuthenticatedMcpPermissionGate } from './mcp/permissions'
 import { FileMcpAuditLogger } from './mcp/audit'
 import { GenOfficeSkillStore } from './skills'
+import {
+  FONT_CATALOG_CHANNELS,
+  FontCatalogService,
+  ThreadedFontCatalogWorker,
+  fontCatalogCachePath,
+} from './font-catalog'
 import { SlidesMcpAdapter, waitForSlidesMcpSession } from '../../../slides/src/main/mcp-adapter'
 import type { DocumentKind, DocumentTarget } from '@genoffice/capabilities'
 
@@ -2236,6 +2242,7 @@ let shellWindow: BrowserWindow | null = null
 let tabManager: TabManager | null = null
 let mcpBridge: LocalMcpBridge | null = null
 let rendererMcpBridge: RendererMcpBridge | null = null
+let fontCatalog: FontCatalogService | null = null
 let mcpMediaImports: McpMediaImportStore | null = null
 let skillStore: GenOfficeSkillStore | null = null
 
@@ -3230,6 +3237,18 @@ function broadcastChromePressed(exclude?: WebContents): void {
   }
 }
 
+function registerFontCatalogIpc(): void {
+  const unavailable = () => ({
+    families: [],
+    source: 'none' as const,
+    state: 'unavailable' as const,
+    stale: true,
+    refreshedAt: null,
+  })
+  ipcMain.handle(FONT_CATALOG_CHANNELS.get, () => fontCatalog?.getSnapshot() ?? unavailable())
+  ipcMain.handle(FONT_CATALOG_CHANNELS.refresh, () => fontCatalog?.refresh() ?? unavailable())
+}
+
 function registerTabsIpc(): void {
   ipcMain.on(TABS_CHANNELS.chromePressed, (event) => broadcastChromePressed(event.sender))
   ipcMain.handle(TABS_CHANNELS.list, () => tabManager?.list() ?? [])
@@ -4153,6 +4172,7 @@ installContextMenu(app, () => contextMenuLabels(currentLang()))
 registerProjectIpc()
 registerDocsIpc()
 registerHomeIpc()
+registerFontCatalogIpc()
 registerTabsIpc()
 
 // Sheets shares the project-session resolver registered by docs-main.
@@ -4232,6 +4252,19 @@ app.whenReady().then(async () => {
     // settings write failures must never block startup
   }
   startSheetsCaptureServer()
+  fontCatalog = new FontCatalogService(
+    fontCatalogCachePath(app.getPath('userData')),
+    new ThreadedFontCatalogWorker(join(__dirname, 'font-catalog-worker.js')),
+    Date.now,
+    (snapshot) => {
+      for (const contents of webContents.getAllWebContents())
+        if (!contents.isDestroyed()) contents.send(FONT_CATALOG_CHANNELS.updated, snapshot)
+    },
+  )
+  // Read any cached family list before editor views appear, then enumerate in
+  // a Worker Thread. The scan never runs on Electron's UI/main event loop.
+  await fontCatalog.getSnapshot()
+  void fontCatalog.refresh()
   skillStore = new GenOfficeSkillStore(app.getPath('userData'), BUNDLED_SKILLS_PATH)
   createShellWindow()
   if (tabManager) {

@@ -7,6 +7,14 @@ export default defineConfig({
   // imported docs/sheets main modules are TS source with no build artifacts,
   // so externalizing them would break Node ESM resolution at runtime.
   main: {
+    build: {
+      rollupOptions: {
+        input: {
+          index: resolve(__dirname, 'src/main/index.ts'),
+          'font-catalog-worker': resolve(__dirname, 'src/main/font-catalog-worker.ts'),
+        },
+      },
+    },
     // Shell bundles the Slides main-process bridge. Preserve its low-level
     // HarfBuzz factory and wasm imports without relying on package deep exports.
     resolve: {

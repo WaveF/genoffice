@@ -132,6 +132,8 @@ export interface FaceRef {
   path: string
   /** Position of the face's offset table within the file (0 unless .ttc) */
   offset: number
+  /** Decoded family and preferred-family names from the SFNT name table. */
+  families: readonly string[]
   /** Normalized family + subfamily text, for style ranking on family matches */
   style: string
 }
@@ -194,6 +196,7 @@ function indexFile(path: string, index: FontIndex): void {
       const face: FaceRef = {
         path,
         offset,
+        families: names.families,
         style: norm([...names.families, ...names.subfamilies].join(' ')),
       }
       for (const p of names.ps) if (!index.byPs.has(norm(p))) index.byPs.set(norm(p), face)
@@ -217,6 +220,30 @@ export function getFontIndex(): FontIndex {
     for (const dir of fontDirs()) for (const path of fontFiles(dir, 2)) indexFile(path, index)
   }
   return index
+}
+
+/**
+ * Return user-facing installed font family names without exposing their files.
+ *
+ * The index is already shared by the PDF/Docs font lookup path, so callers in
+ * the Electron main process do not trigger a second directory traversal.
+ */
+export function listSystemFontFamilies(): string[] {
+  const families = new Map<string, string>()
+  const seen = new Set<string>()
+  for (const faces of getFontIndex().byFamily.values()) {
+    for (const face of faces) {
+      const key = `${face.path}#${face.offset}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      for (const family of face.families) {
+        const display = family.trim()
+        const normalized = norm(display)
+        if (display && normalized && !families.has(normalized)) families.set(normalized, display)
+      }
+    }
+  }
+  return [...families.values()].sort((a, b) => a.localeCompare(b))
 }
 
 // "bolditalic" deliberately has no atomic alternative: a BoldItalic face must yield
