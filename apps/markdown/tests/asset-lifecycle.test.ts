@@ -403,12 +403,6 @@ describe('Markdown owned asset lifecycle', () => {
 })
 
 describe('serialized Markdown image references', () => {
-  it('ignores the unsaved-document image template during asset tracking', () => {
-    expect(extractMarkdownImageSources('![图片描述](图片路径)\n![real](assets/real.png)')).toEqual([
-      'assets/real.png',
-    ])
-  })
-
   it('extracts destinations with titles and duplicate references', () => {
     expect(
       extractMarkdownImageSources(

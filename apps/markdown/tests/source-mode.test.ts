@@ -4,10 +4,6 @@ import {
   rewriteMarkdownImageSources,
   sourceMayNormalizeInWysiwyg,
 } from '../src/renderer/markdown/sourceMode'
-import {
-  UNSAVED_IMAGE_PLACEHOLDER_MARKDOWN,
-  UNSAVED_IMAGE_PLACEHOLDER_SOURCE,
-} from '../src/shared/markdown-image'
 
 describe('Markdown source mode boundaries', () => {
   it('keeps supported GFM warning-free but identifies unsupported conversion boundaries', () => {
@@ -29,12 +25,5 @@ describe('Markdown source mode boundaries', () => {
         { from: 'assets/one.png', to: 'assets/relocated-one.png' },
       ]),
     ).toBe('![one](assets/relocated-one.png)\n\n`assets/one.png`\n\n![two](assets/two.jpg "Two")')
-  })
-
-  it('keeps the unsaved-document image template explicit and editable', () => {
-    expect(UNSAVED_IMAGE_PLACEHOLDER_MARKDOWN).toBe('![图片描述](图片路径)')
-    expect(imageSourcesFromMarkdown(UNSAVED_IMAGE_PLACEHOLDER_MARKDOWN)).toEqual([
-      UNSAVED_IMAGE_PLACEHOLDER_SOURCE,
-    ])
   })
 })

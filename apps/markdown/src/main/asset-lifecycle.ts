@@ -13,7 +13,6 @@ import {
 } from 'node:fs/promises'
 import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { atomicWriteFile } from './atomic-write'
-import { isUnsavedImagePlaceholderSource } from '../shared/markdown-image'
 
 export const ASSET_MANIFEST_FILENAME = '.genoffice-assets.json'
 
@@ -840,9 +839,7 @@ function scanImageSources(markdown: string): ImageSourceScan {
 }
 
 export function extractMarkdownImageSources(markdown: string): string[] {
-  return scanImageSources(markdown).ranges
-    .map((range) => range.source)
-    .filter((source) => !isUnsavedImagePlaceholderSource(source))
+  return scanImageSources(markdown).ranges.map((range) => range.source)
 }
 
 function encodeHtmlAttributeReplacement(value: string, quote: '"' | "'" | null): string {

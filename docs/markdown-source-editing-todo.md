@@ -41,7 +41,6 @@
 | MSRCMD-03 | 支持源码模式下受控图片与默认 3×3 GFM 表格插入。         | P0     | MSRCMD-01 | 已完成 | App、source commands                          | 图片沿用受控 `pickImage`/`assets/` 生命周期，插入 `![alt](assets/...)`；表格按钮插入规范 3×3 GFM 表格。                                    |
 | MSRCMD-04 | 实现源码光标感知的 GFM 表格操作条。                     | P0     | MSRCMD-03 | 已完成 | SourceTableMenu、source commands              | 光标在合法 GFM 表格中时显示操作条；支持行/列增加、删除及删除表格；WYSIWYG TableMenu 在源码模式隐藏。                                      |
 | MSRCMD-05 | 完成单元、源码模式 UI E2E 与完整回归。                  | P0     | MSRCMD-01..04 | 已完成 | Markdown tests、`e2e/markdown-tab.spec.ts` | 覆盖选区格式化、列表、链接、撤销、3×3 表格、表格行列操作、保存、前端图片路径与既有 Markdown/MCP 回归。                                     |
-| MSRCMD-06 | 未保存源码文档的图片占位插入。                         | P1     | MSRCMD-03     | 已完成 | App、共享图片常量、asset lifecycle           | 源码模式未保存时图片按钮可用并插入 `![图片描述](图片路径)`；已保存时仍走受控导入；所见即所得未保存时保持禁用；占位路径不参与 `assets/` 迁移或回收。 |
 
 ## 完成条件
 
