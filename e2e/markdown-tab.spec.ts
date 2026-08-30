@@ -161,9 +161,9 @@ test.describe('markdown editor', () => {
       })
       await expect(editorPage.getByLabel('Markdown table actions')).toBeVisible()
       await editorPage.getByLabel('Insert column right').click()
-      await expect(sourceEditor).toHaveValue(/\| A \|  \| B \|/)
+      await expect(sourceEditor).toHaveValue(/\| A \| {2}\| B \|/)
       await editorPage.getByLabel('Insert row below').click()
-      await expect(sourceEditor).toHaveValue(/\|  \|  \|  \|/)
+      await expect(sourceEditor).toHaveValue(/\| {2}\| {2}\| {2}\|/)
 
       await editorPage.getByLabel('Insert table').click()
       await expect(sourceEditor).toHaveValue(/\| Column 1 \| Column 2 \| Column 3 \|/)

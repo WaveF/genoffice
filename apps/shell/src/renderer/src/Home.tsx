@@ -438,6 +438,7 @@ const LOGIN_POLL_MS = 2500
 /** fallback deadline when the CLI does not report expires_in (device codes live ~300s) */
 const LOGIN_MAX_WAIT_MS = 300_000
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- retained until the legacy account surface is removed as one unit
 function AccountEntry({
   onStatusChange,
 }: {
@@ -1100,7 +1101,7 @@ export function Home() {
   const [loggedIn, setLoggedIn] = useState(false)
   // single source of account state: AccountEntry reports every change (initial
   // load, login, logout), keeping the greeting name and the nav entry in sync
-  const handleAccountStatus = useCallback((s: AccountStatus | null) => {
+  const _handleAccountStatus = useCallback((s: AccountStatus | null) => {
     const on = s?.loggedIn ?? false
     setLoggedIn(on)
     if (!on) setCloudMode(false)

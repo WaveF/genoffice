@@ -38,5 +38,5 @@
 - 全 workspace typecheck 通过。
 - `npm run build:all` 通过；在字体元数据重命名后，已复跑 Docs、MCP、Shell build。
 - Docs 测试通过：97 files、1066 tests；字体身份与度量测试通过。
-- 全量 lint 仍有 7 个 error / 13 个 warning；7 个 error 均已存在于 `de3ff67` 基线（控制字符 regex、已移除 analytics 的陈旧测试、E2E regex 空格），本次未引入。
-- Shell 全量测试的 4 个失败同样来自已移除匿名统计后未删除的历史测试；Docs 字体测试曾因 binary name-table 未改名失败，现已修复并通过。
+- 全量 lint 通过（仍有 13 条既有 React Hook warning，无 error）。
+- Shell 测试通过：24 files、243 tests。已移除与“匿名统计已下线”状态相矛盾的陈旧 analytics 测试；Docs 字体测试曾因 binary name-table 未改名失败，现已修复并通过。

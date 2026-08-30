@@ -197,6 +197,7 @@ function checkedFont(value: unknown): string | null | undefined {
     typeof value !== 'string' ||
     value.length < 1 ||
     value.length > 128 ||
+    // eslint-disable-next-line no-control-regex -- reject ASCII control characters from MCP input
     /[\u0000-\u001f]/.test(value)
   )
     throw new Error('font must be a bounded printable font name or null')
@@ -362,6 +363,7 @@ function makeBlock(editor: Editor, value: unknown): PmNode {
     if (
       typeof run.text !== 'string' ||
       run.text.length > MAX_BLOCK_TEXT ||
+      // eslint-disable-next-line no-control-regex -- tabs and newlines are the only allowed controls
       /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(run.text)
     )
       throw new Error('run text must be bounded printable text')
