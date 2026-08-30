@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CapabilityError, type DocumentTarget } from '@genoffice/capabilities'
+import { CapabilityError, type DocumentTarget } from '@nexoffice/capabilities'
 import {
   ShellMcpGateway,
   type DocumentTargetSource,

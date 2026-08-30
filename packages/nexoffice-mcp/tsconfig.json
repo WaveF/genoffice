@@ -3,7 +3,7 @@
   "compilerOptions": {
     "types": ["node"],
     "paths": {
-      "@genoffice/capabilities": ["../genoffice-capabilities/src/index.ts"]
+      "@nexoffice/capabilities": ["../nexoffice-capabilities/src/index.ts"]
     }
   },
   "include": ["src", "tests", "vitest.config.ts"]

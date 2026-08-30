@@ -1,4 +1,4 @@
-# GenOffice Sheets
+# NexOffice Sheets
 
 An AI-native spreadsheet app for macOS and Windows.
 

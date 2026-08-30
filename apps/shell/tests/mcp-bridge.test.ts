@@ -3,7 +3,7 @@ import { createConnection } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
-import { CapabilityError } from '@genoffice/capabilities'
+import { CapabilityError } from '@nexoffice/capabilities'
 import { LocalMcpBridge } from '../src/main/mcp/bridge'
 
 function request(endpoint: string, payload: unknown): Promise<Record<string, unknown>> {
@@ -25,15 +25,15 @@ function request(endpoint: string, payload: unknown): Promise<Record<string, unk
 
 describe('LocalMcpBridge', () => {
   it('writes a private discovery file and authenticates requests', async () => {
-    const userDataPath = await mkdtemp(join(tmpdir(), 'genoffice-mcp-'))
+    const userDataPath = await mkdtemp(join(tmpdir(), 'nexoffice-mcp-'))
     const handle = vi.fn(async (request: { method: string; clientId: string }) => ({
       method: request.method,
       clientId: request.clientId,
     }))
     const bridge = new LocalMcpBridge({
       userDataPath,
-      adapterPath: '/Applications/GenOffice.app/Contents/Resources/mcp/genoffice-mcp.mjs',
-      mediaImportDirectory: '/private/tmp/genoffice-mcp-media-test',
+      adapterPath: '/Applications/NexOffice.app/Contents/Resources/mcp/nexoffice-mcp.mjs',
+      mediaImportDirectory: '/private/tmp/nexoffice-mcp-media-test',
       gateway: { handle },
     })
     await bridge.start()
@@ -45,9 +45,9 @@ describe('LocalMcpBridge', () => {
       >
       expect(discovery.endpoint).toBe(bridge.discovery.endpoint)
       expect(discovery.adapterPath).toBe(
-        '/Applications/GenOffice.app/Contents/Resources/mcp/genoffice-mcp.mjs',
+        '/Applications/NexOffice.app/Contents/Resources/mcp/nexoffice-mcp.mjs',
       )
-      expect(discovery.mediaImportDirectory).toBe('/private/tmp/genoffice-mcp-media-test')
+      expect(discovery.mediaImportDirectory).toBe('/private/tmp/nexoffice-mcp-media-test')
       expect((await stat(bridge.discoveryPath)).mode & 0o077).toBe(0)
       const ok = await request(bridge.discovery.endpoint, {
         id: '1',
@@ -83,7 +83,7 @@ describe('LocalMcpBridge', () => {
   })
 
   it('maps gateway capability failures without exposing arbitrary errors', async () => {
-    const userDataPath = await mkdtemp(join(tmpdir(), 'genoffice-mcp-'))
+    const userDataPath = await mkdtemp(join(tmpdir(), 'nexoffice-mcp-'))
     const bridge = new LocalMcpBridge({
       userDataPath,
       gateway: {

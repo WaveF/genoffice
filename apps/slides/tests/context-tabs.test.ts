@@ -1,4 +1,4 @@
-import type { RenderNode } from '@genoffice/pptx-render'
+import type { RenderNode } from '@nexoffice/pptx-render'
 import { describe, expect, it } from 'vitest'
 import {
   contextElementTypeForNode,

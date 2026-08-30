@@ -82,6 +82,9 @@ export interface RawFormAnnotation {
   options?: { exportValue?: unknown; displayValue?: unknown }[]
   contents?: string
   contentsObj?: { str?: string }
+  /** Current private marker emitted by NexOffice-created visual signature widgets. */
+  nexOfficeFormField?: string
+  /** Legacy marker accepted when opening documents created before the rename. */
   genOfficeFormField?: string
 }
 
@@ -258,6 +261,7 @@ export async function buildFormCatalog(doc: PDFDocumentProxy): Promise<FormCatal
 }
 
 function visualSignatureFieldName(annotation: RawFormAnnotation): string | null {
+  if (annotation.nexOfficeFormField) return annotation.nexOfficeFormField
   if (annotation.genOfficeFormField) return annotation.genOfficeFormField
   const contents = annotation.contentsObj?.str ?? annotation.contents
   return contents?.startsWith(VISUAL_SIGNATURE_CONTENT_PREFIX)

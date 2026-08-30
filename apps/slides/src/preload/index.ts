@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { IpcRendererEvent } from 'electron'
-import type { RenderSlide } from '@genoffice/pptx-render'
-import type { ProjectApi } from '@genoffice/project-store'
+import type { RenderSlide } from '@nexoffice/pptx-render'
+import type { ProjectApi } from '@nexoffice/project-store'
 import type {
   AddChartOp,
   AddElementOp,

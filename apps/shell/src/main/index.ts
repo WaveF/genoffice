@@ -1,13 +1,5 @@
 import { execSync, spawn } from 'node:child_process'
-import {
-  copyFileSync,
-  cpSync,
-  existsSync,
-  readFileSync,
-  readdirSync,
-  renameSync,
-  writeFileSync,
-} from 'node:fs'
+import { copyFileSync, existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { basename, dirname, extname, join } from 'node:path'
 import {
   BrowserWindow,
@@ -40,7 +32,7 @@ import menuMdIcon1x from './assets/menu-md.png?asset'
 import menuMdIcon2x from './assets/menu-md@2x.png?asset'
 import menuHomeIcon1x from './assets/menu-home.png?asset'
 import menuHomeIcon2x from './assets/menu-home@2x.png?asset'
-import { createI18n, isLang, normalizeLang, setUiLang, type Lang } from '@genoffice/i18n'
+import { createI18n, isLang, normalizeLang, setUiLang, type Lang } from '@nexoffice/i18n'
 import {
   DEFAULT_SAVE_DIR_KEY,
   GITHUB_REPO_URL,
@@ -53,7 +45,7 @@ import {
   showOpenDialogWithMemory,
   showSaveDialogWithMemory,
   windowMenuTemplate,
-} from '@genoffice/electron-utils'
+} from '@nexoffice/electron-utils'
 import { readAppSettings, writeAppSetting } from './app-settings'
 import {
   LAST_RUN_VERSION_KEY,
@@ -73,18 +65,18 @@ import {
   readCloudProjectsStore,
   syncCloudProjects,
 } from './cloud-projects'
-import { ProjectStore } from '@genoffice/project-store'
+import { ProjectStore } from '@nexoffice/project-store'
 import {
-  ensureGenofficeLogin,
-  genofficeLogout,
+  ensureNexofficeLogin,
+  nexofficeLogout,
   gskConvertPdfToDocx,
   gskLoginInfo,
   hasGskAuth,
-  loadGenofficeAuth,
+  loadNexofficeAuth,
   resolveGskEntry,
   setGskProxyUrl,
-  startGenofficeLogin,
-} from '@genoffice/ai-search'
+  startNexofficeLogin,
+} from '@nexoffice/ai-search'
 
 import {
   buildDocsMenu,
@@ -193,7 +185,7 @@ import { RendererMcpBridge } from './mcp/renderer-bridge'
 import { ShellMcpGateway } from './mcp/gateway'
 import { AuthenticatedMcpPermissionGate } from './mcp/permissions'
 import { FileMcpAuditLogger } from './mcp/audit'
-import { GenOfficeSkillStore } from './skills'
+import { NexOfficeSkillStore } from './skills'
 import {
   FONT_CATALOG_CHANNELS,
   FontCatalogService,
@@ -201,10 +193,10 @@ import {
   fontCatalogCachePath,
 } from './font-catalog'
 import { SlidesMcpAdapter, waitForSlidesMcpSession } from '../../../slides/src/main/mcp-adapter'
-import type { DocumentKind, DocumentTarget } from '@genoffice/capabilities'
+import type { DocumentKind, DocumentTarget } from '@nexoffice/capabilities'
 
 /**
- * GenOffice unified shell: ONE Electron app, ONE BrowserWindow, hosting the
+ * NexOffice unified shell: ONE Electron app, ONE BrowserWindow, hosting the
  * docs and sheets modules as WebContentsView tabs behind a WPS-style tab
  * strip. The shell owns the lifecycle — single-instance lock, file-
  * association routing by extension, and per-active-tab menu switching.
@@ -214,22 +206,14 @@ import type { DocumentKind, DocumentTarget } from '@genoffice/capabilities'
 
 // ANY unpacked run (`npm run shell`, `npm run dev`, `npx electron .`) must not
 // share the installed app's userData or single-instance lock — otherwise a dev
-// run silently quits and forwards its argv to the running installed GenOffice.
-// GENOFFICE_USER_DATA: test drivers point this at a scratch dir so an
+// run silently quits and forwards its argv to the running installed NexOffice.
+// NEXOFFICE_USER_DATA: test drivers point this at a scratch dir so an
 // automated instance can run alongside the dev instance (separate lock).
-if (!app.isPackaged || process.env.GENOFFICE_USER_DATA)
+if (!app.isPackaged || process.env.NEXOFFICE_USER_DATA)
   app.setPath(
     'userData',
-    process.env.GENOFFICE_USER_DATA ?? join(app.getPath('appData'), 'GenOffice Dev'),
+    process.env.NEXOFFICE_USER_DATA ?? join(app.getPath('appData'), 'NexOffice Dev'),
   )
-
-// The product rename from "AI Office" to GenOffice changed the userData path; migrate old user data once
-if (app.isPackaged) {
-  const oldDir = join(app.getPath('appData'), 'AI Office')
-  const newDir = app.getPath('userData')
-  const newEmpty = !existsSync(newDir) || readdirSync(newDir).length === 0
-  if (newEmpty && existsSync(oldDir)) cpSync(oldDir, newDir, { recursive: true })
-}
 
 // module build outputs: packaged builds carry them as extraResources
 // (resources/modules/*, resources/native/*); dev/unpacked resolves them
@@ -255,8 +239,8 @@ const SIDECAR_BIN = app.isPackaged
   ? join(process.resourcesPath, 'native', SIDECAR_EXE)
   : join(APPS_ROOT, 'sheets', 'native', 'xlsx-engine', 'target', 'release', SIDECAR_EXE)
 const MCP_ADAPTER_PATH = app.isPackaged
-  ? join(process.resourcesPath, 'mcp', 'genoffice-mcp.mjs')
-  : join(app.getAppPath(), '..', '..', 'packages', 'genoffice-mcp', 'dist', 'genoffice-mcp.mjs')
+  ? join(process.resourcesPath, 'mcp', 'nexoffice-mcp.mjs')
+  : join(app.getAppPath(), '..', '..', 'packages', 'nexoffice-mcp', 'dist', 'nexoffice-mcp.mjs')
 const BUNDLED_SKILLS_PATH = app.isPackaged
   ? join(process.resourcesPath, 'skills')
   : join(app.getAppPath(), 'resources', 'skills')
@@ -295,7 +279,7 @@ configureMarkdownRuntime({
 
 // ---- UI language ----
 // Persisted in userData/app-settings.json so the editor modules can read the
-// same file when they pick up i18n later. GENOFFICE_LANG overrides for tests.
+// same file when they pick up i18n later. NEXOFFICE_LANG overrides for tests.
 
 const APP_SETTINGS_PATH = () => join(app.getPath('userData'), 'app-settings.json')
 
@@ -303,8 +287,8 @@ let uiLang: Lang | null = null
 
 function currentLang(): Lang {
   if (uiLang) return uiLang
-  if (process.env.GENOFFICE_LANG) {
-    uiLang = normalizeLang(process.env.GENOFFICE_LANG)
+  if (process.env.NEXOFFICE_LANG) {
+    uiLang = normalizeLang(process.env.NEXOFFICE_LANG)
     setUiLang(uiLang)
     return uiLang
   }
@@ -332,9 +316,9 @@ function currentTheme(): UiTheme {
 
 // ---- first-run onboarding ----
 // The GenTeam community page opened from the onboarding's second slide.
-// Stable short link served by the genoffice.ai site; it 302s to the tokened
+// Stable short link served by the nexoffice.ai site; it 302s to the tokened
 // invite link, which stays out of this repo and rotates server-side.
-const GENTEAM_URL = 'https://genoffice.ai/join'
+const GENTEAM_URL = 'https://nexoffice.ai/join'
 
 // Genspark credit-usage page opened from the account menu's credits row.
 // Kept main-side so the renderer never supplies the URL.
@@ -375,7 +359,7 @@ let cachedGithubStars: number | null = null
 async function fetchGithubStars(): Promise<number | null> {
   if (cachedGithubStars !== null) return cachedGithubStars
   try {
-    const response = await fetch('https://api.github.com/repos/genspark-ai/genoffice', {
+    const response = await fetch('https://api.github.com/repos/WaveF/genoffice', {
       headers: { Accept: 'application/vnd.github+json' },
       signal: AbortSignal.timeout(5000),
     })
@@ -2244,9 +2228,9 @@ let mcpBridge: LocalMcpBridge | null = null
 let rendererMcpBridge: RendererMcpBridge | null = null
 let fontCatalog: FontCatalogService | null = null
 let mcpMediaImports: McpMediaImportStore | null = null
-let skillStore: GenOfficeSkillStore | null = null
+let skillStore: NexOfficeSkillStore | null = null
 
-function requireSkillStore(): GenOfficeSkillStore {
+function requireSkillStore(): NexOfficeSkillStore {
   if (!skillStore) throw new Error('Skills are not initialized')
   return skillStore
 }
@@ -2313,7 +2297,7 @@ function createShellWindow(): void {
     height: 900,
     minWidth: 980,
     minHeight: 600,
-    title: 'GenOffice',
+    title: 'NexOffice',
     // vibrancy: editor modules punch translucent regions (e.g. the slides
     // thumbnail pane) through to the desktop
     ...(process.platform === 'darwin'
@@ -2788,10 +2772,10 @@ function statEntries(paths: string[]): RecentEntry[] {
 }
 
 function registerHomeIpc(): void {
-  // signed-in means GenOffice's own device-code login; the shared gsk CLI key
+  // signed-in means NexOffice's own device-code login; the shared gsk CLI key
   // is only a silent fallback, deliberately not shown here to nudge users onto our key
   ipcMain.handle(HOME_CHANNELS.accountStatus, async () => {
-    if (!loadGenofficeAuth()) return { loggedIn: false }
+    if (!loadNexofficeAuth()) return { loggedIn: false }
     await proxyBootstrap
     const info = await gskLoginInfo()
     return info
@@ -2811,7 +2795,7 @@ function registerHomeIpc(): void {
     }
     // open the browser on the first url event only; later events refresh the rescue URL
     let opened = false
-    const launched = startGenofficeLogin((progress) => {
+    const launched = startNexofficeLogin((progress) => {
       if (progress.url) {
         pendingLoginUrl = progress.url
         if (!opened) {
@@ -2830,7 +2814,7 @@ function registerHomeIpc(): void {
   })
 
   ipcMain.handle(HOME_CHANNELS.accountLogout, async () => {
-    await genofficeLogout()
+    await nexofficeLogout()
     // the cloud projects cache belongs to the account that just signed out
     clearCloudProjectsStore(cloudProjectsStorePath())
   })
@@ -3141,8 +3125,8 @@ function registerHomeIpc(): void {
     const state = readStarPrompt()
     const docOpens = state.docOpens ?? 0
     // dev preview of the card without waiting out the value thresholds
-    // (same pattern as GENOFFICE_FAKE_UPDATE); nothing is recorded
-    if (!app.isPackaged && process.env.GENOFFICE_FORCE_STAR_PROMPT) return { show: true, docOpens }
+    // (same pattern as NEXOFFICE_FAKE_UPDATE); nothing is recorded
+    if (!app.isPackaged && process.env.NEXOFFICE_FORCE_STAR_PROMPT) return { show: true, docOpens }
     const grant = (): StarPromptShow => {
       writeStarPrompt(withShown(state, now))
       starPromptSessionGrant = { show: true, docOpens }
@@ -3631,7 +3615,7 @@ async function exportPdfAsDocx(): Promise<void> {
         cancelId: 1,
         noLink: true,
       })
-      if (response === 0) ensureGenofficeLogin((url) => void shell.openExternal(url))
+      if (response === 0) ensureNexofficeLogin((url) => void shell.openExternal(url))
       return
     }
     const balance = (await gskLoginInfo())?.creditBalance
@@ -4269,7 +4253,7 @@ app.whenReady().then(async () => {
   // Font installs/removals are platform-specific and do not expose one reliable
   // cross-platform event. Revalidate daily without blocking the UI thread.
   setInterval(() => void fontCatalog?.refresh(), 24 * 60 * 60 * 1000).unref()
-  skillStore = new GenOfficeSkillStore(app.getPath('userData'), BUNDLED_SKILLS_PATH)
+  skillStore = new NexOfficeSkillStore(app.getPath('userData'), BUNDLED_SKILLS_PATH)
   createShellWindow()
   if (tabManager) {
     try {

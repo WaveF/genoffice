@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { Lang } from '@genoffice/i18n'
+import type { Lang } from '@nexoffice/i18n'
 import { PDF_CHANNELS } from '../shared/ipc'
 import type { PdfApi, UiTheme } from '../shared/ipc'
 

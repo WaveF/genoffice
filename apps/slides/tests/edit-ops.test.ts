@@ -14,7 +14,7 @@ import {
   savePptx,
   type OpenedPptx,
   type TextElement,
-} from '@genoffice/pptx-engine'
+} from '@nexoffice/pptx-engine'
 import { runTxn, opNames, elementDurableId, slideDurableId } from '../src/main/ops'
 import { mapScriptOps } from '../src/main/ops/script-map'
 

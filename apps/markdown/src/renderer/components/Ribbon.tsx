@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Editor } from '@tiptap/core'
 import { useEditorState } from '@tiptap/react'
-import { Dropdown, useDismissablePopover } from '@genoffice/ui'
+import { Dropdown, useDismissablePopover } from '@nexoffice/ui'
 import { useI18n } from '../i18n/locale'
 import type { StringKey } from '../i18n/locale'
 import { liftFromList } from '../editor/slashCommand'
@@ -260,7 +260,9 @@ export function Ribbon({
           aria-label={t('undo')}
           disabled={sourceMode ? sourceOff || !sourceCommands?.canUndo : off || !state?.canUndo}
           onMouseDown={(e) => e.preventDefault()}
-          onClick={() => (sourceMode ? sourceCommands?.undo() : editor?.chain().focus().undo().run())}
+          onClick={() =>
+            sourceMode ? sourceCommands?.undo() : editor?.chain().focus().undo().run()
+          }
         >
           <IconUndo size={16} />
         </button>
@@ -271,7 +273,9 @@ export function Ribbon({
           aria-label={t('redo')}
           disabled={sourceMode ? sourceOff || !sourceCommands?.canRedo : off || !state?.canRedo}
           onMouseDown={(e) => e.preventDefault()}
-          onClick={() => (sourceMode ? sourceCommands?.redo() : editor?.chain().focus().redo().run())}
+          onClick={() =>
+            sourceMode ? sourceCommands?.redo() : editor?.chain().focus().redo().run()
+          }
         >
           <IconRedo size={16} />
         </button>
@@ -298,7 +302,9 @@ export function Ribbon({
                 label: t(STYLE_LABEL[s]),
               }))}
               onPick={(s) =>
-                sourceMode ? sourceCommands?.block(s as SourceBlock) : editor && applyBlockStyle(editor, s)
+                sourceMode
+                  ? sourceCommands?.block(s as SourceBlock)
+                  : editor && applyBlockStyle(editor, s)
               }
             />
           </div>
@@ -313,7 +319,9 @@ export function Ribbon({
               active={!sourceMode && state?.bold}
               disabled={controlOff}
               onClick={() =>
-                sourceMode ? sourceCommands?.inline('bold') : editor?.chain().focus().toggleBold().run()
+                sourceMode
+                  ? sourceCommands?.inline('bold')
+                  : editor?.chain().focus().toggleBold().run()
               }
             >
               <b>B</b>
@@ -323,7 +331,9 @@ export function Ribbon({
               active={!sourceMode && state?.italic}
               disabled={controlOff}
               onClick={() =>
-                sourceMode ? sourceCommands?.inline('italic') : editor?.chain().focus().toggleItalic().run()
+                sourceMode
+                  ? sourceCommands?.inline('italic')
+                  : editor?.chain().focus().toggleItalic().run()
               }
             >
               <i>I</i>
@@ -333,7 +343,9 @@ export function Ribbon({
               active={!sourceMode && state?.strike}
               disabled={controlOff}
               onClick={() =>
-                sourceMode ? sourceCommands?.inline('strike') : editor?.chain().focus().toggleStrike().run()
+                sourceMode
+                  ? sourceCommands?.inline('strike')
+                  : editor?.chain().focus().toggleStrike().run()
               }
             >
               <s>ab</s>
@@ -343,13 +355,20 @@ export function Ribbon({
               active={!sourceMode && state?.code}
               disabled={controlOff}
               onClick={() =>
-                sourceMode ? sourceCommands?.inline('code') : editor?.chain().focus().toggleCode().run()
+                sourceMode
+                  ? sourceCommands?.inline('code')
+                  : editor?.chain().focus().toggleCode().run()
               }
             >
               <IconInlineCode size={ICON} />
             </IconBtn>
             <span className="rb-link-anchor" ref={linkAnchorRef}>
-              <IconBtn title={t('link')} active={!sourceMode && state?.link} disabled={controlOff} onClick={openLink}>
+              <IconBtn
+                title={t('link')}
+                active={!sourceMode && state?.link}
+                disabled={controlOff}
+                onClick={openLink}
+              >
                 <IconLink size={ICON} />
               </IconBtn>
               {linkOpen && (
@@ -382,7 +401,9 @@ export function Ribbon({
               active={!sourceMode && state?.bullet}
               disabled={controlOff}
               onClick={() =>
-                sourceMode ? sourceCommands?.list('bullet') : editor?.chain().focus().toggleBulletList().run()
+                sourceMode
+                  ? sourceCommands?.list('bullet')
+                  : editor?.chain().focus().toggleBulletList().run()
               }
             >
               <IconBullets size={ICON} />
@@ -392,7 +413,9 @@ export function Ribbon({
               active={!sourceMode && state?.ordered}
               disabled={controlOff}
               onClick={() =>
-                sourceMode ? sourceCommands?.list('ordered') : editor?.chain().focus().toggleOrderedList().run()
+                sourceMode
+                  ? sourceCommands?.list('ordered')
+                  : editor?.chain().focus().toggleOrderedList().run()
               }
             >
               <IconNumbered size={ICON} />
@@ -402,7 +425,9 @@ export function Ribbon({
               active={!sourceMode && state?.task}
               disabled={controlOff}
               onClick={() =>
-                sourceMode ? sourceCommands?.list('task') : editor?.chain().focus().toggleTaskList().run()
+                sourceMode
+                  ? sourceCommands?.list('task')
+                  : editor?.chain().focus().toggleTaskList().run()
               }
             >
               <IconTaskList size={ICON} />
@@ -420,7 +445,11 @@ export function Ribbon({
               onClick={() =>
                 sourceMode
                   ? sourceCommands?.insertTable()
-                  : editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
+                  : editor
+                      ?.chain()
+                      .focus()
+                      .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+                      .run()
               }
             >
               <IconTable size={ICON} />
@@ -436,7 +465,9 @@ export function Ribbon({
               title={t('insertHr')}
               disabled={controlOff}
               onClick={() =>
-                sourceMode ? sourceCommands?.insertHorizontalRule() : editor?.chain().focus().setHorizontalRule().run()
+                sourceMode
+                  ? sourceCommands?.insertHorizontalRule()
+                  : editor?.chain().focus().setHorizontalRule().run()
               }
             >
               <IconHr size={ICON} />

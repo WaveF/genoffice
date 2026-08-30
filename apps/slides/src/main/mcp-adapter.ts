@@ -1,5 +1,5 @@
 import { webContents } from 'electron'
-import { CapabilityError, type ToolRisk } from '@genoffice/capabilities'
+import { CapabilityError, type ToolRisk } from '@nexoffice/capabilities'
 import { elementDurableId, slideDurableId, type Op, runTxn } from './ops'
 import { mcpOpsRisk, validateMcpOps } from './mcp-op-guard'
 import {

@@ -1,7 +1,7 @@
 ---
 id: docs-authoring
 name: Docs native rich formatting
-description: Create and edit formatted GenOffice Docs content through native structured MCP operations.
+description: Create and edit formatted NexOffice Docs content through native structured MCP operations.
 appliesTo: [docs]
 ---
 

@@ -40,7 +40,7 @@ import {
   type TextboxDisplay,
   type TextboxParaPatch,
   type TextboxParasPatchSet,
-} from '@genoffice/docx-engine'
+} from '@nexoffice/docx-engine'
 import { t } from '../i18n/locale'
 import { charScaleEm, maxWordWidthPx, textHasComplexScript } from '../line-metrics'
 import { firstStrongDir } from './direction'

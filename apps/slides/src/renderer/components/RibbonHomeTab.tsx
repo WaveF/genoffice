@@ -1,7 +1,7 @@
 /** Home tab of the slides ribbon. Extracted from Ribbon.tsx. */
 import { useState } from 'react'
-import { platformShortcuts } from '@genoffice/i18n'
-import { ColorPicker, isSymbolFontFamily } from '@genoffice/ui'
+import { platformShortcuts } from '@nexoffice/i18n'
+import { ColorPicker, isSymbolFontFamily } from '@nexoffice/ui'
 import { saveEditSelection } from '../TextEditOverlay'
 import { armColorInput } from '../color-input'
 import { displayFontFamily } from '../konva-adapter'
@@ -504,19 +504,19 @@ export function RibbonHomeTab({ rb }: { rb: RibbonTabCtx }) {
                         // Keep preview-styled rows bounded on every render.
                         .slice(0, 150)
                         .map((f) => (
-                        <button
-                          key={f}
-                          className={f === curFontFamily ? 'on' : ''}
-                          style={{ fontFamily: fontPreviewFamily(f) }}
-                          onMouseDown={(e) => {
-                            e.preventDefault()
-                            onFontFamily(f)
-                            setFontOpen(false)
-                          }}
-                        >
-                          {f}
-                        </button>
-                      ))}
+                          <button
+                            key={f}
+                            className={f === curFontFamily ? 'on' : ''}
+                            style={{ fontFamily: fontPreviewFamily(f) }}
+                            onMouseDown={(e) => {
+                              e.preventDefault()
+                              onFontFamily(f)
+                              setFontOpen(false)
+                            }}
+                          >
+                            {f}
+                          </button>
+                        ))}
                     </>
                   )}
                 </div>

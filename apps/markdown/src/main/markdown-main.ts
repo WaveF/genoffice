@@ -22,8 +22,8 @@ import {
   safeExternalUrl,
   showOpenDialogWithMemory,
   showSaveDialogWithMemory,
-} from '@genoffice/electron-utils'
-import { createI18n, getUiLang } from '@genoffice/i18n'
+} from '@nexoffice/electron-utils'
+import { createI18n, getUiLang } from '@nexoffice/i18n'
 import { atomicWriteFile } from './atomic-write'
 import {
   copyImageIntoOwnedAssets,
@@ -298,7 +298,7 @@ interface RuntimePaths {
   preloadPath: string
   rendererUrl?: string
   rendererFile?: string
-  /** Shell router used to open exported PDFs in a new GenOffice tab. */
+  /** Shell router used to open exported PDFs in a new NexOffice tab. */
   openGeneratedPath?: (path: string) => boolean
 }
 
@@ -776,7 +776,7 @@ function registerMarkdownIpc(): void {
       )
       if (picked.canceled || !picked.filePath) return { ok: true, canceled: true }
       // sheets-style: render the print HTML in a hidden scripting-disabled window
-      const workDir = await mkdtemp(join(tmpdir(), 'genoffice-md-pdf-'))
+      const workDir = await mkdtemp(join(tmpdir(), 'nexoffice-md-pdf-'))
       const printWin = new BrowserWindow({
         show: false,
         webPreferences: { sandbox: true, javascript: false },
@@ -866,7 +866,7 @@ export function createMarkdownView(openPath?: string | null): WebContentsView {
   return view
 }
 
-/** Standalone window mode: `npm run dev -w @genoffice/markdown`, md path passed via argv */
+/** Standalone window mode: `npm run dev -w @nexoffice/markdown`, md path passed via argv */
 export function startMarkdownStandalone(): void {
   installNavigationGuard(app)
   installContextMenu(app, () => contextMenuLabels(getUiLang()))

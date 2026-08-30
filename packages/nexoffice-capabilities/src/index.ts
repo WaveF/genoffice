@@ -1,4 +1,4 @@
-/** A document type currently hosted by the unified GenOffice shell. */
+/** A document type currently hosted by the unified NexOffice shell. */
 export type DocumentKind = 'docs' | 'sheets' | 'slides' | 'pdf' | 'markdown'
 
 export const DOCUMENT_KINDS: readonly DocumentKind[] = [
@@ -12,7 +12,7 @@ export const DOCUMENT_KINDS: readonly DocumentKind[] = [
 /** Opaque ID issued by the shell for the lifetime of one open document tab. */
 export type DocumentId = string
 
-/** Minimal JSON Schema shape understood by MCP clients and the GenOffice gateway. */
+/** Minimal JSON Schema shape understood by MCP clients and the NexOffice gateway. */
 export type JsonSchema = Readonly<Record<string, unknown>>
 
 /** External side-effect class used by the MCP permission gateway. */
@@ -87,7 +87,11 @@ export interface CapabilityTool<Input = unknown> {
   description: string
   inputSchema: JsonSchema
   risk: ToolRisk
-  execute(target: DocumentTarget | null, input: Input, context: ExecutionContext): ToolResult | Promise<ToolResult>
+  execute(
+    target: DocumentTarget | null,
+    input: Input,
+    context: ExecutionContext,
+  ): ToolResult | Promise<ToolResult>
 }
 
 export const isDocumentKind = (value: unknown): value is DocumentKind =>

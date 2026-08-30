@@ -9,30 +9,33 @@ export default defineConfig({
   resolve: {
     alias: {
       // Subpath before the bare name: string aliases are prefix replacements
-      '@genoffice/pptx-engine/table-grid': resolve(
+      '@nexoffice/pptx-engine/table-grid': resolve(
         here,
         '../../packages/pptx-engine/src/table-grid.ts',
       ),
-      '@genoffice/pptx-engine/identity': resolve(
+      '@nexoffice/pptx-engine/identity': resolve(
         here,
         '../../packages/pptx-engine/src/identity.ts',
       ),
-      '@genoffice/pptx-engine/background-promote': resolve(
+      '@nexoffice/pptx-engine/background-promote': resolve(
         here,
         '../../packages/pptx-engine/src/background-promote.ts',
       ),
-      '@genoffice/pptx-engine/custgeom': resolve(
+      '@nexoffice/pptx-engine/custgeom': resolve(
         here,
         '../../packages/pptx-engine/src/custgeom.ts',
       ),
-      '@genoffice/pptx-engine': resolve(here, '../../packages/pptx-engine/src/index.ts'),
-      '@genoffice/pptx-render/preset-geometry': resolve(
+      '@nexoffice/pptx-engine': resolve(here, '../../packages/pptx-engine/src/index.ts'),
+      '@nexoffice/pptx-render/preset-geometry': resolve(
         here,
         '../../packages/pptx-render/src/preset-geometry.ts',
       ),
-      '@genoffice/pptx-render': resolve(here, '../../packages/pptx-render/src/index.ts'),
-      '@genoffice/capabilities': resolve(here, '../../packages/genoffice-capabilities/src/index.ts'),
-      '@genoffice/docx-engine/metafile': resolve(
+      '@nexoffice/pptx-render': resolve(here, '../../packages/pptx-render/src/index.ts'),
+      '@nexoffice/capabilities': resolve(
+        here,
+        '../../packages/nexoffice-capabilities/src/index.ts',
+      ),
+      '@nexoffice/docx-engine/metafile': resolve(
         here,
         '../../packages/docx-engine/src/metafile.ts',
       ),

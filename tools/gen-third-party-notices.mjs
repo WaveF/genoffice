@@ -103,7 +103,7 @@ function bareName(spec) {
   if (spec.startsWith('.') || spec.startsWith('/')) return null
   const parts = spec.split('/')
   const name = spec.startsWith('@') ? parts.slice(0, 2).join('/') : parts[0]
-  if (BUILTIN.has(name) || name.startsWith('@genoffice/')) return null
+  if (BUILTIN.has(name) || name.startsWith('@nexoffice/')) return null
   // the specifier regex also fires on prose inside string concatenations
   return NPM_NAME.test(name) ? name : null
 }
@@ -246,7 +246,7 @@ const seed = importedNames()
 const { resolved, missing } = closure(seed)
 resolved.sort(([a], [b]) => a.localeCompare(b))
 
-let out = `GenOffice — Third-Party Software Notices
+let out = `NexOffice — Third-Party Software Notices
 
 This application includes third-party software components under the licenses
 reproduced below.
@@ -322,12 +322,12 @@ const FONTS = [
     '© Adobe / Google. This bundle ships a subset of the original fonts (reduced glyph coverage for size);\nno other modifications were made.',
   ],
   [
-    'GenOffice Sans KR / GenOffice Serif KR (Noto Sans/Serif CJK KR derivative)',
+    'NexOffice Sans KR / NexOffice Serif KR (Noto Sans/Serif CJK KR derivative)',
     'SIL OFL 1.1',
     '© Adobe / Google, original Reserved Font Name "Noto". Subset with modified advance widths\nand horizontally transformed Noto outlines to match measured Korean Office-family metrics;\nrenamed per OFL 1.1. No Microsoft font outlines are included.',
   ],
   [
-    'GenOffice Che Latin KR (Noto Sans CJK KR derivative)',
+    'NexOffice Che Latin KR (Noto Sans CJK KR derivative)',
     'SIL OFL 1.1',
     '© Adobe / Google, original Reserved Font Name "Noto". ASCII subset with fixed 0.5em advances\nand horizontally transformed Noto outlines; Microsoft DotumChe is used only as a metric reference.\nRenamed per OFL 1.1. No Microsoft font outlines are included.',
   ],
@@ -337,12 +337,12 @@ const FONTS = [
     '© The Noto Project Authors. This bundle ships a subset of the original fonts;\nglyphs and metrics are unmodified.',
   ],
   [
-    'GenOffice Gothic KR (NanumGothic derivative)',
+    'NexOffice Gothic KR (NanumGothic derivative)',
     'SIL OFL 1.1',
     `${GOTHIC_KR_COPYRIGHT}\nSubset with unmodified metrics; renamed per OFL 1.1.`,
   ],
   [
-    'GenOffice Tamil (Noto Sans Tamil derivative)',
+    'NexOffice Tamil (Noto Sans Tamil derivative)',
     'SIL OFL 1.1',
     '© The Noto Project Authors, original Reserved Font Name "Noto". Modified advance widths;\nrenamed per OFL 1.1.',
   ],

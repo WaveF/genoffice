@@ -1,8 +1,8 @@
-# 归档：GenOffice MCP 外部 AI 改造：执行与跟踪清单
+# 归档：NexOffice MCP 外部 AI 改造：执行与跟踪清单
 
 > **归档状态：历史完成记录，默认不再作为执行清单阅读。** 本清单记录 MCP 基础设施、编辑器能力提取、内置 AI 下线与 Slides MVP 收束的历史证据；其中仍保留的 `MED-01` 是后续跨编辑器图片导入的独立能力缺口，不自动继承为当前工作。新的 Markdown 原始源码写入与源码模式需求见 [Markdown 源码编辑与 MCP 写入清单](./markdown-source-editing-todo.md)。仅在追溯任务 ID、架构决策或历史验收证据时按需查阅本文件。
 
-关联方案：[外部 AI 通过 MCP 控制 GenOffice：改造方案](./mcp-external-ai-refactor-plan.md)
+关联方案：[外部 AI 通过 MCP 控制 NexOffice：改造方案](./mcp-external-ai-refactor-plan.md)
 
 ## 使用规则
 
@@ -30,11 +30,11 @@
 
 | ID     | 任务                                                                                  | 优先级 | 依赖   | 状态   | 负责人 | 代码落点                                           | 验收标准                                                                                                                   | PR  |
 | ------ | ------------------------------------------------------------------------------------- | ------ | ------ | ------ | ------ | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | --- |
-| INF-01 | 新建 `packages/genoffice-mcp` workspace，提供可执行 stdio MCP adapter。               | P0     | DEC-01 | 已完成 | Codex  | `packages/genoffice-mcp/`、根 `package.json`       | stdio JSON-RPC adapter 已通过 initialize/tools/list/tools/call/错误/取消协议测试，并经真实 Shell 接入与成品包 smoke 验证。 |     |
+| INF-01 | 新建 `packages/nexoffice-mcp` workspace，提供可执行 stdio MCP adapter。               | P0     | DEC-01 | 已完成 | Codex  | `packages/nexoffice-mcp/`、根 `package.json`       | stdio JSON-RPC adapter 已通过 initialize/tools/list/tools/call/错误/取消协议测试，并经真实 Shell 接入与成品包 smoke 验证。 |     |
 | INF-02 | 新建 `apps/shell/src/main/mcp/`，定义 gateway 生命周期、请求路由和错误模型。          | P0     | INF-01 | 已完成 | Codex  | `apps/shell/src/main/mcp/`                         | private bridge、读写 gateway、renderer 路由、权限、审计和标准错误映射均已实现并由 Shell MCP 测试覆盖。                     |     |
 | INF-03 | 实现跨平台本地桥接：macOS/Linux Unix socket、Windows named pipe。                     | P0     | INF-02 | 已完成 | Codex  | `apps/shell/src/main/mcp/bridge.ts`                | Unix socket/named pipe 路径与连接隔离已实现；CI Run 8 成品包 smoke 已覆盖 macOS/Windows/Linux。                            |     |
 | INF-04 | 实现启动时随机 token、受限发现文件和 client 握手。                                    | P0     | INF-03 | 已完成 | Codex  | `apps/shell/src/main/mcp/bridge.ts`                | 每次启动轮换 token、POSIX 0600 discovery、连接身份隔离、无效 token 拒绝和 shutdown 清理均已测试。                          |     |
-| INF-05 | 定义稳定的 MCP 错误码与错误 payload。                                                 | P0     | INF-02 | 已完成 | Codex  | `packages/genoffice-capabilities/`、gateway        | 共享错误码已由 adapter、bridge 和 gateway 使用；结构化 `conflict`、权限、校验与内部错误映射均有协议/桥接测试。             |     |
+| INF-05 | 定义稳定的 MCP 错误码与错误 payload。                                                 | P0     | INF-02 | 已完成 | Codex  | `packages/nexoffice-capabilities/`、gateway        | 共享错误码已由 adapter、bridge 和 gateway 使用；结构化 `conflict`、权限、校验与内部错误映射均有协议/桥接测试。             |     |
 | INF-06 | 将 Shell 的 MCP gateway 注册到应用启动与退出生命周期。                                | P0     | INF-02 | 已完成 | Codex  | `apps/shell/src/main/index.ts`                     | Shell 启动后创建 bridge，退出时撤销 discovery 并关闭 socket；崩溃后随机 token/endpoint 自动失效。                          |     |
 | INF-07 | 更新 electron-vite / electron-builder 配置，确保 adapter 在开发与三端打包产物可执行。 | P0     | INF-01 | 已完成 | Codex  | MCP Vite bundle、Shell builder、构建脚本、使用说明 | 独立 ESM bundle、打包资源、discovery adapterPath 与双分发说明已完成；CI Run 8 在三端从成品包实际启动 adapter。             |     |
 
@@ -42,7 +42,7 @@
 
 | ID     | 任务                                                                                                                | 优先级 | 依赖           | 状态   | 负责人 | 代码落点                                 | 验收标准                                                                                                                                                                 | PR  |
 | ------ | ------------------------------------------------------------------------------------------------------------------- | ------ | -------------- | ------ | ------ | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --- |
-| CAP-01 | 新建 `packages/genoffice-capabilities`，定义 `CapabilityTool`、`DocumentTarget`、`ToolResult` 与 JSON Schema 类型。 | P0     | -              | 已完成 | Codex  | `packages/genoffice-capabilities/`       | 无 Electron/React/AI provider 依赖；可被 main、renderer、adapter 共同引用。                                                                                              |     |
+| CAP-01 | 新建 `packages/nexoffice-capabilities`，定义 `CapabilityTool`、`DocumentTarget`、`ToolResult` 与 JSON Schema 类型。 | P0     | -              | 已完成 | Codex  | `packages/nexoffice-capabilities/`       | 无 Electron/React/AI provider 依赖；可被 main、renderer、adapter 共同引用。                                                                                              |     |
 | CAP-02 | 定义 `DocumentSummary` 与 `DocumentId` 规则；DocumentId 在 Tab 生命周期内稳定且不可猜测。                           | P0     | CAP-01         | 已完成 | Codex  | capabilities + `TabManager`              | Tab 创建时生成随机 opaque ID；只读列表不含路径，关闭 Tab 后无法再解析。                                                                                                  |     |
 | CAP-03 | 为所有文档引入单调递增 `revision`；人工或 MCP 写入都会更新 revision。                                               | P0     | CAP-02         | 已完成 | Codex  | 各 app session/state adapter             | Slides/Docs/Sheets/PDF/Markdown 均向 Shell 报告单调 revision；Markdown 每次 dirty mutation 与 PDF 的 UI mutation/undo/redo 已补齐；CAS 冲突受 gateway/write queue 保护。 |     |
 | CAP-04 | 在 `TabManager` 中实现 documentId → WebContents/adapter 的显式路由。                                                | P0     | CAP-02         | 已完成 | Codex  | `apps/shell/src/main/tab-manager.ts`     | 通过 documentId 精确查询后台 Tab 的 target，不以 active Tab 作为隐式目标。                                                                                               |     |
@@ -125,7 +125,7 @@
 
 | ID     | 任务                                                                                               | 优先级 | 依赖            | 状态   | 负责人 | 验收标准                                                            | PR                                                                                                                    |
 | ------ | -------------------------------------------------------------------------------------------------- | ------ | --------------- | ------ | ------ | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| QLT-01 | 为 MCP adapter 建立协议级测试（握手、tools/list、tools/call、错误、取消）。                        | P0     | INF-01..05      | 已完成 | Codex  | `packages/genoffice-mcp/tests/server.test.ts`                       | 覆盖握手、tools/list、tools/call、结构化工具错误与 stdio 断开取消；通过既有 unit-test CI job 运行。                   | 待本轮提交    |
+| QLT-01 | 为 MCP adapter 建立协议级测试（握手、tools/list、tools/call、错误、取消）。                        | P0     | INF-01..05      | 已完成 | Codex  | `packages/nexoffice-mcp/tests/server.test.ts`                       | 覆盖握手、tools/list、tools/call、结构化工具错误与 stdio 断开取消；通过既有 unit-test CI job 运行。                   | 待本轮提交    |
 | QLT-02 | 为 gateway 建立安全回归测试。                                                                      | P0     | SEC-01..05      | 已完成 | Codex  | `apps/shell/tests/mcp-*.test.ts`                                    | 覆盖私有 discovery 权限与 token、连接身份隔离、输入上限、权限、审计轮转和写队列取消；通过既有 unit-test CI job 运行。 | 待本轮提交    |
 | QLT-03 | 新增 Shell + Slides 端到端 MCP smoke test，并接入 CI。                                             | P0     | SLD-08          | 已完成 | Codex  | `e2e/mcp-shell-slides.spec.ts`                                      | 真实启动 Shell 与 stdio adapter，经本地 bridge 完成 Slides 创建、写入、读取、undo 与保存；纳入既有 E2E CI job。       | 待本轮提交    |
 | QLT-04 | 为 Docs/Markdown/Sheets/PDF 逐步增加相同 smoke test。                                              | P1     | 各 App MCP 测试 | 已完成 | Codex  | 每个已声明支持的文档类型都有 CI 覆盖。                              | 真实 stdio smoke 覆盖四类文档的新建、状态读取、renderer bridge 就绪与上下文读取；已修复 Markdown 启动崩溃。           |
@@ -134,7 +134,7 @@
 
 ## 9. Slides MCP MVP 收束验收
 
-本阶段不是新增编辑器能力；目标是将已实现的能力、测试和安全边界逐项审计并形成可发布结论。只有 `MVP-01` 至 `MVP-08` 全部完成，才可宣布“GenOffice Slides MCP MVP 可用”。若审计发现实现与既有任务描述不一致，应先新增或更新对应的原始任务，再回到本阶段继续收束。
+本阶段不是新增编辑器能力；目标是将已实现的能力、测试和安全边界逐项审计并形成可发布结论。只有 `MVP-01` 至 `MVP-08` 全部完成，才可宣布“NexOffice Slides MCP MVP 可用”。若审计发现实现与既有任务描述不一致，应先新增或更新对应的原始任务，再回到本阶段继续收束。
 
 | ID     | 任务                                                                                      | 优先级 | 依赖                           | 状态   | 负责人 | 验收标准                                                                                                                        | 证据/记录                                                                                                                                                                                                                                                                                                                                                       |
 | ------ | ----------------------------------------------------------------------------------------- | ------ | ------------------------------ | ------ | ------ | ------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

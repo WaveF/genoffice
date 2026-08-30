@@ -1,4 +1,4 @@
-import type { DocumentTarget, ToolRisk } from '@genoffice/capabilities'
+import type { DocumentTarget, ToolRisk } from '@nexoffice/capabilities'
 
 export interface McpPermissionRequest {
   clientId: string

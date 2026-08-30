@@ -61,7 +61,7 @@ import {
   type TableCell,
   type TableModel,
   type TextboxDisplay,
-} from '@genoffice/docx-engine'
+} from '@nexoffice/docx-engine'
 import {
   bulletMarkerScale,
   computeListMarkerInfos,
@@ -1027,7 +1027,7 @@ export const DocListItem = Node.create({
         }),
       },
       // our own clipboard HTML: renderHTML emits <div class="doc-li …">, which
-      // no rule matched before r117 — pasting a GenOffice list item degraded it
+      // no rule matched before r117 — pasting a NexOffice list item degraded it
       // to plain text. kind/ilvl ride in data-para; classes are the fallback.
       {
         tag: 'div.doc-li',

@@ -1,4 +1,4 @@
-import type { Lang } from '@genoffice/i18n'
+import type { Lang } from '@nexoffice/i18n'
 
 export const MARKDOWN_CHANNELS = {
   consumePending: 'markdown:consume-pending',

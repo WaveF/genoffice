@@ -3,7 +3,7 @@ import { chmod, mkdir, rename, rm, writeFile } from 'node:fs/promises'
 import { createServer, type Server, type Socket } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { CapabilityError, type CapabilityErrorCode } from '@genoffice/capabilities'
+import { CapabilityError, type CapabilityErrorCode } from '@nexoffice/capabilities'
 
 const MAX_BRIDGE_LINE_BYTES = 1024 * 1024
 
@@ -73,11 +73,11 @@ export class LocalMcpBridge {
     const instance = `${process.pid}-${randomBytes(12).toString('hex')}`
     this.endpoint =
       this.platform === 'win32'
-        ? `\\\\.\\pipe\\genoffice-mcp-${instance}`
+        ? `\\\\.\\pipe\\nexoffice-mcp-${instance}`
         : // macOS limits Unix-domain socket paths to roughly 104 bytes. userData
-          // paths are often longer (notably “Application Support/GenOffice Dev”),
+          // paths are often longer (notably “Application Support/NexOffice Dev”),
           // so keep the ephemeral socket in the short system temp directory.
-          join(tmpdir(), `genoffice-mcp-${instance}.sock`)
+          join(tmpdir(), `nexoffice-mcp-${instance}.sock`)
   }
 
   get discoveryPath(): string {

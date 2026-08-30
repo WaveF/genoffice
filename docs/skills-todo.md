@@ -1,4 +1,4 @@
-# 归档：GenOffice 技能：单阶段完成清单
+# 归档：NexOffice 技能：单阶段完成清单
 
 > **归档状态：历史完成记录，默认不再作为执行清单阅读。** 本功能已在 `codex/markdown-source-mode` 完成；范围固定为本地、单 Markdown 文件的 Agent 指导文档，不包含在线目录、社区市场、ZIP 技能包、脚本执行或额外 MCP 权限。
 

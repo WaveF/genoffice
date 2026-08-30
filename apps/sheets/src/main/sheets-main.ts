@@ -45,12 +45,12 @@ import {
   showSaveDialogWithMemory,
   viewMenuTemplate,
   windowMenuTemplate,
-} from '@genoffice/electron-utils'
-import { createI18n, getUiLang, type Lang, normalizeLang, setUiLang } from '@genoffice/i18n'
-import { ProjectStore } from '@genoffice/project-store'
+} from '@nexoffice/electron-utils'
+import { createI18n, getUiLang, type Lang, normalizeLang, setUiLang } from '@nexoffice/i18n'
+import { ProjectStore } from '@nexoffice/project-store'
 
 import { csvToXlsxBuffer, decodeCsvBuffer } from '../gateway/csv-import'
-import { parseFileToText } from '@genoffice/file-parse'
+import { parseFileToText } from '@nexoffice/file-parse'
 import type { CellEdit, SheetStructuralOps } from '../gateway/xlsx-gateway'
 import { readArchiveEntryText, saveWorkbookViaSidecar } from '../gateway/xlsx-package-io'
 import { parsePivotDefinition } from '../gateway/xlsx-pivot'
@@ -1056,7 +1056,7 @@ interface SheetsRuntimeConfig {
   rendererFile: string
   /** absolute path to the Rust xlsx-sidecar binary */
   sidecarPath?: string | undefined
-  /** Shell router used to open exported PDFs in a new GenOffice tab. */
+  /** Shell router used to open exported PDFs in a new NexOffice tab. */
   openGeneratedPath?: (path: string) => boolean
 }
 
@@ -1436,7 +1436,7 @@ export async function createSheetsWindow(): Promise<BrowserWindow> {
     minWidth: 1024,
     minHeight: 680,
     show: false,
-    title: 'GenOffice Sheets',
+    title: 'NexOffice Sheets',
     // Traffic lights sit inside the toolbar row.
     ...(process.platform === 'darwin' ? { titleBarStyle: 'hiddenInset' as const } : {}),
     webPreferences: {
@@ -1550,7 +1550,7 @@ const ATTACHMENT_TEXT_EXTS = new Set([
   'sql',
   'css',
 ])
-/** office/pdf formats extract text via @genoffice/file-parse; images skip text
+/** office/pdf formats extract text via @nexoffice/file-parse; images skip text
  * extraction and go multimodal (sheets:files-read-image) */
 const ATTACHMENT_EXTS = new Set([
   ...ATTACHMENT_TEXT_EXTS,
@@ -1623,7 +1623,7 @@ function savePastedImage(data: unknown, ext: unknown): string | null {
         ? Buffer.from(data.buffer, data.byteOffset, data.byteLength)
         : null
   if (!bytes || bytes.byteLength === 0) return null
-  const dir = join(app.getPath('temp'), 'genoffice-pasted')
+  const dir = join(app.getPath('temp'), 'nexoffice-pasted')
   mkdirSync(dir, { recursive: true })
   const stamp = new Date().toISOString().slice(0, 19).replace(/[-:]/g, '').replace('T', '-')
   const filePath = join(dir, `pasted-${stamp}-${++pastedImageSeq}.${cleanExt}`)
@@ -1631,7 +1631,7 @@ function savePastedImage(data: unknown, ext: unknown): string | null {
   return filePath
 }
 
-/** Attachment text extraction via @genoffice/file-parse (docx/pdf/pptx/xlsx/plain text) */
+/** Attachment text extraction via @nexoffice/file-parse (docx/pdf/pptx/xlsx/plain text) */
 async function extractAttachmentText(filePath: string): Promise<string> {
   const stat = statSync(filePath)
   const stamp = `${stat.mtimeMs}:${stat.size}`
@@ -2705,7 +2705,7 @@ async function writeWorkbookTo(
 /** Copies the workbook into the temp snapshot dir; the copy is the session's
  * save base (see SessionInfo.snapshotPath). */
 async function snapshotWorkbook(path: string): Promise<string> {
-  const dir = join(app.getPath('temp'), 'genoffice-sheets-sessions')
+  const dir = join(app.getPath('temp'), 'nexoffice-sheets-sessions')
   await mkdir(dir, { recursive: true })
   const snapshotPath = join(dir, `${randomUUID()}.xlsx`)
   await copyFile(path, snapshotPath)
@@ -2827,7 +2827,7 @@ async function prepareWorkbookForOpen(
     return { openPath: path }
   }
   const stem = basename(path).replace(/\.[^.]+$/, '')
-  const directory = join(app.getPath('temp'), 'genoffice-imports', randomUUID())
+  const directory = join(app.getPath('temp'), 'nexoffice-imports', randomUUID())
   await mkdir(directory, { recursive: true })
   const openPath = join(directory, `${stem}.xlsx`)
   try {
@@ -2999,16 +2999,16 @@ async function applyMainProcessProxy(): Promise<void> {
 export function startSheetsStandalone(): void {
   installNavigationGuard(app)
   installContextMenu(app, () => contextMenuLabels(getUiLang()))
-  // GENOFFICE_USER_DATA: test drivers point this at a scratch dir so automated
+  // NEXOFFICE_USER_DATA: test drivers point this at a scratch dir so automated
   // instances get their own userData AND single-instance lock (the lock is scoped
   // to userData), allowing parallel instances alongside a normal dev run.
   // Same dev-only hook as apps/slides/src/main/slides-main.ts.
-  if (!app.isPackaged && process.env.GENOFFICE_USER_DATA) {
-    app.setPath('userData', process.env.GENOFFICE_USER_DATA)
+  if (!app.isPackaged && process.env.NEXOFFICE_USER_DATA) {
+    app.setPath('userData', process.env.NEXOFFICE_USER_DATA)
   }
   void applyMainProcessProxy()
   app.whenReady().then(() => {
-    setUiLang(normalizeLang(process.env.GENOFFICE_LANG ?? app.getLocale()))
+    setUiLang(normalizeLang(process.env.NEXOFFICE_LANG ?? app.getLocale()))
     app.setAccessibilitySupportEnabled(true)
     installApplicationMenu()
     startCaptureServer()

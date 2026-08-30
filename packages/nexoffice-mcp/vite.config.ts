@@ -8,7 +8,7 @@ const here = dirname(fileURLToPath(import.meta.url))
 export default defineConfig({
   resolve: {
     alias: {
-      '@genoffice/capabilities': resolve(here, '../genoffice-capabilities/src/index.ts'),
+      '@nexoffice/capabilities': resolve(here, '../nexoffice-capabilities/src/index.ts'),
     },
   },
   build: {
@@ -17,7 +17,7 @@ export default defineConfig({
     emptyOutDir: true,
     minify: false,
     rollupOptions: {
-      output: { entryFileNames: 'genoffice-mcp.mjs', format: 'es' },
+      output: { entryFileNames: 'nexoffice-mcp.mjs', format: 'es' },
     },
   },
 })

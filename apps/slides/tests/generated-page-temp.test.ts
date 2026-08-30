@@ -17,15 +17,15 @@ afterEach(async () => {
 })
 
 async function tempRoot(): Promise<string> {
-  const root = await mkdtemp(join(tmpdir(), 'genoffice-slides-temp-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'nexoffice-slides-temp-test-'))
   return root
 }
 
 describe('generated-page temp sweep', () => {
   it('removes only expired .pptx files matching the UUID pattern', async () => {
     const root = await tempRoot()
-    const cloudDir = join(root, 'genoffice-cloud-pages')
-    const localDir = join(root, 'genoffice-local-pages')
+    const cloudDir = join(root, 'nexoffice-cloud-pages')
+    const localDir = join(root, 'nexoffice-local-pages')
     await mkdir(cloudDir, { recursive: true })
     await mkdir(localDir, { recursive: true })
 
@@ -66,9 +66,9 @@ describe('generated-page temp sweep', () => {
 
   it('skips directories and non-.pptx files', async () => {
     const root = await tempRoot()
-    await mkdir(join(root, 'genoffice-cloud-pages'), { recursive: true })
+    await mkdir(join(root, 'nexoffice-cloud-pages'), { recursive: true })
 
-    const dirLike = join(root, 'genoffice-cloud-pages', 'not-a-file')
+    const dirLike = join(root, 'nexoffice-cloud-pages', 'not-a-file')
     await mkdir(dirLike, { recursive: true })
     await writeFile(join(dirLike, 'notes.txt'), 'notes')
     await writeFile(join(dirLike, 'data.json'), '{}')
@@ -87,7 +87,7 @@ describe('generated-page temp sweep', () => {
 
   it('swallows per-file errors and continues', async () => {
     const root = await tempRoot()
-    await mkdir(join(root, 'genoffice-cloud-pages'), { recursive: true })
+    await mkdir(join(root, 'nexoffice-cloud-pages'), { recursive: true })
 
     // We can't easily simulate a permission error on Windows,
     // but the function should never throw

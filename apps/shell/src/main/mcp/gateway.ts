@@ -7,7 +7,7 @@ import {
   type ToolRisk,
   type ToolResult,
   toolResult,
-} from '@genoffice/capabilities'
+} from '@nexoffice/capabilities'
 import type { McpBridgeGateway, McpBridgeRequest } from './bridge'
 import type { McpPermissionGate } from './permissions'
 import { DocumentWriteQueue } from './write-queue'
@@ -112,7 +112,7 @@ interface ToolDescriptor {
 
 const LIST_OPEN_DOCUMENTS: CapabilityTool<Record<string, never>> = {
   name: 'list_open_documents',
-  description: 'List documents currently open in this GenOffice application session.',
+  description: 'List documents currently open in this NexOffice application session.',
   inputSchema: { type: 'object', additionalProperties: false },
   risk: 'read',
   execute: async (_target, _input, context) => {
@@ -122,7 +122,7 @@ const LIST_OPEN_DOCUMENTS: CapabilityTool<Record<string, never>> = {
 
 const GET_DOCUMENT_STATUS: CapabilityTool<{ documentId: string }> = {
   name: 'get_document_status',
-  description: 'Get the current status of one open GenOffice document.',
+  description: 'Get the current status of one open NexOffice document.',
   inputSchema: {
     type: 'object',
     additionalProperties: false,
@@ -151,12 +151,12 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
   GET_DOCUMENT_STATUS,
   {
     name: 'skills.list',
-    description: 'List enabled GenOffice Markdown guidance skills relevant to document work.',
+    description: 'List enabled NexOffice Markdown guidance skills relevant to document work.',
     inputSchema: { type: 'object', additionalProperties: false },
   },
   {
     name: 'skills.read',
-    description: 'Read one enabled GenOffice guidance skill by its opaque public skill ID.',
+    description: 'Read one enabled NexOffice guidance skill by its opaque public skill ID.',
     inputSchema: {
       type: 'object',
       additionalProperties: false,
@@ -166,7 +166,7 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
   },
   {
     name: 'create_document',
-    description: 'Create one blank document in GenOffice and return its opaque document ID.',
+    description: 'Create one blank document in NexOffice and return its opaque document ID.',
     inputSchema: {
       type: 'object',
       additionalProperties: false,
@@ -237,7 +237,7 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
   },
   {
     name: 'activate_document',
-    description: 'Bring one explicitly identified open GenOffice document to the foreground.',
+    description: 'Bring one explicitly identified open NexOffice document to the foreground.',
     inputSchema: DOCUMENT_REVISION_INPUT_SCHEMA,
   },
   {

@@ -1,11 +1,11 @@
 import ReactDOM from 'react-dom/client'
-import { htmlLang, type Lang } from '@genoffice/i18n'
-import { installScreenTips } from '@genoffice/ui'
+import { htmlLang, type Lang } from '@nexoffice/i18n'
+import { installScreenTips } from '@nexoffice/ui'
 
-import '@genoffice/ui/tokens.css'
-import '@genoffice/ui/screentip.css'
-import '@genoffice/ui/color-picker.css'
-import '@genoffice/ui/dropdown.css'
+import '@nexoffice/ui/tokens.css'
+import '@nexoffice/ui/screentip.css'
+import '@nexoffice/ui/color-picker.css'
+import '@nexoffice/ui/dropdown.css'
 import '@univerjs/preset-sheets-core/lib/index.css'
 
 import { App } from './App'

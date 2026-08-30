@@ -1,7 +1,7 @@
 ---
 id: markdown-authoring
 name: Markdown authoring
-description: Write structured Markdown documents through the GenOffice MCP surface.
+description: Write structured Markdown documents through the NexOffice MCP surface.
 appliesTo: [markdown]
 ---
 

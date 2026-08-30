@@ -7,10 +7,10 @@
  * renderer sends edit intents (text/geometry changes) back to the main process, which applies
  * them to the model and rebuilds the RenderSlide.
  */
-import type { RenderSlide } from '@genoffice/pptx-render'
-import type { SlideComment, SectionInfo } from '@genoffice/pptx-engine'
+import type { RenderSlide } from '@nexoffice/pptx-render'
+import type { SlideComment, SectionInfo } from '@nexoffice/pptx-engine'
 
-export type { SlideComment, SectionInfo } from '@genoffice/pptx-engine'
+export type { SlideComment, SectionInfo } from '@nexoffice/pptx-engine'
 
 export type UiTheme = 'light' | 'dark' | 'system'
 

@@ -20,7 +20,7 @@ import {
   savePptx,
   type Paragraph,
   type TextRun,
-} from '@genoffice/pptx-engine'
+} from '@nexoffice/pptx-engine'
 import { coverCropFractions } from '../shared/cover-crop'
 
 export const SPEC_CANVAS_W = 1280

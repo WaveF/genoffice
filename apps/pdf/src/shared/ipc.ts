@@ -1,4 +1,4 @@
-import type { Lang } from '@genoffice/i18n'
+import type { Lang } from '@nexoffice/i18n'
 
 export const PDF_CHANNELS = {
   consumePending: 'pdf:consume-pending',
@@ -44,7 +44,7 @@ export const PDF_CHANNELS = {
   themeChanged: 'app:theme-changed',
 } as const
 
-export const VISUAL_SIGNATURE_CONTENT_PREFIX = 'GenOffice visual signature field: '
+export const VISUAL_SIGNATURE_CONTENT_PREFIX = 'NexOffice visual signature field: '
 
 /** Signature strokes: pad pixel coords, scaled proportionally and y-flipped when placed on the page */
 export interface SignatureStrokes {
@@ -178,7 +178,7 @@ export type DrawingInput =
       color: [number, number, number]
       at: [number, number]
       contents: string
-      /** Annotation author (/T); omitted → 'GenOffice' */
+      /** Annotation author (/T); omitted → 'NexOffice' */
       author?: string
       /** Creation time (ms since epoch) → /CreationDate and /M; omitted → save time */
       createdMs?: number
@@ -393,7 +393,7 @@ export interface PageImageRef {
   aboveText: boolean
 }
 
-/** Editable metadata for a GenOffice static form fill embedded as a page image. */
+/** Editable metadata for a NexOffice static form fill embedded as a page image. */
 export interface StaticFormFillRecord {
   id: string
   kind: 'text' | 'check' | 'cross'
@@ -516,7 +516,7 @@ export interface ValidateTextEditsRequest {
   edits: TextEditInput[]
 }
 
-/** Extract pages into a new PDF written to the GenOffice save dir and opened in a new tab */
+/** Extract pages into a new PDF written to the NexOffice save dir and opened in a new tab */
 export interface ExtractPagesRequest {
   path: string
   /** Original page indices */
@@ -606,7 +606,7 @@ export interface SetPageSizeRequest {
 export type SetPageSizeResult = { ok: true } | { ok: false; error: string }
 
 /** Split every page into a grid of pages (inverse of merge pages), written to the
- * GenOffice save dir and opened in a new tab */
+ * NexOffice save dir and opened in a new tab */
 export interface SplitPagesRequest {
   path: string
   perPage: 2 | 4 | 9
@@ -642,8 +642,24 @@ export type ExportImagesResult =
 
 /** API exposed by preload to the renderer (window.pdfApi) */
 export interface PdfApi {
-  onMcpRequest(handler: (request: { requestId: string; action: 'pdf.get_document_context' | 'pdf.read_page_context' | 'pdf.search' | 'pdf.read_annotations' | 'pdf.apply_operations'; input: Record<string, unknown> }) => void): () => void
-  respondMcpRequest(response: { requestId: string; ok: boolean; result?: unknown; error?: string }): void
+  onMcpRequest(
+    handler: (request: {
+      requestId: string
+      action:
+        | 'pdf.get_document_context'
+        | 'pdf.read_page_context'
+        | 'pdf.search'
+        | 'pdf.read_annotations'
+        | 'pdf.apply_operations'
+      input: Record<string, unknown>
+    }) => void,
+  ): () => void
+  respondMcpRequest(response: {
+    requestId: string
+    ok: boolean
+    result?: unknown
+    error?: string
+  }): void
   reportMcpRevision(revision: number): void
   /** Take the pdf path pending for this view (queued at tab creation); null if none */
   consumePending(): Promise<string | null>
@@ -667,7 +683,7 @@ export interface PdfApi {
   canDrawText(text: string, font?: string, bold?: boolean, italic?: boolean): Promise<boolean>
   /** Enumerate the content-stream images of every page (for image edit mode) */
   listPageImages(path: string): Promise<PageImageRef[]>
-  /** Read GenOffice static-fill metadata stored inside the PDF. */
+  /** Read NexOffice static-fill metadata stored inside the PDF. */
   listStaticFormFills(path: string): Promise<StaticFormFillRecord[]>
   /** System-OCR one rendered page image (PNG, base64); null when no engine is
       available on this platform, [] when recognition failed for this image */

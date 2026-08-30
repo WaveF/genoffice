@@ -33,7 +33,7 @@ export interface PickImageResult {
   name: string
 }
 
-import type { FaceVerticalMetrics } from '@genoffice/font-metrics'
+import type { FaceVerticalMetrics } from '@nexoffice/font-metrics'
 
 export type { FaceVerticalMetrics }
 

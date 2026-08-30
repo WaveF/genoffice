@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { basename } from 'node:path'
 import { BrowserWindow } from 'electron'
 import type { Rectangle, WebContents, WebContentsView } from 'electron'
-import type { DocumentKind, DocumentTarget } from '@genoffice/capabilities'
+import type { DocumentKind, DocumentTarget } from '@nexoffice/capabilities'
 
 import {
   createDocsView,
@@ -68,7 +68,7 @@ const HOME_ID = 'home'
  */
 export class TabManager {
   private readonly tabs: TabRecord[] = [
-    { id: HOME_ID, kind: 'home', view: null, title: 'GenOffice' },
+    { id: HOME_ID, kind: 'home', view: null, title: 'NexOffice' },
   ]
   private activeId: string = HOME_ID
   private nextId = 1
@@ -269,7 +269,7 @@ export class TabManager {
       documentId: `doc-${randomUUID()}`,
       revision: 0,
       view,
-      title: openPath ? basename(openPath) : this.untitled('docs', 'GenOffice Docs'),
+      title: openPath ? basename(openPath) : this.untitled('docs', 'NexOffice Docs'),
       filePath: openPath,
     })
     this.activateTab(id)

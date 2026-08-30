@@ -4,7 +4,7 @@
 
 ## 完成定义
 
-第 7 阶段完成时，GenOffice 不再包含可达的内置模型调用、内置聊天 UI、`ai:*` IPC/preload 暴露、AI 专属直接依赖或误导性的用户文档。外部 Agent 仅通过本地 MCP bridge 控制文档。
+第 7 阶段完成时，NexOffice 不再包含可达的内置模型调用、内置聊天 UI、`ai:*` IPC/preload 暴露、AI 专属直接依赖或误导性的用户文档。外部 Agent 仅通过本地 MCP bridge 控制文档。
 
 ## 当前状态（2026-08-28）
 
@@ -34,6 +34,6 @@
 - `SUN7-03`：Sheets 的惰性 MCP 读取复用了原 `ai/workbook-readers.ts`。清理时应把该模块迁至 MCP/通用读取域，不能因目录名直接删除，避免回退已交付的 `sheets.read_range` 能力。
 - `SUN7-03` 更新：读取模块已迁移至 `mcp-workbook-readers.ts`，并通过 Sheets typecheck 与 35 项 MCP 回归；下一轮只处理无调用的旧聊天状态，不触及 MCP 读取路径。
 - `SUN7-08`：Slides 有部分普通格式面板沿用 `ai-*` CSS 类名。对于仍有调用的样式必须先改为中性名称；仅凭类名前缀不得删除。
-- `SUN7-09` 自动验证（2026-08-28）：Docs、Sheets、PDF、Slides typecheck 均通过；`mcp-adapter`、`mcp-lazy-reader`、`mcp-revision`、Shell MCP gateway 共 37 项测试通过；`@genoffice/(ai-provider|agent-core)`、`ai:*` IPC、旧内部运行时标识及可达 AI 翻译调用均为零命中。Shell typecheck 仍命中既有 `src/main/tab-manager.ts(281,35)` 参数类型错误，未由本阶段变更引入。
+- `SUN7-09` 自动验证（2026-08-28）：Docs、Sheets、PDF、Slides typecheck 均通过；`mcp-adapter`、`mcp-lazy-reader`、`mcp-revision`、Shell MCP gateway 共 37 项测试通过；`@nexoffice/(ai-provider|agent-core)`、`ai:*` IPC、旧内部运行时标识及可达 AI 翻译调用均为零命中。Shell typecheck 仍命中既有 `src/main/tab-manager.ts(281,35)` 参数类型错误，未由本阶段变更引入。
 - `SUN7-09` 本机回归（2026-08-28）：启动 Electron 开发应用后，Slides、Docs、Sheets 均完成“新建 → 修改 → 撤销”（自动保存可用），PDF 完成新建与缩放。回归发现并修复 Docs 新建状态提示仍引导用户使用左侧 AI 面板，以及 Sheets 在内置 dock 删除后仍保留 360px 空列的布局残留。
 - `MVP-06` 边界复核（2026-08-28）：Shell 仍保留 Genspark 账号登录和云端转换的历史账户功能；按产品计划它将在后续 Free + MCP 账户清理中单独移除。该功能不是内置模型 provider、聊天 UI 或 MCP tool，不能据此宣称 MCP 支持云搜索、图像生成或生成图片导入。

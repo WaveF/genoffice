@@ -1,6 +1,6 @@
 {
-  "name": "@genoffice/docs",
-  "productName": "GenOffice Docs",
+  "name": "@nexoffice/docs",
+  "productName": "NexOffice Docs",
   "version": "0.1.0",
   "license": "Apache-2.0",
   "private": true,
@@ -18,12 +18,12 @@
     "dist:dir": "electron-vite build && electron-builder --dir"
   },
   "devDependencies": {
-    "@genoffice/i18n": "*",
-    "@genoffice/ai-search": "*",
-    "@genoffice/docx-engine": "*",
-    "@genoffice/file-parse": "*",
-    "@genoffice/project-store": "*",
-    "@genoffice/ui": "*",
+    "@nexoffice/i18n": "*",
+    "@nexoffice/ai-search": "*",
+    "@nexoffice/docx-engine": "*",
+    "@nexoffice/file-parse": "*",
+    "@nexoffice/project-store": "*",
+    "@nexoffice/ui": "*",
     "@tiptap/core": "^3.28.0",
     "@tiptap/extensions": "^3.28.0",
     "@tiptap/pm": "^3.28.0",
@@ -45,10 +45,10 @@
     "vite": "^7.3.1",
     "vitest": "^4.1.0"
   },
-  "author": "GenOffice",
+  "author": "NexOffice",
   "build": {
-    "appId": "com.genoffice.docs",
-    "productName": "GenOffice Docs",
+    "appId": "com.nexoffice.docs",
+    "productName": "NexOffice Docs",
     "electronVersion": "43.3.0",
     "artifactName": "AIDocx-${version}-${arch}.${ext}",
     "directories": {
@@ -89,10 +89,10 @@
     }
   },
   "dependencies": {
-    "@genoffice/electron-utils": "*",
-    "@genoffice/font-metrics": "*",
+    "@nexoffice/electron-utils": "*",
+    "@nexoffice/font-metrics": "*",
     "electron-updater": "^6.8.9",
     "pdf-lib": "^1.17.1",
-    "@genoffice/pptx-render": "*"
+    "@nexoffice/pptx-render": "*"
   }
 }

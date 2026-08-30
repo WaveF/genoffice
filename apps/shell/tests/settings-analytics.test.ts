@@ -45,8 +45,8 @@ describe('Settings MCP setup', () => {
       getAppVersion: async () => '1.0.0',
       getMcpConnectionInfo: async () => ({
         available: true,
-        discoveryPath: '/tmp/GenOffice/mcp/bridge.json',
-        adapterPath: '/tmp/GenOffice/genoffice-mcp.mjs',
+        discoveryPath: '/tmp/NexOffice/mcp/bridge.json',
+        adapterPath: '/tmp/NexOffice/nexoffice-mcp.mjs',
       }),
       listSkills: async () => [
         {
@@ -97,7 +97,7 @@ describe('Settings MCP setup', () => {
     await click(copy!)
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining('media.stage_image'))
     expect(writeText).toHaveBeenCalledWith(
-      expect.stringContaining('/tmp/GenOffice/mcp/bridge.json'),
+      expect.stringContaining('/tmp/NexOffice/mcp/bridge.json'),
     )
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining('不要要求用户提供 documentId'))
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining('skills.list'))

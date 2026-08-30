@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactElement } from 'react'
-import logoLockup from './assets/genoffice-logo.svg'
+import logoLockup from './assets/nexoffice-logo.svg'
 import iconDocx from './assets/file-docx.svg'
 import iconXlsx from './assets/file-xlsx.svg'
 import iconPptx from './assets/file-pptx.svg'
@@ -15,7 +15,7 @@ import type {
   ProjectSummaryEntry,
   RecentEntry,
 } from '../../shared/home-api'
-import { useDismissablePopover } from '@genoffice/ui'
+import { useDismissablePopover } from '@nexoffice/ui'
 import { fileCountKey, visiblePageCount } from './counts'
 import { useI18n } from './locale'
 import type { I18n, StringKey } from './locale'
@@ -2033,7 +2033,7 @@ export function Home() {
     <div className="home">
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <img className="logo-lockup" src={logoLockup} alt="GenOffice" />
+          <img className="logo-lockup" src={logoLockup} alt="NexOffice" />
         </div>
 
         <nav className="sidebar-nav">

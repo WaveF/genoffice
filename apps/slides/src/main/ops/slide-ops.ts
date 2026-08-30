@@ -49,7 +49,7 @@ import {
   type SlideAnimation,
   type SlideTransitionKind,
   type TextElement,
-} from '@genoffice/pptx-engine'
+} from '@nexoffice/pptx-engine'
 import {
   GuidedError,
   register,

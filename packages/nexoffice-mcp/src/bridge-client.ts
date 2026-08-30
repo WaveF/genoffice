@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { readFile, stat } from 'node:fs/promises'
 import { connect, type Socket } from 'node:net'
-import { CapabilityError, type CapabilityErrorCode, type ToolResult } from '@genoffice/capabilities'
+import { CapabilityError, type CapabilityErrorCode, type ToolResult } from '@nexoffice/capabilities'
 
 const MAX_BRIDGE_LINE_BYTES = 1024 * 1024
 
@@ -39,7 +39,7 @@ export interface BridgeCallContext {
 }
 
 function invalidDiscovery(message: string): CapabilityError {
-  return new CapabilityError('not_running', `GenOffice MCP discovery is invalid: ${message}`)
+  return new CapabilityError('not_running', `NexOffice MCP discovery is invalid: ${message}`)
 }
 
 export async function readBridgeDiscovery(path: string): Promise<BridgeDiscovery> {
@@ -53,7 +53,7 @@ export async function readBridgeDiscovery(path: string): Promise<BridgeDiscovery
     raw = await readFile(path, 'utf8')
   } catch (error) {
     if (error instanceof CapabilityError) throw error
-    throw new CapabilityError('not_running', 'GenOffice is not running or MCP is not enabled')
+    throw new CapabilityError('not_running', 'NexOffice is not running or MCP is not enabled')
   }
 
   let parsed: unknown
@@ -65,8 +65,10 @@ export async function readBridgeDiscovery(path: string): Promise<BridgeDiscovery
   if (!parsed || typeof parsed !== 'object') throw invalidDiscovery('payload is not an object')
   const value = parsed as Record<string, unknown>
   if (value.version !== 1) throw invalidDiscovery('unsupported version')
-  if (value.transport !== 'unix' && value.transport !== 'pipe') throw invalidDiscovery('unsupported transport')
-  if (typeof value.endpoint !== 'string' || !value.endpoint) throw invalidDiscovery('missing endpoint')
+  if (value.transport !== 'unix' && value.transport !== 'pipe')
+    throw invalidDiscovery('unsupported transport')
+  if (typeof value.endpoint !== 'string' || !value.endpoint)
+    throw invalidDiscovery('missing endpoint')
   if (typeof value.token !== 'string' || value.token.length < 32)
     throw invalidDiscovery('missing token')
   return {
@@ -100,7 +102,9 @@ export class LocalBridgeClient {
       const next = connect({ path: this.discovery.endpoint })
       const onError = (error: Error) => {
         next.removeListener('connect', onConnect)
-        reject(new CapabilityError('not_running', `Could not connect to GenOffice: ${error.message}`))
+        reject(
+          new CapabilityError('not_running', `Could not connect to NexOffice: ${error.message}`),
+        )
       }
       const onConnect = () => {
         next.removeListener('error', onError)
@@ -112,7 +116,9 @@ export class LocalBridgeClient {
     this.socket = socket
     socket.setEncoding('utf8')
     socket.on('data', (chunk: string) => this.receive(chunk))
-    socket.on('close', () => this.rejectAll(new CapabilityError('not_running', 'GenOffice MCP bridge closed')))
+    socket.on('close', () =>
+      this.rejectAll(new CapabilityError('not_running', 'NexOffice MCP bridge closed')),
+    )
     socket.on('error', () => {
       // The close handler rejects pending requests. Keeping this listener prevents an unhandled event.
     })
@@ -126,9 +132,11 @@ export class LocalBridgeClient {
 
   async listTools(context: BridgeCallContext): Promise<BridgeToolDefinition[]> {
     const result = await this.request('tools/list', {}, context)
-    if (!Array.isArray(result)) throw new CapabilityError('internal_error', 'Invalid tools/list response')
+    if (!Array.isArray(result))
+      throw new CapabilityError('internal_error', 'Invalid tools/list response')
     return result.map((tool) => {
-      if (!tool || typeof tool !== 'object') throw new CapabilityError('internal_error', 'Invalid tool')
+      if (!tool || typeof tool !== 'object')
+        throw new CapabilityError('internal_error', 'Invalid tool')
       const value = tool as Record<string, unknown>
       if (
         typeof value.name !== 'string' ||
@@ -152,12 +160,16 @@ export class LocalBridgeClient {
     context: BridgeCallContext,
   ): Promise<ToolResult> {
     const result = await this.request('tools/call', { name, input }, context)
-    if (!result || typeof result !== 'object') throw new CapabilityError('internal_error', 'Invalid tools/call response')
+    if (!result || typeof result !== 'object')
+      throw new CapabilityError('internal_error', 'Invalid tools/call response')
     const value = result as Record<string, unknown>
     if (typeof value.content !== 'string' || typeof value.mutated !== 'boolean') {
       throw new CapabilityError('internal_error', 'Invalid tool result')
     }
-    if (value.revision !== undefined && (!Number.isInteger(value.revision) || Number(value.revision) < 0)) {
+    if (
+      value.revision !== undefined &&
+      (!Number.isInteger(value.revision) || Number(value.revision) < 0)
+    ) {
       throw new CapabilityError('internal_error', 'Invalid tool revision')
     }
     return {
@@ -174,9 +186,12 @@ export class LocalBridgeClient {
   ): Promise<unknown> {
     const socket = this.socket
     if (!socket || socket.destroyed) {
-      return Promise.reject(new CapabilityError('not_running', 'GenOffice MCP bridge is unavailable'))
+      return Promise.reject(
+        new CapabilityError('not_running', 'NexOffice MCP bridge is unavailable'),
+      )
     }
-    if (context.signal.aborted) return Promise.reject(new CapabilityError('cancelled', 'Request cancelled'))
+    if (context.signal.aborted)
+      return Promise.reject(new CapabilityError('cancelled', 'Request cancelled'))
     const id = randomUUID()
     return new Promise<unknown>((resolve, reject) => {
       const onAbort = () => {
@@ -239,11 +254,7 @@ export class LocalBridgeClient {
     if (response.ok) pending.resolve(response.result)
     else {
       pending.reject(
-        new CapabilityError(
-          response.error.code,
-          response.error.message,
-          response.error.details,
-        ),
+        new CapabilityError(response.error.code, response.error.message, response.error.details),
       )
     }
   }
