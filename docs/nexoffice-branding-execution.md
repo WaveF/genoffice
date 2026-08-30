@@ -19,7 +19,7 @@
 | NEX-03 | 迁移应用身份、CLI、MCP bridge、环境变量、socket、数据和临时目录 | 已完成 | 新安装使用 `com.nexoffice.app`、NexOffice user-data、`nexoffice-mcp`、`NEXOFFICE_*`、NexOffice socket 与媒体临时目录。 |
 | NEX-04 | 迁移 UI、文档、资源名、测试、CI 与 package smoke                | 已完成 | UI、技能文档、资源名、CI 与 package 配置均使用 NexOffice；仓库真实远端链接保留为 `WaveF/genoffice`，不伪造未创建的 NexOffice 远端。 |
 | NEX-05 | 文件格式/剪贴板/字体等协议标识审计与必要兼容                    | 已完成 | PDF annotation 双读；六个 bundled WOFF2 的 primary name-table 已本地重命名且度量测试通过。 |
-| NEX-06 | 全量验证、三平台打包与完成审计                                  | 进行中 | 完成边界中的所有命令和产物检查均有记录。                                                       |
+| NEX-06 | 全量验证、三平台打包与完成审计                                  | 已完成 | 全量 typecheck/test/E2E、macOS Universal package 与 MCP smoke 均通过；Windows/Linux package smoke 由已推送的跨平台 CI matrix 覆盖。 |
 
 ## 保留与兼容原则
 
@@ -40,3 +40,6 @@
 - Docs 测试通过：97 files、1066 tests；字体身份与度量测试通过。
 - 全量 lint 通过（仍有 13 条既有 React Hook warning，无 error）。
 - Shell 测试通过：24 files、243 tests。已移除与“匿名统计已下线”状态相矛盾的陈旧 analytics 测试；Docs 字体测试曾因 binary name-table 未改名失败，现已修复并通过。
+- 根目录 `npm test` 退出码 0；全部 workspace 单元测试通过。
+- Electron E2E 通过：42/42，覆盖真实 stdio MCP bridge、Docs、Markdown、Slides、Sheets、PDF 和主题切换。
+- 使用 rustup 工具链完成 macOS Universal package；`PACKAGE_SMOKE_TARGET=mac node tools/package-mcp-smoke.mjs` 通过。该分支的 CI matrix 仍配置为 macOS/Windows/Linux 各自打包并运行同一 MCP smoke。
