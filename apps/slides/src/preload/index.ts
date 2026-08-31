@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import { installDropOpenBridge } from '@nexoffice/electron-utils/drop-open'
 import type { IpcRendererEvent } from 'electron'
 import type { RenderSlide } from '@nexoffice/pptx-render'
 import type { ProjectApi } from '@nexoffice/project-store'
@@ -358,6 +359,7 @@ const api: SlidesApi = {
 }
 
 contextBridge.exposeInMainWorld('slidesApi', api)
+installDropOpenBridge()
 
 const projectApi: ProjectApi = {
   resolveChat: (args) => ipcRenderer.invoke('project:resolveChat', args),

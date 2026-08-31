@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import { installDropOpenBridge } from '@nexoffice/electron-utils/drop-open'
 import type { IpcRendererEvent } from 'electron'
 import type {
   AccountLoginEvent,
@@ -359,3 +360,4 @@ const tabsApi: TabsApi = {
 }
 
 contextBridge.exposeInMainWorld('aiOfficeTabs', tabsApi)
+installDropOpenBridge()

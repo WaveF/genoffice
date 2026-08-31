@@ -46,6 +46,8 @@ import {
   showSaveDialogWithMemory,
   windowMenuTemplate,
 } from '@nexoffice/electron-utils'
+import { DROP_OPEN_CHANNEL } from '@nexoffice/electron-utils/drop-open'
+import { handleDroppedFiles } from './dropped-files'
 import { readAppSettings, writeAppSetting } from './app-settings'
 import {
   LAST_RUN_VERSION_KEY,
@@ -2526,6 +2528,20 @@ function notifyUnsupportedFile(filePath: string): void {
   }
 }
 
+function registerDroppedFilesIpc(): void {
+  ipcMain.on(DROP_OPEN_CHANNEL, (_event, raw: unknown) =>
+    handleDroppedFiles(raw, {
+      openDocumentPath,
+      revealShellWindow,
+      showWarning: (message) => {
+        if (shellWindow) void dialog.showMessageBox(shellWindow, { type: 'warning', message })
+        else void dialog.showMessageBox({ type: 'warning', message })
+      },
+      unsupportedMessage: (exts) => tm('errUnsupportedExt', { ext: exts.join(', ') }),
+    }),
+  )
+}
+
 /** the single router: extension decides which module owns the file; false = nothing opened */
 function openDocumentPath(filePath: string): boolean {
   const opened = routeDocumentPath(filePath)
@@ -4194,6 +4210,7 @@ installContextMenu(app, () => contextMenuLabels(currentLang()))
 registerProjectIpc()
 registerDocsIpc()
 registerHomeIpc()
+registerDroppedFilesIpc()
 registerFontCatalogIpc()
 registerTabsIpc()
 

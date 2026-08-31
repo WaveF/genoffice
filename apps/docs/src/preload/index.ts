@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
+import { installDropOpenBridge } from '@nexoffice/electron-utils/drop-open'
 import type { IpcRendererEvent } from 'electron'
 import type { DesktopApi, MenuCommand, UiTheme } from '../shared/ipc'
 import type { ProjectApi } from '@nexoffice/project-store'
@@ -169,3 +170,4 @@ const projectApi: ProjectApi = {
 
 contextBridge.exposeInMainWorld('desktop', api)
 contextBridge.exposeInMainWorld('projectApi', projectApi)
+installDropOpenBridge()

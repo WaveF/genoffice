@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import { installDropOpenBridge } from '@nexoffice/electron-utils/drop-open'
 import type { Lang } from '@nexoffice/i18n'
 import type { ProjectApi } from '@nexoffice/project-store'
 import { MARKDOWN_CHANNELS } from '../shared/ipc'
@@ -102,4 +103,5 @@ const projectApi: Pick<ProjectApi, 'resolveChat' | 'appendChat' | 'loadChat' | '
 }
 
 contextBridge.exposeInMainWorld('markdownApi', api)
+installDropOpenBridge()
 contextBridge.exposeInMainWorld('projectApi', projectApi)

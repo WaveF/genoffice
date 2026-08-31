@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
+import { installDropOpenBridge } from '@nexoffice/electron-utils/drop-open'
 
 import type { ProjectApi } from '@nexoffice/project-store'
 import type {
@@ -480,6 +481,7 @@ function parseAttachmentAddResult(input: unknown): AttachmentAddResult {
 }
 
 contextBridge.exposeInMainWorld('desktopApi', desktopApi)
+installDropOpenBridge()
 
 const projectApi: ProjectApi = {
   resolveChat: (args) => ipcRenderer.invoke('project:resolveChat', args),

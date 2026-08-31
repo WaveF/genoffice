@@ -642,7 +642,19 @@ export default function App() {
       (mode) => void doSave(mode).then((ok) => window.markdownApi.sendSaveRequestAck(ok)),
     )
     const offClose = window.markdownApi.onCloseSaveRequest(() => {
-      void doSave('save').then((ok) => window.markdownApi.sendCloseSaveResult(ok))
+      void (async () => {
+        // A close-save can race the blur autosave. Wait for it rather than
+        // treating savingRef as a failed explicit save; it may already have
+        // persisted every edit, in which case closing can proceed directly.
+        while (savingRef.current) {
+          await new Promise((resolve) => window.setTimeout(resolve, 50))
+        }
+        if (!dirtyRef.current) {
+          window.markdownApi.sendCloseSaveResult(true)
+          return
+        }
+        window.markdownApi.sendCloseSaveResult(await doSave('save'))
+      })()
     })
     const offRenamed = window.markdownApi.onFileRenamed((newPath) => setFilePath(newPath))
     const onKeyDown = (event: KeyboardEvent) => {
