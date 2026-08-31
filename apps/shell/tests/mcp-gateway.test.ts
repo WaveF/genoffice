@@ -44,6 +44,14 @@ function gatewayWith(
   const slides: SlidesMcpReader = {
     getDeckContext: () => ({ revision: 3, slideCount: 1, slides: [{ slideId: 's_1', index: 0 }] }),
     readSlide: (_webContentsId, slide) => ({ revision: 3, slide }),
+    getLayoutContext: (_webContentsId, slide) => ({
+      revision: 3,
+      slide,
+      coordinateSystem: { unit: 'px' },
+      slideSize: { width: 1280, height: 720 },
+      elements: [],
+    }),
+    auditLayout: (_webContentsId, slide) => ({ revision: 3, slide, issues: [] }),
     renderSlidePreview: async (_webContentsId, slide) => ({
       revision: 3,
       slide,
@@ -60,6 +68,10 @@ function gatewayWith(
       ...slides,
       opsRisk: () => 'write',
       applyOps: (_webContentsId, _ops, expectedRevision, dryRun) => ({
+        applied: !dryRun,
+        revision: expectedRevision + (dryRun ? 0 : 1),
+      }),
+      applyLayout: (_webContentsId, _changes, expectedRevision, dryRun) => ({
         applied: !dryRun,
         revision: expectedRevision + (dryRun ? 0 : 1),
       }),
@@ -122,6 +134,9 @@ describe('ShellMcpGateway', () => {
         expect.objectContaining({ name: 'skills.replace_content' }),
         expect.objectContaining({ name: 'create_document' }),
         expect.objectContaining({ name: 'slides.apply_ops' }),
+        expect.objectContaining({ name: 'slides.apply_layout' }),
+        expect.objectContaining({ name: 'slides.get_layout_context' }),
+        expect.objectContaining({ name: 'slides.audit_layout' }),
         expect.objectContaining({ name: 'slides.render_preview' }),
         expect.objectContaining({ name: 'docs.get_context' }),
         expect.objectContaining({ name: 'docs.apply_operations' }),
@@ -226,7 +241,14 @@ describe('ShellMcpGateway', () => {
       createFromMcp: async (name, content) => {
         calls.push({ name, value: content })
         return {
-          summary: { id: 'skill-123', name, description: '', appliesTo: [], source: 'custom', enabled: true },
+          summary: {
+            id: 'skill-123',
+            name,
+            description: '',
+            appliesTo: [],
+            source: 'custom',
+            enabled: true,
+          },
           content,
           revision: 'd'.repeat(64),
         }
@@ -234,16 +256,33 @@ describe('ShellMcpGateway', () => {
       replaceContent: async (id, expectedRevision, content) => {
         calls.push({ name: `${id}:${expectedRevision}`, value: content })
         return {
-          summary: { id, name: 'Agent guide', description: '', appliesTo: [], source: 'custom', enabled: true },
+          summary: {
+            id,
+            name: 'Agent guide',
+            description: '',
+            appliesTo: [],
+            source: 'custom',
+            enabled: true,
+          },
           content,
           revision: 'e'.repeat(64),
         }
       },
     }
-    const gateway = gatewayWith([target], { authorize: async () => undefined }, undefined, undefined, undefined, undefined, skills)
+    const gateway = gatewayWith(
+      [target],
+      { authorize: async () => undefined },
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      skills,
+    )
     const content = '---\nname: Agent guide\n---\n\n# Agent guide'
 
-    await expect(gateway.handle(request({ name: 'skills.create', input: { name: 'Agent guide', content } }))).resolves.toMatchObject({
+    await expect(
+      gateway.handle(request({ name: 'skills.create', input: { name: 'Agent guide', content } })),
+    ).resolves.toMatchObject({
       mutated: true,
       content: expect.stringContaining('skill-123'),
     })
@@ -260,7 +299,12 @@ describe('ShellMcpGateway', () => {
       { name: `skill-123:${'d'.repeat(64)}`, value: content },
     ])
     await expect(
-      gateway.handle(request({ name: 'skills.create', input: { name: 'Agent guide', content, path: '/tmp/nope.md' } })),
+      gateway.handle(
+        request({
+          name: 'skills.create',
+          input: { name: 'Agent guide', content, path: '/tmp/nope.md' },
+        }),
+      ),
     ).rejects.toMatchObject({ code: 'validation_error' })
   })
 
@@ -334,11 +378,49 @@ describe('ShellMcpGateway', () => {
     const slide = await gatewayWith().handle(
       request({ name: 'slides.read_slide', input: { documentId: 'doc-123', slide: 's_1' } }),
     )
+    const layout = await gatewayWith().handle(
+      request({
+        name: 'slides.get_layout_context',
+        input: { documentId: 'doc-123', slide: 's_1' },
+      }),
+    )
+    const audit = await gatewayWith().handle(
+      request({ name: 'slides.audit_layout', input: { documentId: 'doc-123', slide: 's_1' } }),
+    )
     expect(context).toMatchObject({ revision: 3, mutated: false })
     expect(JSON.parse((slide as { content: string }).content)).toEqual({
       revision: 3,
       slide: 's_1',
     })
+    expect(JSON.parse((layout as { content: string }).content)).toMatchObject({
+      coordinateSystem: { unit: 'px' },
+      slideSize: { width: 1280, height: 720 },
+    })
+    expect(JSON.parse((audit as { content: string }).content)).toEqual({
+      revision: 3,
+      slide: 's_1',
+      issues: [],
+    })
+  })
+
+  it('routes bounded CSS-style layout writes through the normal write boundary', async () => {
+    const result = await gatewayWith().handle(
+      request({
+        name: 'slides.apply_layout',
+        input: {
+          documentId: 'doc-123',
+          expectedRevision: 3,
+          changes: [
+            {
+              slide: 's_1',
+              elementId: 'e_title',
+              bounds: { x: 80, y: 60, width: 640, height: 80 },
+            },
+          ],
+        },
+      }),
+    )
+    expect(result).toMatchObject({ mutated: true, revision: 4 })
   })
 
   it('routes Docs and Markdown reads through the fixed renderer bridge', async () => {

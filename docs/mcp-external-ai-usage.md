@@ -45,3 +45,11 @@ Docs 与 Markdown 支持 document-scoped blocks 读取、文本插入/替换及�
 要一次写入完整的结构化 Markdown（标题、列表、引用、表格、任务列表等），使用 `markdown.set_source({"documentId","expectedRevision","source"})`。它会以 Markdown 语义解析并**整体覆盖**当前文档，`source` 最大 64 KiB；不接受局部 range、路径、URL 或 bytes。`markdown.insert_content` 则始终是追加字面文本：例如传入 `# 标题` 会插入包含井号的正文，而不会创建标题。写入前先通过 `list_open_documents` 或 `create_document` 获取目标，不要向用户索要 `documentId`。
 
 所有类型都不支持任意路径文件访问。Markdown 额外提供受控本地图片流程：discovery 的 `mediaImportDirectory` 是该次会话唯一可写的图片暂存目录。Agent 先把 PNG/JPEG/GIF 写入该目录（文件名，不含路径），调用 `media.stage_image({"fileName":"image.png"})` 获得一次性、连接绑定的 `mediaHandle`，再以 `markdown.insert_image` 写入一个已保存 Markdown 文档。bridge 会校验格式（PNG/JPEG/GIF）、文件大小（≤8 MiB）、像素数（≤24 MP）、路径和软链接，成功 stage 后立刻删除暂存源文件，并把副本写入文档同级 `assets/`。不接受路径、URL 或 base64/bytes；Slides、Docs、Sheets 的图片导入仍属于后续 `MED-01` 范围。完整发布范围、复现步骤与已知缺口见 [Slides MCP MVP 验收报告](./slides-mcp-mvp-acceptance.md)。
+
+## Slides 图文排版
+
+对现有 Slides 元素排版时，先调用 `slides.get_layout_context`。它返回稳定的 96 DPI 逻辑像素坐标：画布 `slide.width/height`，以及每个元素的 `id`、`type`、`bounds`（`x/y/width/height`）、`visualBounds`、旋转、翻转和 `zIndex`；表达形式接近绝对定位 CSS，但不是 DOM 或 CSS 写入接口。图片仅返回安全的尺寸/裁切元数据，不返回文件路径或像素数据。
+
+随后可调用 `slides.apply_layout`，以同样的逻辑像素 `bounds` 对已有元素一次性变更位置、尺寸和可选 `rotationDeg`。该工具仍要求 `expectedRevision`，支持 `dryRun`，且不插入图片、不执行 CSS、不接受路径或二进制数据。组内子元素的 bounds 相对组坐标；变更它们时必须同时传回 `parentGroupId`。
+
+完成文字或位置调整后调用 `slides.audit_layout`。当前审计是确定性的渲染器几何检查：报告文本框和表格单元格的横向文字溢出，不依赖内置 AI 或图像理解。视觉模型可用时，再调用单页受限的 `slides.render_preview` 作视觉复核；不支持 PNG tool 输出的客户端应以布局上下文和审计结果为准。

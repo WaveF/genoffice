@@ -6,7 +6,12 @@ vi.mock('electron', () => ({
   BrowserWindow: { getFocusedWindow: () => null },
   webContents: { fromId: () => ({ send }) },
 }))
-vi.mock('../src/main/fonts', () => ({ createSystemFontMetrics: () => ({}) }))
+vi.mock('../src/main/fonts', () => ({
+  createSystemFontMetrics: () => ({
+    metrics: () => ({ ascent: 16, descent: 4, lineGap: 0 }),
+    measure: (text: string) => text.length * 8,
+  }),
+}))
 
 import { SlidesMcpAdapter, waitForSlidesMcpSession } from '../src/main/mcp-adapter'
 import { journalOps, sessions, type Session } from '../src/main/session-state'
@@ -84,6 +89,89 @@ describe('SlidesMcpAdapter', () => {
       mimeType: 'image/png',
       base64: 'iVBORw0KGgo=',
     })
+  })
+
+  it('exposes and applies stable CSS-style logical layout geometry', () => {
+    const inserted = adapter.applyOps(
+      WEB_CONTENTS_ID,
+      [
+        {
+          op: 'addElement',
+          target: { slide: 0 },
+          kind: 'textbox',
+          offset: { x: 914400, y: 457200, cx: 1828800, cy: 457200 },
+          paragraphs: [{ runs: [{ text: 'Layout title', fontSize: 24 }] }],
+        },
+      ],
+      0,
+    )
+    const elementId = inserted.records?.[0]?.created?.[0]
+    expect(elementId).toBeTruthy()
+
+    const layout = adapter.getLayoutContext(WEB_CONTENTS_ID, 0)
+    expect(layout).toMatchObject({
+      revision: 1,
+      coordinateSystem: { unit: 'px', origin: 'top-left', dpi: 96 },
+      slide: { width: 1280, height: 720 },
+    })
+    const element = layout.elements.find((candidate) => candidate.sourceId === elementId)
+    expect(element).toMatchObject({
+      bounds: { x: 96, y: 48, width: 192, height: 48 },
+      text: { wrap: true },
+    })
+
+    const changed = adapter.applyLayout(
+      WEB_CONTENTS_ID,
+      [
+        {
+          slide: layout.slideId,
+          elementId: element!.id,
+          bounds: { x: 120, y: 90, width: 400, height: 100 },
+          rotationDeg: 15,
+        },
+      ],
+      1,
+    )
+    expect(changed).toMatchObject({ applied: true, revision: 2 })
+    expect(
+      adapter
+        .getLayoutContext(WEB_CONTENTS_ID, 0)
+        .elements.find((candidate) => candidate.sourceId === elementId),
+    ).toMatchObject({
+      bounds: { x: 120, y: 90, width: 400, height: 100 },
+      transform: { rotationDeg: 15 },
+    })
+  })
+
+  it('reports laid-out horizontal text overflow without an AI or image pass', () => {
+    const inserted = adapter.applyOps(
+      WEB_CONTENTS_ID,
+      [
+        {
+          op: 'addElement',
+          target: { slide: 0 },
+          kind: 'textbox',
+          offset: { x: 914400, y: 457200, cx: 457200, cy: 457200 },
+          bodyPr: { wrap: false },
+          paragraphs: [
+            { runs: [{ text: 'unbreakable-layout-token-that-is-deliberately-too-wide' }] },
+          ],
+        },
+      ],
+      0,
+    )
+    const sourceId = inserted.records?.[0]?.created?.[0]
+    const audit = adapter.auditLayout(WEB_CONTENTS_ID, 0)
+    expect(audit).toMatchObject({ revision: 1, coordinateSystem: { unit: 'px' } })
+    expect(audit.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'text-horizontal-overflow',
+          sourceId,
+          overflow: expect.objectContaining({ right: expect.any(Number) }),
+        }),
+      ]),
+    )
   })
 
   it('supports explicit slide lifecycle and application-controlled save callbacks', async () => {

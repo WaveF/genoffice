@@ -96,6 +96,8 @@ export interface MarkdownMcpImageWriter {
 export interface SlidesMcpReader {
   getDeckContext(webContentsId: number): unknown
   readSlide(webContentsId: number, slideRef: number | string): unknown
+  getLayoutContext(webContentsId: number, slideRef: number | string): unknown
+  auditLayout(webContentsId: number, slideRef: number | string): unknown
   renderSlidePreview(webContentsId: number, slideRef: number | string): Promise<unknown>
 }
 
@@ -104,6 +106,14 @@ export interface SlidesMcpWriter extends SlidesMcpReader {
   applyOps(
     webContentsId: number,
     rawOps: unknown,
+    expectedRevision: number,
+    dryRun?: boolean,
+  ):
+    | { applied: boolean; revision: number; [key: string]: unknown }
+    | Promise<{ applied: boolean; revision: number; [key: string]: unknown }>
+  applyLayout(
+    webContentsId: number,
+    changes: unknown,
     expectedRevision: number,
     dryRun?: boolean,
   ):
@@ -220,7 +230,12 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
       required: ['skillId', 'expectedRevision', 'content'],
       properties: {
         skillId: { type: 'string', minLength: 1, maxLength: 64 },
-        expectedRevision: { type: 'string', minLength: 64, maxLength: 64, pattern: '^[a-f0-9]{64}$' },
+        expectedRevision: {
+          type: 'string',
+          minLength: 64,
+          maxLength: 64,
+          pattern: '^[a-f0-9]{64}$',
+        },
         content: { type: 'string', minLength: 1, maxLength: 262144 },
       },
     },
@@ -304,6 +319,44 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
   {
     name: 'slides.read_slide',
     description: 'Read the editable element model for one slide in an open Slides document.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['documentId', 'slide'],
+      properties: {
+        documentId: { type: 'string', minLength: 1, maxLength: 128 },
+        slide: {
+          anyOf: [
+            { type: 'integer', minimum: 0 },
+            { type: 'string', minLength: 1 },
+          ],
+        },
+      },
+    },
+  },
+  {
+    name: 'slides.get_layout_context',
+    description:
+      'Read one slide in a stable CSS-style logical px coordinate system, including canvas size, element bounds, rotation, z-order, text-box layout settings, and safe image metadata.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['documentId', 'slide'],
+      properties: {
+        documentId: { type: 'string', minLength: 1, maxLength: 128 },
+        slide: {
+          anyOf: [
+            { type: 'integer', minimum: 0 },
+            { type: 'string', minLength: 1 },
+          ],
+        },
+      },
+    },
+  },
+  {
+    name: 'slides.audit_layout',
+    description:
+      'Run deterministic renderer-layout checks on one slide. Currently reports horizontal text overflow in text boxes and table cells; it does not modify the document or use image/AI analysis.',
     inputSchema: {
       type: 'object',
       additionalProperties: false,
@@ -625,6 +678,53 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
     },
   },
   {
+    name: 'slides.apply_layout',
+    description:
+      'Dry-run or atomically apply bounded CSS-style px position, size, and rotation changes to existing Slides elements. Read slides.get_layout_context first; this tool does not insert media or accept CSS.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['documentId', 'expectedRevision', 'changes'],
+      properties: {
+        documentId: { type: 'string', minLength: 1, maxLength: 128 },
+        expectedRevision: { type: 'integer', minimum: 0 },
+        dryRun: { type: 'boolean' },
+        changes: {
+          type: 'array',
+          minItems: 1,
+          maxItems: 50,
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            required: ['slide', 'elementId', 'bounds'],
+            properties: {
+              slide: {
+                anyOf: [
+                  { type: 'integer', minimum: 0 },
+                  { type: 'string', minLength: 1 },
+                ],
+              },
+              elementId: { type: 'string', minLength: 1, maxLength: 160 },
+              parentGroupId: { type: 'string', minLength: 1, maxLength: 160 },
+              rotationDeg: { type: 'number', minimum: -3600, maximum: 3600 },
+              bounds: {
+                type: 'object',
+                additionalProperties: false,
+                required: ['x', 'y', 'width', 'height'],
+                properties: {
+                  x: { type: 'number' },
+                  y: { type: 'number' },
+                  width: { type: 'number', exclusiveMinimum: 0 },
+                  height: { type: 'number', exclusiveMinimum: 0 },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+  {
     name: 'undo',
     description: 'Undo the latest supported MCP or manual edit in an open Slides document.',
     inputSchema: DOCUMENT_REVISION_INPUT_SCHEMA,
@@ -725,9 +825,15 @@ export class ShellMcpGateway implements McpBridgeGateway {
         typeof argumentsValue.name !== 'string' ||
         typeof argumentsValue.content !== 'string'
       ) {
-        throw new CapabilityError('validation_error', 'skills.create requires only name and content')
+        throw new CapabilityError(
+          'validation_error',
+          'skills.create requires only name and content',
+        )
       }
-      const skill = await this.requireSkills().createFromMcp(argumentsValue.name, argumentsValue.content)
+      const skill = await this.requireSkills().createFromMcp(
+        argumentsValue.name,
+        argumentsValue.content,
+      )
       return toolResult(JSON.stringify(skill), true)
     }
     if (name === 'skills.replace_content') {
@@ -790,6 +896,24 @@ export class ShellMcpGateway implements McpBridgeGateway {
       const target = await this.requireSlidesTarget(documentId)
       return toolResult(
         JSON.stringify(this.requireSlides().readSlide(target.webContentsId, slide)),
+        false,
+        target.revision,
+      )
+    }
+    if (name === 'slides.get_layout_context') {
+      const { documentId, slide } = this.requireDocumentSlide(argumentsValue)
+      const target = await this.requireSlidesTarget(documentId)
+      return toolResult(
+        JSON.stringify(this.requireSlides().getLayoutContext(target.webContentsId, slide)),
+        false,
+        target.revision,
+      )
+    }
+    if (name === 'slides.audit_layout') {
+      const { documentId, slide } = this.requireDocumentSlide(argumentsValue)
+      const target = await this.requireSlidesTarget(documentId)
+      return toolResult(
+        JSON.stringify(this.requireSlides().auditLayout(target.webContentsId, slide)),
         false,
         target.revision,
       )
@@ -1277,6 +1401,47 @@ export class ShellMcpGateway implements McpBridgeGateway {
             document: target,
           })
         return slides.applyOps(target.webContentsId, rawOps, expectedRevision, dryRun)
+      }
+      const result = dryRun
+        ? await execute()
+        : await this.writeQueue.enqueue(target.documentId, context.signal, execute)
+      return toolResult(JSON.stringify(result), result.applied, result.revision)
+    }
+    if (name === 'slides.apply_layout') {
+      const documentId = argumentsValue.documentId
+      const expectedRevision = argumentsValue.expectedRevision
+      const changes = argumentsValue.changes
+      const dryRun = argumentsValue.dryRun ?? false
+      if (
+        typeof documentId !== 'string' ||
+        documentId.length === 0 ||
+        typeof expectedRevision !== 'number' ||
+        !Number.isSafeInteger(expectedRevision) ||
+        expectedRevision < 0 ||
+        !Array.isArray(changes) ||
+        changes.length === 0 ||
+        changes.length > 50 ||
+        typeof dryRun !== 'boolean' ||
+        Object.keys(argumentsValue).some(
+          (key) => !['documentId', 'expectedRevision', 'changes', 'dryRun'].includes(key),
+        )
+      ) {
+        throw new CapabilityError(
+          'validation_error',
+          'documentId, expectedRevision, changes, and optional dryRun are required',
+        )
+      }
+      const target = await this.requireSlidesTarget(documentId)
+      const slides = this.requireSlidesWriter()
+      const execute = async () => {
+        if (!dryRun)
+          await this.requirePermissions().authorize({
+            clientId: context.clientId,
+            toolName: name,
+            risk: 'write',
+            document: target,
+          })
+        return slides.applyLayout(target.webContentsId, changes, expectedRevision, dryRun)
       }
       const result = dryRun
         ? await execute()
