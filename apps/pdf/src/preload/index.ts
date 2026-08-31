@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import { installDropOpenBridge } from '@nexoffice/electron-utils/drop-open'
 import type { Lang } from '@nexoffice/i18n'
 import { PDF_CHANNELS } from '../shared/ipc'
 import type { PdfApi, UiTheme } from '../shared/ipc'
@@ -121,4 +122,5 @@ const projectApi = {
 }
 
 contextBridge.exposeInMainWorld('pdfApi', api)
+installDropOpenBridge()
 contextBridge.exposeInMainWorld('projectApi', projectApi)

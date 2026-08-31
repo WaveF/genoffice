@@ -12,7 +12,7 @@
  * activates its sheet, starts loading its range, scrolls to it, and selects
  * it, so the grid shows real data instead of an empty jump.
  */
-import type { IRange } from '@univerjs/core'
+import { IUniverInstanceService, type IRange, type Workbook } from '@univerjs/core'
 import {
   FindBy,
   FindModel,
@@ -474,15 +474,34 @@ export class LazyExtendedFindModel extends FindModel {
 
   /** Extras that are still outside the (evolving) loaded window. */
   private currentExtras(): LazyCellMatch[] {
-    return this.extras.filter(
-      (match) =>
-        !coveredByWindow(
+    return this.extras.filter((match) => {
+      if (
+        coveredByWindow(
           this.state,
           match.range.subUnitId,
           match.range.range.startRow,
           match.range.range.startColumn,
-        ),
-    )
+        )
+      ) {
+        return false
+      }
+      // In-window Find excludes filter-hidden rows. The file-backed extension
+      // must apply the same visibility rule before returning a remote hit.
+      return !this.isRowHidden(match.range.subUnitId, match.range.range.startRow)
+    })
+  }
+
+  private isRowHidden(subUnitId: string, row: number): boolean {
+    try {
+      const workbook = this.deps.runtime.univer
+        .__getInjector()
+        .get(IUniverInstanceService)
+        .getUnit<Workbook>(this.unitId)
+      return workbook?.getSheetBySheetId(subUnitId)?.getRowFiltered(row) === true
+    } catch {
+      // A closing/replaced workbook must never make Find unusable.
+      return false
+    }
   }
 
   /**
