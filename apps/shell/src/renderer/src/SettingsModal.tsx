@@ -131,7 +131,7 @@ function connectionPrompt(info: McpConnectionInfo): string {
   const adapter = info.adapterPath
     ? `node "${info.adapterPath}" --discovery "${info.discoveryPath}"`
     : `nexoffice-mcp --discovery "${info.discoveryPath}"`
-  return `请连接正在运行的 NexOffice 本地 MCP，并只操作其明确公开的工具。\n\n1. 使用以下 stdio 命令配置 MCP：\n${adapter}\n\n2. discovery 文件：${info.discoveryPath}\n其中包含本机会话 token；不要在回复、日志或仓库中泄露、复制或提交它。\n\n3. 连接后先调用 tools/list，以实时 schema 为准。不要要求用户提供 documentId：先调用 list_open_documents，根据用户所说的文档标题或当前上下文选择目标；若用户要求新建，直接调用 create_document(kind)。若有多个候选且无法判断，向用户展示标题/类型并请其选择，不要展示或索要 documentId。\n\n4. 复杂任务开始前，调用 skills.list，并按任务类型读取适用的 skills.read(skillId) 指导；技能仅是操作建议，不会授予额外文件、网络或写入权限。\n\n5. 除 create_document、media.stage_image 和 activate_document 等例外外，文档写操作必须携带 documentId 和 expectedRevision；发生 conflict 时先重新读取再重试。\n\n6. 编辑 Docs 时，先读取 docs-authoring 技能。使用 docs.apply_operations 创建或修改原生标题、段落、列表和文字样式；docs.insert_content 与 docs.replace_blocks 只写入字面文本，传入 # 标题 或 **粗体** 不会创建格式。\n\n7. 编写完整结构化 Markdown 时，优先调用 markdown.set_source，以 source 传入整篇 Markdown；它会解析标题、列表、引用、表格和任务列表，并整体覆盖文档。markdown.insert_content 只追加字面文本，传入 # 标题 不会创建标题。\n\n8. Markdown 插图：先把 PNG/JPEG/GIF 写入 discovery 中的 mediaImportDirectory，再调用 media.stage_image，然后用返回的 mediaHandle 调用 markdown.insert_image。不要传任意路径、URL、base64 或图片 bytes；不要把 mediaImportDirectory 写入共享日志或云端记忆。`
+  return `请连接正在运行的 NexOffice 本地 MCP，并只操作其明确公开的工具。\n\n1. 使用以下 stdio 命令配置 MCP：\n${adapter}\n\n2. discovery 文件：${info.discoveryPath}\n其中包含本机会话 token；不要在回复、日志或仓库中泄露、复制或提交它。\n\n3. 连接后先调用 tools/list，以实时 schema 为准。不要要求用户提供 documentId：先调用 list_open_documents，根据用户所说的文档标题或当前上下文选择目标；若用户要求新建，直接调用 create_document(kind)。若有多个候选且无法判断，向用户展示标题/类型并请其选择，不要展示或索要 documentId。\n\n4. 复杂任务开始前，调用 skills.list，并按任务类型读取适用的 skills.read(skillId) 指导；技能仅是操作建议，不会授予额外文件、网络或写入权限。若用户要求创建自定义技能，调用 skills.create 并一次传入完整 Markdown，且 frontmatter 的 name 必须与参数 name 一致；不得传文件路径。更新技能前先 skills.read，再以返回的 revision 调用 skills.replace_content，发生 conflict 时重读后再试。\n\n5. 除 create_document、media.stage_image 和 activate_document 等例外外，文档写操作必须携带 documentId 和 expectedRevision；发生 conflict 时先重新读取再重试。\n\n6. 编辑 Docs 时，先读取 docs-authoring 技能。使用 docs.apply_operations 创建或修改原生标题、段落、列表和文字样式；docs.insert_content 与 docs.replace_blocks 只写入字面文本，传入 # 标题 或 **粗体** 不会创建格式。\n\n7. 编写完整结构化 Markdown 时，优先调用 markdown.set_source，以 source 传入整篇 Markdown；它会解析标题、列表、引用、表格和任务列表，并整体覆盖文档。markdown.insert_content 只追加字面文本，传入 # 标题 不会创建标题。\n\n8. Markdown 插图：先把 PNG/JPEG/GIF 写入 discovery 中的 mediaImportDirectory，再调用 media.stage_image，然后用返回的 mediaHandle 调用 markdown.insert_image。不要传任意路径、URL、base64 或图片 bytes；不要把 mediaImportDirectory 写入共享日志或云端记忆。`
 }
 
 export function SettingsModal({ onClose }: { onClose: () => void; [key: string]: unknown }) {
@@ -161,6 +161,11 @@ export function SettingsModal({ onClose }: { onClose: () => void; [key: string]:
     return () => {
       alive = false
     }
+  }, [])
+  useEffect(() => {
+    return window.aiOffice.onSkillsChanged?.(() => {
+      void window.aiOffice.listSkills?.().then((value) => setSkills(value ?? []))
+    })
   }, [])
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {

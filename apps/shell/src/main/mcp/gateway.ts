@@ -40,6 +40,38 @@ export interface McpSkillSource {
       enabled: boolean
     }
     content: string
+    revision: string
+  }>
+  createFromMcp(
+    name: string,
+    content: string,
+  ): Promise<{
+    summary: {
+      id: string
+      name: string
+      description: string
+      appliesTo: string[]
+      source: 'builtin' | 'custom'
+      enabled: boolean
+    }
+    content: string
+    revision: string
+  }>
+  replaceContent(
+    id: string,
+    expectedRevision: string,
+    content: string,
+  ): Promise<{
+    summary: {
+      id: string
+      name: string
+      description: string
+      appliesTo: string[]
+      source: 'builtin' | 'custom'
+      enabled: boolean
+    }
+    content: string
+    revision: string
   }>
 }
 
@@ -162,6 +194,35 @@ const TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
       additionalProperties: false,
       required: ['skillId'],
       properties: { skillId: { type: 'string', minLength: 1, maxLength: 64 } },
+    },
+  },
+  {
+    name: 'skills.create',
+    description:
+      'Create one enabled custom NexOffice skill from complete UTF-8 Markdown. The content frontmatter name must match name. Returns an opaque skill ID and content revision; never accepts a file path.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['name', 'content'],
+      properties: {
+        name: { type: 'string', minLength: 1, maxLength: 120 },
+        content: { type: 'string', minLength: 1, maxLength: 262144 },
+      },
+    },
+  },
+  {
+    name: 'skills.replace_content',
+    description:
+      'Replace the complete Markdown content of one custom skill. Read it first and pass its exact revision to avoid overwriting concurrent local edits.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['skillId', 'expectedRevision', 'content'],
+      properties: {
+        skillId: { type: 'string', minLength: 1, maxLength: 64 },
+        expectedRevision: { type: 'string', minLength: 64, maxLength: 64, pattern: '^[a-f0-9]{64}$' },
+        content: { type: 'string', minLength: 1, maxLength: 262144 },
+      },
     },
   },
   {
@@ -657,6 +718,36 @@ export class ShellMcpGateway implements McpBridgeGateway {
         throw new CapabilityError('validation_error', 'skills.read requires only skillId')
       const skill = await this.requireSkills().read(argumentsValue.skillId, false)
       return toolResult(JSON.stringify(skill))
+    }
+    if (name === 'skills.create') {
+      if (
+        Object.keys(argumentsValue).length !== 2 ||
+        typeof argumentsValue.name !== 'string' ||
+        typeof argumentsValue.content !== 'string'
+      ) {
+        throw new CapabilityError('validation_error', 'skills.create requires only name and content')
+      }
+      const skill = await this.requireSkills().createFromMcp(argumentsValue.name, argumentsValue.content)
+      return toolResult(JSON.stringify(skill), true)
+    }
+    if (name === 'skills.replace_content') {
+      if (
+        Object.keys(argumentsValue).length !== 3 ||
+        typeof argumentsValue.skillId !== 'string' ||
+        typeof argumentsValue.expectedRevision !== 'string' ||
+        typeof argumentsValue.content !== 'string'
+      ) {
+        throw new CapabilityError(
+          'validation_error',
+          'skills.replace_content requires only skillId, expectedRevision and content',
+        )
+      }
+      const skill = await this.requireSkills().replaceContent(
+        argumentsValue.skillId,
+        argumentsValue.expectedRevision,
+        argumentsValue.content,
+      )
+      return toolResult(JSON.stringify(skill), true)
     }
     if (name === 'create_document') {
       const kind = argumentsValue.kind

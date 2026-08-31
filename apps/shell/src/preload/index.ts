@@ -157,6 +157,11 @@ const homeApi: HomeApi = {
   async openSkillsDirectory(): Promise<void> {
     await ipcRenderer.invoke(HOME_CHANNELS.openSkillsDirectory)
   },
+  onSkillsChanged(handler) {
+    const listener = () => handler()
+    ipcRenderer.on(HOME_CHANNELS.skillsChanged, listener)
+    return () => ipcRenderer.removeListener(HOME_CHANNELS.skillsChanged, listener)
+  },
   async exportSkill(id: string): Promise<boolean> {
     if (typeof id !== 'string') throw new Error('Invalid skill ID.')
     return (await ipcRenderer.invoke(HOME_CHANNELS.exportSkill, id)) === true

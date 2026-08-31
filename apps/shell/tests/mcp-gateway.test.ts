@@ -118,6 +118,8 @@ describe('ShellMcpGateway', () => {
         expect.objectContaining({ name: 'list_open_documents' }),
         expect.objectContaining({ name: 'skills.list' }),
         expect.objectContaining({ name: 'skills.read' }),
+        expect.objectContaining({ name: 'skills.create' }),
+        expect.objectContaining({ name: 'skills.replace_content' }),
         expect.objectContaining({ name: 'create_document' }),
         expect.objectContaining({ name: 'slides.apply_ops' }),
         expect.objectContaining({ name: 'slides.render_preview' }),
@@ -163,6 +165,31 @@ describe('ShellMcpGateway', () => {
           enabled: true,
         },
         content: '# Slides guide',
+        revision: 'a'.repeat(64),
+      }),
+      createFromMcp: async (name, content) => ({
+        summary: {
+          id: 'skill-123',
+          name,
+          description: '',
+          appliesTo: [],
+          source: 'custom' as const,
+          enabled: true,
+        },
+        content,
+        revision: 'b'.repeat(64),
+      }),
+      replaceContent: async (id, _expectedRevision, content) => ({
+        summary: {
+          id,
+          name: 'Updated guide',
+          description: '',
+          appliesTo: [],
+          source: 'custom' as const,
+          enabled: true,
+        },
+        content,
+        revision: 'c'.repeat(64),
       }),
     }
     const gateway = gatewayWith(
@@ -187,6 +214,54 @@ describe('ShellMcpGateway', () => {
       content: JSON.stringify(await skills.read('slides-guide', false)),
       mutated: false,
     })
+  })
+
+  it('creates and replaces complete custom skills without accepting file paths', async () => {
+    const calls: Array<{ name: string; value: string }> = []
+    const skills: McpSkillSource = {
+      list: async () => [],
+      read: async () => {
+        throw new Error('not used')
+      },
+      createFromMcp: async (name, content) => {
+        calls.push({ name, value: content })
+        return {
+          summary: { id: 'skill-123', name, description: '', appliesTo: [], source: 'custom', enabled: true },
+          content,
+          revision: 'd'.repeat(64),
+        }
+      },
+      replaceContent: async (id, expectedRevision, content) => {
+        calls.push({ name: `${id}:${expectedRevision}`, value: content })
+        return {
+          summary: { id, name: 'Agent guide', description: '', appliesTo: [], source: 'custom', enabled: true },
+          content,
+          revision: 'e'.repeat(64),
+        }
+      },
+    }
+    const gateway = gatewayWith([target], { authorize: async () => undefined }, undefined, undefined, undefined, undefined, skills)
+    const content = '---\nname: Agent guide\n---\n\n# Agent guide'
+
+    await expect(gateway.handle(request({ name: 'skills.create', input: { name: 'Agent guide', content } }))).resolves.toMatchObject({
+      mutated: true,
+      content: expect.stringContaining('skill-123'),
+    })
+    await expect(
+      gateway.handle(
+        request({
+          name: 'skills.replace_content',
+          input: { skillId: 'skill-123', expectedRevision: 'd'.repeat(64), content },
+        }),
+      ),
+    ).resolves.toMatchObject({ mutated: true })
+    expect(calls).toEqual([
+      { name: 'Agent guide', value: content },
+      { name: `skill-123:${'d'.repeat(64)}`, value: content },
+    ])
+    await expect(
+      gateway.handle(request({ name: 'skills.create', input: { name: 'Agent guide', content, path: '/tmp/nope.md' } })),
+    ).rejects.toMatchObject({ code: 'validation_error' })
   })
 
   it('does not expose arbitrary local-file access through the MCP tool surface', async () => {

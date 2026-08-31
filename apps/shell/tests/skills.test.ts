@@ -123,4 +123,30 @@ describe('NexOfficeSkillStore', () => {
     )
     await expect(store.read('changed-id')).rejects.toMatchObject({ code: 'not_found' })
   })
+
+  it('creates and replaces complete MCP skills with content revisions', async () => {
+    const root = await temporaryDirectory('nexoffice-skills-mcp-write-')
+    const store = new NexOfficeSkillStore(join(root, 'user'), join(root, 'bundled'))
+    const initial = '---\nname: "Agent writing guide"\ndescription: Initial\nappliesTo: [markdown]\n---\n\n# Agent writing guide\n'
+    const created = await store.createFromMcp('Agent writing guide', initial)
+
+    expect(created.summary).toMatchObject({
+      id: expect.stringMatching(/^skill-[a-f0-9-]{36}$/),
+      name: 'Agent writing guide',
+      enabled: true,
+      source: 'custom',
+    })
+    expect(created.revision).toMatch(/^[a-f0-9]{64}$/)
+
+    const updatedContent = '---\nname: Agent writing guide\ndescription: Updated\nappliesTo: [docs]\n---\n\n# Agent writing guide\n\nUse native operations.\n'
+    const updated = await store.replaceContent(created.summary.id, created.revision, updatedContent)
+    expect(updated.summary).toMatchObject({ description: 'Updated', appliesTo: ['docs'] })
+    expect(updated.revision).not.toBe(created.revision)
+    await expect(store.replaceContent(created.summary.id, created.revision, updatedContent)).rejects.toMatchObject({
+      code: 'conflict',
+    })
+    await expect(
+      store.createFromMcp('Broken skill', '# Broken skill'),
+    ).rejects.toMatchObject({ code: 'validation_error' })
+  })
 })

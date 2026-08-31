@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { copyFile, lstat, mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises'
 import { basename, extname, join } from 'node:path'
 import { CapabilityError } from '@nexoffice/capabilities'
@@ -24,6 +24,12 @@ interface SkillRecord extends SkillSummary {
   path: string
 }
 
+export interface SkillContent {
+  summary: SkillSummary
+  content: string
+  revision: string
+}
+
 interface SkillState {
   version: 1
   disabled: string[]
@@ -47,6 +53,18 @@ function stringList(value: string): string[] {
   return value ? [value.trim()] : []
 }
 
+function scalarValue(value: string): string {
+  const trimmed = value.trim()
+  if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+    try {
+      const parsed: unknown = JSON.parse(trimmed)
+      if (typeof parsed === 'string') return parsed
+    } catch {}
+  }
+  if (trimmed.startsWith("'") && trimmed.endsWith("'")) return trimmed.slice(1, -1)
+  return trimmed
+}
+
 function metadata(source: string, fallbackName: string): Omit<SkillSummary, 'source' | 'enabled'> {
   const text = normalizedLineEndings(source)
   const frontmatter = text.match(/^---\n([\s\S]*?)\n---(?:\n|$)/)
@@ -58,10 +76,10 @@ function metadata(source: string, fallbackName: string): Omit<SkillSummary, 'sou
     }
   }
   const firstHeading = text.match(/^#\s+(.+)$/m)?.[1]?.trim()
-  const requestedId = values.get('id')?.trim() ?? ''
+  const requestedId = scalarValue(values.get('id') ?? '')
   const id = validId(requestedId) ? requestedId : fallbackName
-  const name = values.get('name')?.trim() || firstHeading || fallbackName
-  const description = values.get('description')?.trim() || ''
+  const name = scalarValue(values.get('name') ?? '') || firstHeading || fallbackName
+  const description = scalarValue(values.get('description') ?? '') || ''
   return {
     id,
     name: name.slice(0, 120),
@@ -87,6 +105,16 @@ function skillTemplate(name: string): string {
   return `---\nname: ${name}\ndescription: \nappliesTo: []\n---\n\n# ${name}\n\n## 何时使用\n\n<!-- 待补充：说明 AI 在何种任务中应读取此技能。 -->\n\n## 操作步骤\n\n<!-- 待补充：给出清晰、可执行的步骤。 -->\n\n## 注意事项\n\n<!-- 待补充：记录限制、安全边界或验证要求。 -->\n`
 }
 
+function revisionFor(content: string): string {
+  return createHash('sha256').update(content, 'utf8').digest('hex')
+}
+
+function declaredFrontmatterName(content: string): string | null {
+  const frontmatter = normalizedLineEndings(content).match(/^---\n([\s\S]*?)\n---(?:\n|$)/)
+  const match = frontmatter?.[1].match(/^name:\s*(.*?)\s*$/m)
+  return match?.[1] ? scalarValue(match[1]) || null : null
+}
+
 function assertMarkdown(source: Buffer, displayName: string): string {
   if (source.byteLength === 0 || source.byteLength > MAX_SKILL_BYTES)
     throw new CapabilityError(
@@ -107,6 +135,7 @@ export class NexOfficeSkillStore {
   private readonly userDirectory: string
   private readonly statePath: string
   private readonly legacyStatePath: string
+  private readonly changeListeners = new Set<() => void>()
 
   constructor(
     userDataPath: string,
@@ -128,17 +157,20 @@ export class NexOfficeSkillStore {
   async read(
     id: string,
     includeDisabled = false,
-  ): Promise<{ summary: SkillSummary; content: string }> {
+  ): Promise<SkillContent> {
     if (!validId(id)) throw new CapabilityError('validation_error', 'Invalid skill ID')
     const { records } = await this.load()
     const record = records.find(
       (candidate) => candidate.id === id && (includeDisabled || candidate.enabled),
     )
     if (!record) throw new CapabilityError('not_found', 'Skill is unavailable')
-    return {
-      summary: this.summary(record),
-      content: assertMarkdown(await readFile(record.path), record.name),
-    }
+    const content = assertMarkdown(await readFile(record.path), record.name)
+    return { summary: this.summary(record), content, revision: revisionFor(content) }
+  }
+
+  onChanged(listener: () => void): () => void {
+    this.changeListeners.add(listener)
+    return () => this.changeListeners.delete(listener)
   }
 
   async importFromPath(sourcePath: string): Promise<SkillSummary> {
@@ -164,6 +196,7 @@ export class NexOfficeSkillStore {
       enabled: !state.disabled.includes(parsed.id),
       path: destination,
     }
+    this.notifyChanged()
     return this.summary(next)
   }
 
@@ -182,6 +215,7 @@ export class NexOfficeSkillStore {
     const temp = `${path}.${randomUUID()}.tmp`
     await writeFile(temp, skillTemplate(name), { encoding: 'utf8', mode: 0o600 })
     await rename(temp, path)
+    this.notifyChanged()
     return this.summary({
       id,
       name,
@@ -223,6 +257,7 @@ export class NexOfficeSkillStore {
     if (enabled) disabled.delete(id)
     else disabled.add(id)
     await this.writeState({ version: 1, disabled: [...disabled].sort() })
+    this.notifyChanged()
   }
 
   async remove(id: string): Promise<void> {
@@ -237,6 +272,64 @@ export class NexOfficeSkillStore {
       version: 1,
       disabled: state.disabled.filter((candidate) => candidate !== id),
     })
+    this.notifyChanged()
+  }
+
+  /** Creates an enabled custom skill from complete MCP-provided Markdown. */
+  async createFromMcp(nameInput: string, contentInput: string): Promise<SkillContent> {
+    const name = validateNewSkillName(nameInput)
+    const content = this.validateMcpContent(contentInput, name)
+    const { records, state } = await this.load()
+    if (records.length >= MAX_SKILLS)
+      throw new CapabilityError('validation_error', `A maximum of ${MAX_SKILLS} skills is allowed`)
+    this.assertAvailableName(records, name)
+    const id = `skill-${randomUUID()}`
+    const path = join(this.userDirectory, `${id}.md`)
+    await this.ensureUserDirectory()
+    await this.writeContent(path, content)
+    const summary: SkillSummary = {
+      id,
+      name,
+      description: metadata(content, id).description,
+      appliesTo: metadata(content, id).appliesTo,
+      source: 'custom',
+      enabled: !state.disabled.includes(id),
+    }
+    this.notifyChanged()
+    return { summary, content, revision: revisionFor(content) }
+  }
+
+  /** Replaces one custom skill only when the caller's content revision still matches. */
+  async replaceContent(
+    id: string,
+    expectedRevision: string,
+    contentInput: string,
+  ): Promise<SkillContent> {
+    if (!validId(id)) throw new CapabilityError('validation_error', 'Invalid skill ID')
+    if (!/^[a-f0-9]{64}$/.test(expectedRevision))
+      throw new CapabilityError('validation_error', 'expectedRevision must be a SHA-256 revision')
+    const { records } = await this.load()
+    const record = records.find((candidate) => candidate.id === id)
+    if (!record || record.source !== 'custom')
+      throw new CapabilityError('not_found', 'Custom skill is unavailable')
+    const current = assertMarkdown(await readFile(record.path), record.name)
+    if (revisionFor(current) !== expectedRevision)
+      throw new CapabilityError('conflict', 'Skill changed; read it again before replacing content')
+    const candidate = this.validateMcpContent(contentInput)
+    const parsed = metadata(candidate, id)
+    const name = validateNewSkillName(parsed.name)
+    this.assertAvailableName(records.filter((item) => item.id !== id), name)
+    await this.writeContent(record.path, candidate)
+    const summary: SkillSummary = {
+      id,
+      name,
+      description: parsed.description,
+      appliesTo: parsed.appliesTo,
+      source: 'custom',
+      enabled: record.enabled,
+    }
+    this.notifyChanged()
+    return { summary, content: candidate, revision: revisionFor(candidate) }
   }
 
   async exportToPath(id: string, destination: string): Promise<void> {
@@ -306,6 +399,34 @@ export class NexOfficeSkillStore {
     const temp = `${this.statePath}.${randomUUID()}.tmp`
     await writeFile(temp, JSON.stringify(state, null, 2), { encoding: 'utf8', mode: 0o600 })
     await rename(temp, this.statePath)
+  }
+
+  private assertAvailableName(records: SkillRecord[], name: string): void {
+    if (records.some((record) => normalizedName(record.name).toLocaleLowerCase() === name.toLocaleLowerCase()))
+      throw new CapabilityError('validation_error', 'A skill with this name already exists')
+  }
+
+  private validateMcpContent(contentInput: string, expectedName?: string): string {
+    if (typeof contentInput !== 'string')
+      throw new CapabilityError('validation_error', 'content must be a UTF-8 Markdown string')
+    const content = assertMarkdown(Buffer.from(contentInput, 'utf8'), expectedName ?? 'skill')
+    const declaredName = declaredFrontmatterName(content)
+    if (!declaredName)
+      throw new CapabilityError('validation_error', 'content must include a frontmatter name')
+    const parsedName = validateNewSkillName(declaredName)
+    if (expectedName && parsedName !== expectedName)
+      throw new CapabilityError('validation_error', 'content frontmatter name must match name')
+    return content
+  }
+
+  private async writeContent(path: string, content: string): Promise<void> {
+    const temp = `${path}.${randomUUID()}.tmp`
+    await writeFile(temp, content, { encoding: 'utf8', mode: 0o600 })
+    await rename(temp, path)
+  }
+
+  private notifyChanged(): void {
+    for (const listener of this.changeListeners) listener()
   }
 
   private summary(record: SkillRecord): SkillSummary {

@@ -108,6 +108,8 @@ export interface HomeApi {
   editSkill(id: string): Promise<boolean>
   /** Reveal the directory that contains custom skills. */
   openSkillsDirectory(): Promise<void>
+  /** Subscribe to local or MCP skill changes. */
+  onSkillsChanged(handler: () => void): () => void
   /** Export one skill through a native save dialog. */
   exportSkill(id: string): Promise<boolean>
   /** Enable or disable a skill for MCP discovery. */
@@ -179,6 +181,7 @@ export interface SkillSummary {
 export interface SkillContent {
   summary: SkillSummary
   content: string
+  revision: string
 }
 
 /** 'starred' = went to GitHub or said "already starred" (never prompt again);
@@ -306,6 +309,7 @@ export const HOME_CHANNELS = {
   createSkill: 'home:skills-create',
   editSkill: 'home:skills-edit',
   openSkillsDirectory: 'home:skills-open-directory',
+  skillsChanged: 'home:skills-changed',
   exportSkill: 'home:skills-export',
   setSkillEnabled: 'home:skills-set-enabled',
   deleteSkill: 'home:skills-delete',

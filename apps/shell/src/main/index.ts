@@ -4291,6 +4291,11 @@ app.whenReady().then(async () => {
   // cross-platform event. Revalidate daily without blocking the UI thread.
   setInterval(() => void fontCatalog?.refresh(), 24 * 60 * 60 * 1000).unref()
   skillStore = new NexOfficeSkillStore(app.getPath('userData'), BUNDLED_SKILLS_PATH)
+  skillStore.onChanged(() => {
+    for (const contents of webContents.getAllWebContents()) {
+      if (!contents.isDestroyed()) contents.send(HOME_CHANNELS.skillsChanged)
+    }
+  })
   createShellWindow()
   if (tabManager) {
     try {
