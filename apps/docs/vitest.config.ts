@@ -9,11 +9,11 @@ const local = (rel: string) => fileURLToPath(new URL(rel, import.meta.url))
 export default defineConfig({
   resolve: {
     alias: {
-      '@genoffice/docx-engine': local('../../packages/docx-engine/src/index.ts'),
-      '@genoffice/font-metrics': local('../../packages/font-metrics/src/index.ts'),
-      '@genoffice/electron-utils': local('../../packages/electron-utils/src/index.ts'),
-      '@genoffice/i18n': local('../../packages/i18n/src/index.ts'),
-      '@genoffice/ui': local('../../packages/ui/src/index.ts'),
+      '@nexoffice/docx-engine': local('../../packages/docx-engine/src/index.ts'),
+      '@nexoffice/font-metrics': local('../../packages/font-metrics/src/index.ts'),
+      '@nexoffice/electron-utils': local('../../packages/electron-utils/src/index.ts'),
+      '@nexoffice/i18n': local('../../packages/i18n/src/index.ts'),
+      '@nexoffice/ui': local('../../packages/ui/src/index.ts'),
     },
   },
   test: {

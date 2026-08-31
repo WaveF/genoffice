@@ -8,13 +8,13 @@
     // node_modules would otherwise typecheck against another checkout) —
     // same mapping as packages/pdf2docx/tsconfig.json
     "paths": {
-      "@genoffice/docx-engine": ["../../packages/docx-engine/src/index.ts"],
-      "@genoffice/font-metrics": ["../../packages/font-metrics/src/index.ts"],
-      "@genoffice/electron-utils": ["../../packages/electron-utils/src/index.ts"],
-      "@genoffice/capabilities": ["../../packages/genoffice-capabilities/src/index.ts"],
-      "@genoffice/i18n": ["../../packages/i18n/src/index.ts"],
-      "@genoffice/ui": ["../../packages/ui/src/index.ts"],
-      "@genoffice/pptx-engine": ["../../packages/pptx-engine/src/index.ts"]
+      "@nexoffice/docx-engine": ["../../packages/docx-engine/src/index.ts"],
+      "@nexoffice/font-metrics": ["../../packages/font-metrics/src/index.ts"],
+      "@nexoffice/electron-utils": ["../../packages/electron-utils/src/index.ts"],
+      "@nexoffice/capabilities": ["../../packages/nexoffice-capabilities/src/index.ts"],
+      "@nexoffice/i18n": ["../../packages/i18n/src/index.ts"],
+      "@nexoffice/ui": ["../../packages/ui/src/index.ts"],
+      "@nexoffice/pptx-engine": ["../../packages/pptx-engine/src/index.ts"]
     }
   },
   "include": [

@@ -1,4 +1,4 @@
-import { CapabilityError } from '@genoffice/capabilities'
+import { CapabilityError } from '@nexoffice/capabilities'
 
 const MAX_INPUT_BYTES = 256 * 1024
 const MAX_DEPTH = 12
@@ -7,7 +7,8 @@ const MAX_OBJECT_KEYS = 100
 const MAX_STRING_BYTES = 64 * 1024
 
 function inspect(value: unknown, depth: number): void {
-  if (depth > MAX_DEPTH) throw new CapabilityError('validation_error', 'MCP input nesting is too deep')
+  if (depth > MAX_DEPTH)
+    throw new CapabilityError('validation_error', 'MCP input nesting is too deep')
   if (typeof value === 'string') {
     if (Buffer.byteLength(value, 'utf8') > MAX_STRING_BYTES) {
       throw new CapabilityError('validation_error', 'MCP input string is too large')

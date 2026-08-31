@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { Editor } from '@tiptap/core'
-import { buildBlankDocx, parseDocx, saveDocx } from '@genoffice/docx-engine'
+import { buildBlankDocx, parseDocx, saveDocx } from '@nexoffice/docx-engine'
 import { handleDocsMcpRequest } from '../src/renderer/mcp-adapter'
 import { blocksToPmDoc, pmDocToSavePlan, type PmNode } from '../src/renderer/editor/convert'
 import { editorExtensions } from '../src/renderer/editor/extensions'

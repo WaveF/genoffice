@@ -6,7 +6,7 @@ import { FileMcpAuditLogger } from '../src/main/mcp/audit'
 
 describe('FileMcpAuditLogger', () => {
   it('records metadata only, without document content or arbitrary inputs', async () => {
-    const userDataPath = await mkdtemp(join(tmpdir(), 'genoffice-mcp-audit-'))
+    const userDataPath = await mkdtemp(join(tmpdir(), 'nexoffice-mcp-audit-'))
     const logger = new FileMcpAuditLogger(userDataPath)
     await logger.record({
       at: '2026-08-25T00:00:00.000Z',
@@ -26,7 +26,7 @@ describe('FileMcpAuditLogger', () => {
   })
 
   it('rotates an oversized log before appending', async () => {
-    const userDataPath = await mkdtemp(join(tmpdir(), 'genoffice-mcp-audit-'))
+    const userDataPath = await mkdtemp(join(tmpdir(), 'nexoffice-mcp-audit-'))
     const auditDir = join(userDataPath, 'mcp')
     await mkdir(auditDir)
     await writeFile(join(auditDir, 'audit.jsonl'), 'x'.repeat(1024 * 1024))

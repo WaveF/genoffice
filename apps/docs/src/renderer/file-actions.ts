@@ -35,7 +35,7 @@ import {
   type ThemeColors,
   type ThemeFonts,
   type WriteProtection,
-} from '@genoffice/docx-engine'
+} from '@nexoffice/docx-engine'
 import type { Dispatch, SetStateAction } from 'react'
 import type { OpenDocxResult } from '../shared/ipc'
 import {

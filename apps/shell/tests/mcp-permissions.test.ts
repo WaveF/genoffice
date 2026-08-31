@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { DocumentTarget } from '@genoffice/capabilities'
+import type { DocumentTarget } from '@nexoffice/capabilities'
 
 import { AuthenticatedMcpPermissionGate } from '../src/main/mcp/permissions'
 

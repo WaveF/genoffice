@@ -23,7 +23,7 @@
  *   - space-before/space-after keep their face value (Word does not grid-snap them)
  */
 
-import type { DocGrid } from '@genoffice/docx-engine'
+import type { DocGrid } from '@nexoffice/docx-engine'
 
 // ─── Font metrics interface (same interface as pptx-render/metrics.ts) ─────
 
@@ -118,7 +118,7 @@ export class HeuristicMetrics implements FontMetricsProvider {
 
 /** Korean font names (Windows/Noto/Source Han/Nanum faces + bundled subsets) */
 const KO_FONT_RE =
-  /malgun|맑은|batang|바탕|myeongjo|myungjo|명조|gungsuh|궁서|gulim|굴림|dotum|돋움|nanum|나눔|genoffice (sans|serif) kr|(noto|source han) (sans|serif)[^,]*\bk(r|orean)?\b/i
+  /malgun|맑은|batang|바탕|myeongjo|myungjo|명조|gungsuh|궁서|gulim|굴림|dotum|돋움|nanum|나눔|nexoffice (sans|serif) kr|(noto|source han) (sans|serif)[^,]*\bk(r|orean)?\b/i
 
 /**
  * Per-font single-spacing line-height factor. Re-baselined against Word for
@@ -451,12 +451,12 @@ export function computeLineHeight(
 export const BUNDLED_FONTS = new Set([
   'Noto Sans CJK SC',
   'Noto Serif CJK SC',
-  'GenOffice Sans KR',
-  'GenOffice Serif KR',
-  'GenOffice Gothic KR',
-  'GenOffice Tamil',
-  'GenOffice Fullwidth TC',
-  'GenOffice Songti SC',
+  'NexOffice Sans KR',
+  'NexOffice Serif KR',
+  'NexOffice Gothic KR',
+  'NexOffice Tamil',
+  'NexOffice Fullwidth TC',
+  'NexOffice Songti SC',
   'Carlito GO',
   'Caladea',
   'Liberation Serif',
@@ -553,16 +553,16 @@ export function cssFontFamily(font: string, followAltName = true): string {
   // CJK fallback at chain end (GB2312 subset bundled in fonts.css): no tofu even without system Chinese fonts
   const CJK_SERIF = 'Noto Serif CJK SC'
   const CJK_SANS = 'Noto Sans CJK SC'
-  // 'GenOffice Box Drawing' (fonts.css): U+2500 rules would otherwise fall to
+  // 'NexOffice Box Drawing' (fonts.css): U+2500 rules would otherwise fall to
   // the fullwidth CJK subset and overflow the column
-  const BOX = 'GenOffice Box Drawing'
+  const BOX = 'NexOffice Box Drawing'
   if (f.includes('calibri')) return `${chain(font, 'Carlito GO', CJK_SANS)},sans-serif`
   // Aptos (M365 cloud face, never installed locally): Word probe 2026-08-22 —
   // line metrics equal Calibri's exactly, so it takes the Calibri chain.
-  // 'GenOffice PUA Blank' keeps AI-residue PUA tokens invisible like Word
+  // 'NexOffice PUA Blank' keeps AI-residue PUA tokens invisible like Word
   // (Calibri/Carlito would otherwise supply a box .notdef for them).
   if (f.includes('aptos')) {
-    return `${chain(font, 'Calibri', 'Carlito GO', 'GenOffice PUA Blank', CJK_SANS)},sans-serif`
+    return `${chain(font, 'Calibri', 'Carlito GO', 'NexOffice PUA Blank', CJK_SANS)},sans-serif`
   }
   // math faces would fall to the unknown-name sans fallback; STIX Two Math ships with macOS,
   // and on Windows the declared name resolves natively
@@ -596,11 +596,11 @@ export function cssFontFamily(font: string, followAltName = true): string {
     ((f.includes('楷体') || f.includes('kaiti')) && /gb2312|gbk/.test(f))
   )
     return `${chain(font, 'Microsoft YaHei', 'PingFang SC', CJK_SANS)},sans-serif`
-  // 'GenOffice Songti SC' (fonts.css local() alias of Songti SC): macOS Chromium
+  // 'NexOffice Songti SC' (fonts.css local() alias of Songti SC): macOS Chromium
   // refuses synthetic bold for 'Songti SC' by name at weight 600/700; the alias,
   // registered weight-normal only, lets Blink synthesize. Unresolvable elsewhere.
   if (f.includes('simsun') || f.includes('宋体') || f.includes('nsimsun')) {
-    return `${chain(font, 'GenOffice Songti SC', 'STSong', 'SimSun', CJK_SERIF)},serif`
+    return `${chain(font, 'NexOffice Songti SC', 'STSong', 'SimSun', CJK_SERIF)},serif`
   }
   if (f.includes('simhei') || f.includes('黑体') || f.includes('细黑') || f.includes('xihei'))
     return `${chain(font, 'Heiti SC', 'STHeiti', 'SimHei', 'PingFang SC', CJK_SANS)},sans-serif`
@@ -615,22 +615,22 @@ export function cssFontFamily(font: string, followAltName = true): string {
   if (f.includes('隶书') || f.includes('lisu'))
     return `${chain(font, 'Baoli SC', 'LiSu', CJK_SERIF)},serif`
   // Japanese/Korean/Traditional Chinese: fall back within the same script (win/mac family names as mutual backups) so Han glyphs don't render with Simplified forms.
-  // 'GenOffice *' entries are CJK-only local() aliases (fonts.css): the underlying
+  // 'NexOffice *' entries are CJK-only local() aliases (fonts.css): the underlying
   // system faces draw Cyrillic/Greek fullwidth, so those scripts must pass through
-  const JA_SANS = ['Yu Gothic', 'GenOffice Hiragino Sans', 'Meiryo', 'Noto Sans JP']
+  const JA_SANS = ['Yu Gothic', 'NexOffice Hiragino Sans', 'Meiryo', 'Noto Sans JP']
   const JA_SERIF = [
     'Yu Mincho',
-    'GenOffice Hiragino Mincho',
-    'GenOffice MS Mincho',
+    'NexOffice Hiragino Mincho',
+    'NexOffice MS Mincho',
     'Noto Serif JP',
   ]
-  const KO_SANS = ['Malgun Gothic', 'GenOffice Sans KR', 'Apple SD Gothic Neo', 'Noto Sans KR']
-  const KO_SERIF = ['GenOffice Batang', 'GenOffice Serif KR', 'GenOffice Myungjo', 'Noto Serif KR']
-  const TC_SANS = ['Microsoft JhengHei', 'PingFang TC', 'GenOffice Heiti TC', 'Noto Sans TC']
-  // 'GenOffice Fullwidth TC' (fonts.css): fullwidth U+FF0D/FF0F/FF3C/FF3F/FF5E whose Songti TC glyphs look half-width
-  const TC_SERIF = ['GenOffice MingLiU', 'GenOffice Fullwidth TC', 'Songti TC', 'Noto Serif TC']
+  const KO_SANS = ['Malgun Gothic', 'NexOffice Sans KR', 'Apple SD Gothic Neo', 'Noto Sans KR']
+  const KO_SERIF = ['NexOffice Batang', 'NexOffice Serif KR', 'NexOffice Myungjo', 'Noto Serif KR']
+  const TC_SANS = ['Microsoft JhengHei', 'PingFang TC', 'NexOffice Heiti TC', 'Noto Sans TC']
+  // 'NexOffice Fullwidth TC' (fonts.css): fullwidth U+FF0D/FF0F/FF3C/FF3F/FF5E whose Songti TC glyphs look half-width
+  const TC_SERIF = ['NexOffice MingLiU', 'NexOffice Fullwidth TC', 'Songti TC', 'Noto Serif TC']
   const SC_SANS = ['PingFang SC', 'Microsoft YaHei', CJK_SANS]
-  const SC_SERIF = ['GenOffice Songti SC', 'STSong', 'SimSun', CJK_SERIF]
+  const SC_SERIF = ['NexOffice Songti SC', 'STSong', 'SimSun', CJK_SERIF]
   const nfkc = font.normalize('NFKC')
   // Arabic: bundled Noto subsets stand in for missing fonts; Chromium's silent
   // fallback is a Geeza Pro-style UI face, larger and heavier than the naskh
@@ -737,7 +737,7 @@ export function cssFontFamily(font: string, followAltName = true): string {
     // real-metric subset leads the sans chain instead of the Batang-ward
     // substitution. Installed Nanum still resolves at the literal head.
     if (/nanum ?gothic|나눔 ?고딕/i.test(nfkc)) {
-      return `${chain(font, 'GenOffice Gothic KR', ...KO_SANS)},sans-serif`
+      return `${chain(font, 'NexOffice Gothic KR', ...KO_SANS)},sans-serif`
     }
     // -Che fixed-pitch faces render real in Word with half-width Latin
     // (0.5em fixed, probe 2026-08-24); ASCII rides the bundled Che face,
@@ -746,7 +746,7 @@ export function cssFontFamily(font: string, followAltName = true): string {
     if (/(?:batang|gulim|dotum|gungsuh) ?che\b|(?:바탕|굴림|돋움|궁서)체/i.test(nfkc)) {
       const cheGungsuh = /gungsuh|궁서/i.test(nfkc)
       const cheSerif = cheGungsuh || /batang|바탕/i.test(nfkc)
-      return `${chain(font, 'GenOffice Che Latin KR', ...(cheGungsuh ? ['GungSeo'] : []), ...(cheSerif ? KO_SERIF : KO_SANS))},${cheSerif ? 'serif' : 'sans-serif'}`
+      return `${chain(font, 'NexOffice Che Latin KR', ...(cheGungsuh ? ['GungSeo'] : []), ...(cheSerif ? KO_SERIF : KO_SANS))},${cheSerif ? 'serif' : 'sans-serif'}`
     }
     // Gungsuh ships with Office (batang.ttc) and Word renders it real; its
     // Latin is typewriter-slab at ~0.58em advances — Courier New is the
@@ -776,14 +776,14 @@ export function cssFontFamily(font: string, followAltName = true): string {
   // Kefa alias (fonts.css) re-centers Chromium's ~1.35x-wide Kefa fallback. On
   // Windows the declared name resolves natively ahead of the alias.
   if (/nyala|ebrima|abyssinica|ethiopic/i.test(nfkc)) {
-    return `${chain(font, 'GenOffice Ethiopic')},sans-serif`
+    return `${chain(font, 'NexOffice Ethiopic')},sans-serif`
   }
   // Tamil: Word substitutes missing Tamil families with Latha; the bundled
   // Latha-metric face (fonts.css) keeps line breaks aligned. On Windows the
   // declared name resolves natively ahead of it; macOS system faces stay as
   // coverage tails (the subset ships no Latin letters).
   if (/tamil|latha|vijaya|inaimathi/i.test(nfkc)) {
-    return `${chain(font, 'GenOffice Tamil', 'InaiMathi', 'Tamil MN', 'Tamil Sangam MN')},sans-serif`
+    return `${chain(font, 'NexOffice Tamil', 'InaiMathi', 'Tamil MN', 'Tamil Sangam MN')},sans-serif`
   }
   // unknown missing font with a fontTable altName: Word substitutes the alias
   // wholesale, so the alias's whole chain follows the declared head. Hei-class
@@ -812,7 +812,7 @@ export function cssFontFamily(font: string, followAltName = true): string {
       : CJK_SANS
   // the GO aliases exclude PUA, so the blank face keeps those codepoints
   // invisible (the full subsets' blank .notdef used to catch them)
-  const pua = latinNamed ? ['GenOffice PUA Blank'] : []
+  const pua = latinNamed ? ['NexOffice PUA Blank'] : []
   return `${chain(font, tail, ...pua)},${serifLike ? 'serif' : 'sans-serif'}`
 }
 

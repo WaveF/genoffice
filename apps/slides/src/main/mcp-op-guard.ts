@@ -1,5 +1,5 @@
 import { opNames, type Op } from './ops'
-import type { ToolRisk } from '@genoffice/capabilities'
+import type { ToolRisk } from '@nexoffice/capabilities'
 
 const MAX_MCP_OPS = 50
 const MAX_MCP_OP_BYTES = 200 * 1024

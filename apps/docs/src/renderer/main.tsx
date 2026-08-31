@@ -1,15 +1,15 @@
 import { createRoot } from 'react-dom/client'
-import { htmlLang, type Lang } from '@genoffice/i18n'
+import { htmlLang, type Lang } from '@nexoffice/i18n'
 import { App } from './App'
 import { LocaleProvider, setModuleLang } from './i18n/locale'
 import type { UiTheme } from '../shared/ipc'
-import '@genoffice/ui/tokens.css'
-import '@genoffice/ui/screentip.css'
-import '@genoffice/ui/color-picker.css'
-import '@genoffice/ui/dropdown.css'
+import '@nexoffice/ui/tokens.css'
+import '@nexoffice/ui/screentip.css'
+import '@nexoffice/ui/color-picker.css'
+import '@nexoffice/ui/dropdown.css'
 import './styles.css'
 import './fonts/fonts.css'
-import { installScreenTips } from '@genoffice/ui'
+import { installScreenTips } from '@nexoffice/ui'
 
 installScreenTips()
 

@@ -1,15 +1,15 @@
-# 外部 AI 通过 MCP 控制 GenOffice：改造方案
+# 外部 AI 通过 MCP 控制 NexOffice：改造方案
 
 ## 1. 目标与边界
 
-将 GenOffice 从“应用内置模型、对话面板和 AgentLoop 驱动编辑”改为“外部 AI 客户端通过 MCP 调用 GenOffice 的编辑能力”。GenOffice 仍是文档状态、文件访问、渲染和保存的唯一权威；外部 AI 只负责理解用户意图、规划和调用工具。
+将 NexOffice 从“应用内置模型、对话面板和 AgentLoop 驱动编辑”改为“外部 AI 客户端通过 MCP 调用 NexOffice 的编辑能力”。NexOffice 仍是文档状态、文件访问、渲染和保存的唯一权威；外部 AI 只负责理解用户意图、规划和调用工具。
 
 本方案目标：
 
 - 删除所有编辑器中的内置 AI 对话 UI 与模型调用链。
 - 将文档读取、编辑、撤销、保存等能力以受控 MCP tools 暴露给外部 AI。
 - 不降低 Electron sandbox、IPC 校验、文件访问限制和人工编辑的安全性。
-- 允许一个正在运行的 GenOffice 实例被本机多个外部 AI 客户端发现和控制。
+- 允许一个正在运行的 NexOffice 实例被本机多个外部 AI 客户端发现和控制。
 
 非目标：
 
@@ -34,10 +34,10 @@
 外部 AI 客户端（Claude Desktop / Codex / 自建 Agent）
   │ MCP stdio
   ▼
-genoffice-mcp CLI adapter
+nexoffice-mcp CLI adapter
   │ 本机认证的 Unix domain socket / Windows named pipe
   ▼
-GenOffice Shell main process
+NexOffice Shell main process
   ├─ MCP gateway：认证、权限、会话、目标 Tab 路由、审计
   ├─ main-side document adapters（优先 Slides）
   └─ renderer bridge（Docs / Markdown / Sheets / PDF）
@@ -48,7 +48,7 @@ GenOffice Shell main process
 
 ### 3.1 传输决策
 
-首选“独立 stdio adapter + 应用内本地 socket bridge”。大多数 MCP 客户端天然支持启动 stdio 命令；而 GenOffice 已经运行时，真正的文档状态在其 Electron main/renderer 进程中，不能由外部 client 启动的独立进程直接持有。
+首选“独立 stdio adapter + 应用内本地 socket bridge”。大多数 MCP 客户端天然支持启动 stdio 命令；而 NexOffice 已经运行时，真正的文档状态在其 Electron main/renderer 进程中，不能由外部 client 启动的独立进程直接持有。
 
 本地 socket 必须：
 
@@ -61,7 +61,7 @@ GenOffice Shell main process
 
 ### 3.2 Capability 层重构
 
-新增与模型无关的接口（建议放入 `packages/genoffice-capabilities`）：
+新增与模型无关的接口（建议放入 `packages/nexoffice-capabilities`）：
 
 ```ts
 interface CapabilityTool {
@@ -160,7 +160,7 @@ MCP server 必须视外部 AI 为不可信调用方，包括它传来的文档�
 5. 删除 `ai:stream`、`ai:chat`、provider settings、Genspark 登录及云搜索/图像生成 IPC。
 6. 清理 `packages/agent-core`、`packages/ai-provider` 与仅用于聊天的 `project-store` 数据模型；保留项目/文件管理部分。
 
-若仍需要“搜索图片”或“生成图片”，应将它们改为外部 AI 自己的能力；GenOffice 仅保留受控的 `insert_image` / `add_media` 工具。
+若仍需要“搜索图片”或“生成图片”，应将它们改为外部 AI 自己的能力；NexOffice 仅保留受控的 `insert_image` / `add_media` 工具。
 
 ## 8. 交付阶段与验收标准
 
@@ -195,8 +195,8 @@ MCP server 必须视外部 AI 为不可信调用方，包括它传来的文档�
 ## 9. 关键代码落点
 
 - Shell gateway：`apps/shell/src/main/mcp/`（新建）
-- MCP adapter：`packages/genoffice-mcp/`（新建可执行包）
-- 共享能力协议：`packages/genoffice-capabilities/`（新建）
+- MCP adapter：`packages/nexoffice-mcp/`（新建可执行包）
+- 共享能力协议：`packages/nexoffice-capabilities/`（新建）
 - Tab/document 路由：`apps/shell/src/main/tab-manager.ts`
 - Slides main-side adapter：`apps/slides/src/main/ops/` 与 `apps/slides/src/main/session-state.ts`
 - Docs/Markdown renderer bridge：各自 `src/renderer/ai/tools.ts` 的能力逻辑迁移到 `src/renderer/capabilities/`

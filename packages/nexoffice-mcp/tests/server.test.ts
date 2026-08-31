@@ -1,6 +1,6 @@
 import { PassThrough } from 'node:stream'
 import { describe, expect, it } from 'vitest'
-import { CapabilityError } from '@genoffice/capabilities'
+import { CapabilityError } from '@nexoffice/capabilities'
 import { StdioMcpServer } from '../src/server'
 
 const tick = () => new Promise((resolve) => setImmediate(resolve))

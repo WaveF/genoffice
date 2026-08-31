@@ -5,7 +5,7 @@ import { join, resolve } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { closeAndSaveVideo, launchShell, waitForPageWithUrl } from './helpers'
 
-const MCP_ADAPTER = resolve(__dirname, '../packages/genoffice-mcp/dist/genoffice-mcp.mjs')
+const MCP_ADAPTER = resolve(__dirname, '../packages/nexoffice-mcp/dist/nexoffice-mcp.mjs')
 const PNG_1PX = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
   'base64',
@@ -131,7 +131,7 @@ async function waitForDocumentRevision(
 
 test.describe('MCP stdio adapter + Shell bridge', () => {
   test('runs the complete Slides MCP flow against an inactive document through the real local bridge', async () => {
-    const saveDir = await mkdtemp(join(tmpdir(), 'genoffice-mcp-slides-save-'))
+    const saveDir = await mkdtemp(join(tmpdir(), 'nexoffice-mcp-slides-save-'))
     const launched = await launchShell({
       onboardingSeen: true,
       defaultSaveDir: saveDir,
@@ -146,9 +146,9 @@ test.describe('MCP stdio adapter + Shell bridge', () => {
 
       const initialized = await client.request('initialize', {
         protocolVersion: '2025-06-18',
-        clientInfo: { name: 'genoffice-e2e' },
+        clientInfo: { name: 'nexoffice-e2e' },
       })
-      expect(initialized.result).toMatchObject({ serverInfo: { name: 'GenOffice' } })
+      expect(initialized.result).toMatchObject({ serverInfo: { name: 'NexOffice' } })
 
       const tools = await client.request('tools/list', {})
       expect(tools.result).toMatchObject({
@@ -227,9 +227,9 @@ test.describe('MCP stdio adapter + Shell bridge', () => {
       competingClient = new StdioMcpClient(discoveryPath)
       const competingInitialized = await competingClient.request('initialize', {
         protocolVersion: '2025-06-18',
-        clientInfo: { name: 'genoffice-e2e-competing-client' },
+        clientInfo: { name: 'nexoffice-e2e-competing-client' },
       })
-      expect(competingInitialized.result).toMatchObject({ serverInfo: { name: 'GenOffice' } })
+      expect(competingInitialized.result).toMatchObject({ serverInfo: { name: 'NexOffice' } })
 
       const addSlideRequest = {
         name: 'slides.add_slide',
@@ -298,7 +298,7 @@ test.describe('MCP stdio adapter + Shell bridge', () => {
   })
 
   test('routes each other declared document type through the real stdio adapter', async () => {
-    const saveDir = await mkdtemp(join(tmpdir(), 'genoffice-mcp-documents-save-'))
+    const saveDir = await mkdtemp(join(tmpdir(), 'nexoffice-mcp-documents-save-'))
     const launched = await launchShell({
       onboardingSeen: true,
       defaultSaveDir: saveDir,
@@ -315,7 +315,7 @@ test.describe('MCP stdio adapter + Shell bridge', () => {
       client = new StdioMcpClient(discoveryPath)
       await client.request('initialize', {
         protocolVersion: '2025-06-18',
-        clientInfo: { name: 'genoffice-e2e-document-types' },
+        clientInfo: { name: 'nexoffice-e2e-document-types' },
       })
 
       const checks = [
@@ -382,7 +382,7 @@ test.describe('MCP stdio adapter + Shell bridge', () => {
       client = new StdioMcpClient(discoveryPath)
       await client.request('initialize', {
         protocolVersion: '2025-06-18',
-        clientInfo: { name: 'genoffice-e2e-docs-write' },
+        clientInfo: { name: 'nexoffice-e2e-docs-write' },
       })
       const created = JSON.parse(
         resultText(
@@ -473,7 +473,7 @@ test.describe('MCP stdio adapter + Shell bridge', () => {
       client = new StdioMcpClient(discoveryPath)
       await client.request('initialize', {
         protocolVersion: '2025-06-18',
-        clientInfo: { name: 'genoffice-e2e-markdown-write' },
+        clientInfo: { name: 'nexoffice-e2e-markdown-write' },
       })
       const created = JSON.parse(
         resultText(
@@ -551,7 +551,7 @@ test.describe('MCP stdio adapter + Shell bridge', () => {
   })
 
   test('replaces complete Markdown source through the real bridge and preserves it after save/reload', async () => {
-    const saveDir = await mkdtemp(join(tmpdir(), 'genoffice-mcp-markdown-source-save-'))
+    const saveDir = await mkdtemp(join(tmpdir(), 'nexoffice-mcp-markdown-source-save-'))
     const launched = await launchShell({
       onboardingSeen: true,
       defaultSaveDir: saveDir,
@@ -564,7 +564,7 @@ test.describe('MCP stdio adapter + Shell bridge', () => {
       client = new StdioMcpClient(discoveryPath)
       await client.request('initialize', {
         protocolVersion: '2025-06-18',
-        clientInfo: { name: 'genoffice-e2e-markdown-source' },
+        clientInfo: { name: 'nexoffice-e2e-markdown-source' },
       })
       const created = JSON.parse(
         resultText(
@@ -601,7 +601,11 @@ test.describe('MCP stdio adapter + Shell bridge', () => {
 
       const stale = await client.request('tools/call', {
         name: 'markdown.set_source',
-        arguments: { documentId: created.documentId, expectedRevision: initial.revision, source: '# stale' },
+        arguments: {
+          documentId: created.documentId,
+          expectedRevision: initial.revision,
+          source: '# stale',
+        },
       })
       expect(stale.result).toMatchObject({ isError: true })
       expect(JSON.parse(resultText(stale))).toMatchObject({ code: 'conflict' })
@@ -697,7 +701,7 @@ test.describe('MCP stdio adapter + Shell bridge', () => {
   })
 
   test('imports one staged image into Markdown owned assets through the real bridge', async () => {
-    const saveDir = await mkdtemp(join(tmpdir(), 'genoffice-mcp-markdown-media-save-'))
+    const saveDir = await mkdtemp(join(tmpdir(), 'nexoffice-mcp-markdown-media-save-'))
     const launched = await launchShell({
       onboardingSeen: true,
       defaultSaveDir: saveDir,
@@ -718,7 +722,7 @@ test.describe('MCP stdio adapter + Shell bridge', () => {
       client = new StdioMcpClient(discoveryPath)
       await client.request('initialize', {
         protocolVersion: '2025-06-18',
-        clientInfo: { name: 'genoffice-e2e-markdown-media' },
+        clientInfo: { name: 'nexoffice-e2e-markdown-media' },
       })
       const staged = JSON.parse(
         resultText(

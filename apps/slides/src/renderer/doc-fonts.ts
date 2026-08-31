@@ -11,23 +11,23 @@ const requested = new Set<string>()
 declare global {
   interface Window {
     /** Set after each private-font sync completes; the fidelity harness waits on it before screenshots. */
-    __genofficeDocFontsSynced?: boolean
+    __nexofficeDocFontsSynced?: boolean
   }
 }
 
 /** Fetch and register any private faces not yet requested. Safe to call often (idempotent). */
 export async function syncPrivateFonts(): Promise<void> {
-  window.__genofficeDocFontsSynced = false
+  window.__nexofficeDocFontsSynced = false
   let faces: Array<{ id: string; family: string; bold: boolean; italic: boolean }>
   try {
     faces = await window.slidesApi.privateFontFaces()
   } catch {
-    window.__genofficeDocFontsSynced = true
+    window.__nexofficeDocFontsSynced = true
     return
   }
   // Test harnesses stub the bridge with null results
   if (!Array.isArray(faces)) {
-    window.__genofficeDocFontsSynced = true
+    window.__nexofficeDocFontsSynced = true
     return
   }
   const added = await Promise.all(
@@ -55,5 +55,5 @@ export async function syncPrivateFonts(): Promise<void> {
   // enters the loading state and never emits a real 'loadingdone' — canvases already
   // rastered with a fallback face would keep the stale pixels. Fire it by hand.
   if (added.some(Boolean)) document.fonts.dispatchEvent(new Event('loadingdone'))
-  window.__genofficeDocFontsSynced = true
+  window.__nexofficeDocFontsSynced = true
 }

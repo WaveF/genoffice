@@ -6,8 +6,8 @@ import { StdioMcpServer } from './server'
 function discoveryPath(argv: readonly string[], env: NodeJS.ProcessEnv): string {
   const at = argv.indexOf('--discovery')
   if (at >= 0 && argv[at + 1]) return argv[at + 1]!
-  if (env.GENOFFICE_MCP_DISCOVERY_PATH) return env.GENOFFICE_MCP_DISCOVERY_PATH
-  throw new Error('Set GENOFFICE_MCP_DISCOVERY_PATH or pass --discovery <path>')
+  if (env.NEXOFFICE_MCP_DISCOVERY_PATH) return env.NEXOFFICE_MCP_DISCOVERY_PATH
+  throw new Error('Set NEXOFFICE_MCP_DISCOVERY_PATH or pass --discovery <path>')
 }
 
 export async function runMcpCli(argv = process.argv.slice(2), env = process.env): Promise<void> {
@@ -31,7 +31,7 @@ const invokedPath = process.argv[1]
 if (invokedPath && fileURLToPath(import.meta.url) === invokedPath) {
   runMcpCli().catch((error: unknown) => {
     const message = error instanceof Error ? error.message : String(error)
-    process.stderr.write(`genoffice-mcp: ${message}\n`)
+    process.stderr.write(`nexoffice-mcp: ${message}\n`)
     process.exitCode = 1
   })
 }

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { copyFile, lstat, mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises'
 import { basename, extname, join } from 'node:path'
-import { CapabilityError } from '@genoffice/capabilities'
+import { CapabilityError } from '@nexoffice/capabilities'
 
 const MAX_SKILL_BYTES = 256 * 1024
 const MAX_SKILLS = 100
@@ -85,7 +85,7 @@ function assertMarkdown(source: Buffer, displayName: string): string {
  * Owns single-file Markdown skills. Imported files are copied into userData;
  * neither the renderer nor MCP clients receive the directory or source path.
  */
-export class GenOfficeSkillStore {
+export class NexOfficeSkillStore {
   private readonly userDirectory: string
   private readonly statePath: string
 
@@ -211,7 +211,7 @@ export class GenOfficeSkillStore {
         if (!validId(parsed.id)) continue
         records.push({ ...parsed, source, enabled: !disabled.has(parsed.id), path })
       } catch {
-        // One malformed optional skill must never prevent GenOffice from starting.
+        // One malformed optional skill must never prevent NexOffice from starting.
       }
     }
     return records

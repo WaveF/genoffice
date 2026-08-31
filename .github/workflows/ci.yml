@@ -109,8 +109,8 @@ jobs:
       # leave every untouched package entry byte-identical (fails closed otherwise).
       - name: Sheets compatibility gate
         run: |
-          npm run fixtures -w @genoffice/sheets
-          npm run compat -w @genoffice/sheets
+          npm run fixtures -w @nexoffice/sheets
+          npm run compat -w @nexoffice/sheets
 
   e2e:
     # 22.04, not -latest: 24.04's AppArmor hardening blocks Electron renderer
@@ -145,7 +145,7 @@ jobs:
         run: npm run build:all
 
       - name: Generate sheets fixtures
-        run: npm run fixtures -w @genoffice/sheets
+        run: npm run fixtures -w @nexoffice/sheets
 
       # Newer Ubuntu kernels ship an AppArmor policy that blocks unprivileged
       # user namespaces, which kills the Chromium zygote even with --no-sandbox
@@ -229,9 +229,9 @@ jobs:
         shell: bash
         run: |
           case "${{ matrix.target }}" in
-            mac) test -f apps/shell/release/mac-arm64/GenOffice.app/Contents/Resources/mcp/genoffice-mcp.mjs ;;
-            win) find apps/shell/release -type f -path '*resources/mcp/genoffice-mcp.mjs' -print -quit | grep -q . ;;
-            linux) find apps/shell/release -type f -path '*resources/mcp/genoffice-mcp.mjs' -print -quit | grep -q . ;;
+            mac) test -f apps/shell/release/mac-arm64/NexOffice.app/Contents/Resources/mcp/nexoffice-mcp.mjs ;;
+            win) find apps/shell/release -type f -path '*resources/mcp/nexoffice-mcp.mjs' -print -quit | grep -q . ;;
+            linux) find apps/shell/release -type f -path '*resources/mcp/nexoffice-mcp.mjs' -print -quit | grep -q . ;;
           esac
 
       - name: Run packaged Shell MCP smoke

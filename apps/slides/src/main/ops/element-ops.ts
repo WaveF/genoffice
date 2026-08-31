@@ -30,7 +30,7 @@ import {
   type EmuRect,
   type ReorderDirection,
   type SlideElement,
-} from '@genoffice/pptx-engine'
+} from '@nexoffice/pptx-engine'
 import {
   GuidedError,
   matchesElementRef,

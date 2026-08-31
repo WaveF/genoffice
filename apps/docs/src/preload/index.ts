@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { IpcRendererEvent } from 'electron'
 import type { DesktopApi, MenuCommand, UiTheme } from '../shared/ipc'
-import type { ProjectApi } from '@genoffice/project-store'
+import type { ProjectApi } from '@nexoffice/project-store'
 
 type DocsMcpRequest = {
   requestId: string

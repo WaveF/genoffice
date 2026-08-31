@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Launch a packaged GenOffice build and verify its bundled MCP adapter can
+// Launch a packaged NexOffice build and verify its bundled MCP adapter can
 // reach the live local bridge. Linux callers must provide an X display.
 import { existsSync } from 'node:fs'
 import { mkdtemp, rm, stat } from 'node:fs/promises'
@@ -30,25 +30,25 @@ const layouts = {
       'shell',
       'release',
       'mac-arm64',
-      'GenOffice.app',
+      'NexOffice.app',
       'Contents',
       'MacOS',
-      'GenOffice',
+      'NexOffice',
     ),
     adapter: join(
       'apps',
       'shell',
       'release',
       'mac-arm64',
-      'GenOffice.app',
+      'NexOffice.app',
       'Contents',
       'Resources',
       'mcp',
-      'genoffice-mcp.mjs',
+      'nexoffice-mcp.mjs',
     ),
   },
   win: {
-    app: join('apps', 'shell', 'release', 'win-unpacked', 'GenOffice.exe'),
+    app: join('apps', 'shell', 'release', 'win-unpacked', 'NexOffice.exe'),
     adapter: join(
       'apps',
       'shell',
@@ -56,11 +56,11 @@ const layouts = {
       'win-unpacked',
       'resources',
       'mcp',
-      'genoffice-mcp.mjs',
+      'nexoffice-mcp.mjs',
     ),
   },
   linux: {
-    app: join('apps', 'shell', 'release', 'linux-unpacked', 'genoffice'),
+    app: join('apps', 'shell', 'release', 'linux-unpacked', 'nexoffice'),
     adapter: join(
       'apps',
       'shell',
@@ -68,7 +68,7 @@ const layouts = {
       'linux-unpacked',
       'resources',
       'mcp',
-      'genoffice-mcp.mjs',
+      'nexoffice-mcp.mjs',
     ),
   },
 }[target]
@@ -177,7 +177,7 @@ async function stopApp(child) {
   })
 }
 
-const userDataDir = await mkdtemp(join(tmpdir(), 'genoffice-package-mcp-'))
+const userDataDir = await mkdtemp(join(tmpdir(), 'nexoffice-package-mcp-'))
 let appOutput = ''
 // CI hosts can export this for Electron tooling. A packaged desktop app must
 // remove it or Electron starts as plain Node and never creates the MCP bridge.
@@ -186,7 +186,7 @@ const app = spawn(appPath, target === 'linux' ? ['--no-sandbox', '--disable-gpu'
   detached: process.platform !== 'win32',
   env: {
     ...hostEnv,
-    GENOFFICE_USER_DATA: userDataDir,
+    NEXOFFICE_USER_DATA: userDataDir,
     ...(target === 'linux' ? { ELECTRON_DISABLE_SANDBOX: '1' } : {}),
   },
   // Linux GitHub runners need the same trusted-local switches as the Electron
@@ -211,10 +211,10 @@ try {
   client = createMcpClient(discoveryPath)
   const initialized = await client.request('initialize', {
     protocolVersion: '2025-06-18',
-    clientInfo: { name: 'genoffice-package-smoke' },
+    clientInfo: { name: 'nexoffice-package-smoke' },
   })
-  if (initialized.result?.serverInfo?.name !== 'GenOffice') {
-    throw new Error('Packaged MCP adapter did not return GenOffice server info')
+  if (initialized.result?.serverInfo?.name !== 'NexOffice') {
+    throw new Error('Packaged MCP adapter did not return NexOffice server info')
   }
   const tools = await client.request('tools/list', {})
   if (!tools.result?.tools?.some((tool) => tool.name === 'create_document')) {

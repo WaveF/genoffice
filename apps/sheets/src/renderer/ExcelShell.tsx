@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { platformShortcuts } from '@genoffice/i18n'
-import { Dropdown, SHAPE_GALLERY_GROUPS, ShapePreview, useDismissablePopover } from '@genoffice/ui'
+import { platformShortcuts } from '@nexoffice/i18n'
+import { Dropdown, SHAPE_GALLERY_GROUPS, ShapePreview, useDismissablePopover } from '@nexoffice/ui'
 
 import {
   CaretIcon,

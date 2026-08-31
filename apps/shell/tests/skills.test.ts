@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { GenOfficeSkillStore } from '../src/main/skills'
+import { NexOfficeSkillStore } from '../src/main/skills'
 
 const directories: string[] = []
 
@@ -19,9 +19,9 @@ afterEach(async () => {
   )
 })
 
-describe('GenOfficeSkillStore', () => {
+describe('NexOfficeSkillStore', () => {
   it('lists built-ins and imports a copied single Markdown file', async () => {
-    const root = await temporaryDirectory('genoffice-skills-')
+    const root = await temporaryDirectory('nexoffice-skills-')
     const bundled = join(root, 'bundled')
     const imported = join(root, 'community.md')
     await mkdir(bundled, { recursive: true })
@@ -35,7 +35,7 @@ describe('GenOfficeSkillStore', () => {
       '---\nid: community-guide\nname: Community guide\n---\n\n# Guide',
       'utf8',
     )
-    const store = new GenOfficeSkillStore(join(root, 'user'), bundled)
+    const store = new NexOfficeSkillStore(join(root, 'user'), bundled)
 
     expect(await store.list()).toEqual(
       expect.arrayContaining([
@@ -51,7 +51,7 @@ describe('GenOfficeSkillStore', () => {
   })
 
   it('uses enabled state for MCP visibility and exports the original Markdown', async () => {
-    const root = await temporaryDirectory('genoffice-skills-state-')
+    const root = await temporaryDirectory('nexoffice-skills-state-')
     const bundled = join(root, 'bundled')
     const source = join(root, 'source.md')
     const exported = join(root, 'exported.md')
@@ -61,7 +61,7 @@ describe('GenOfficeSkillStore', () => {
       '---\nid: portable-guide\nname: Portable guide\n---\n\n# Portable',
       'utf8',
     )
-    const store = new GenOfficeSkillStore(join(root, 'user'), bundled)
+    const store = new NexOfficeSkillStore(join(root, 'user'), bundled)
     await store.importFromPath(source)
     await store.setEnabled('portable-guide', false)
 
@@ -73,10 +73,10 @@ describe('GenOfficeSkillStore', () => {
   })
 
   it('rejects non-Markdown imports before copying them into the managed directory', async () => {
-    const root = await temporaryDirectory('genoffice-skills-invalid-')
+    const root = await temporaryDirectory('nexoffice-skills-invalid-')
     const source = join(root, 'not-a-skill.txt')
     await writeFile(source, 'not markdown', 'utf8')
-    const store = new GenOfficeSkillStore(join(root, 'user'), join(root, 'bundled'))
+    const store = new NexOfficeSkillStore(join(root, 'user'), join(root, 'bundled'))
 
     await expect(store.importFromPath(source)).rejects.toMatchObject({ code: 'validation_error' })
   })

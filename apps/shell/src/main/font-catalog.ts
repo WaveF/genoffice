@@ -58,8 +58,17 @@ export class ThreadedFontCatalogWorker implements FontCatalogWorker {
         ) {
           resolve(
             (message as { entries: unknown[] }).entries.flatMap((entry) =>
-              typeof entry === 'object' && entry !== null && isFamilyName((entry as FontCatalogEntry).family)
-                ? [{ family: (entry as FontCatalogEntry).family, aliases: Array.isArray((entry as FontCatalogEntry).aliases) ? (entry as FontCatalogEntry).aliases?.filter(isFamilyName) : [] }]
+              typeof entry === 'object' &&
+              entry !== null &&
+              isFamilyName((entry as FontCatalogEntry).family)
+                ? [
+                    {
+                      family: (entry as FontCatalogEntry).family,
+                      aliases: Array.isArray((entry as FontCatalogEntry).aliases)
+                        ? (entry as FontCatalogEntry).aliases?.filter(isFamilyName)
+                        : [],
+                    },
+                  ]
                 : [],
             ),
           )
@@ -80,6 +89,7 @@ function isFamilyName(value: unknown): value is string {
     typeof value === 'string' &&
     value.length > 0 &&
     value.length <= 256 &&
+    // eslint-disable-next-line no-control-regex -- font names must not contain controls
     !/[\u0000-\u001f\u007f]/.test(value)
   )
 }
@@ -89,7 +99,9 @@ function isInternalFamilyName(name: string): boolean {
   return name.startsWith('.')
 }
 
-function displayFamilyFor(entry: FontCatalogEntry): { family: string; aliases: readonly string[] } | null {
+function displayFamilyFor(
+  entry: FontCatalogEntry,
+): { family: string; aliases: readonly string[] } | null {
   const rawFamily = entry.family.trim()
   if (!isFamilyName(rawFamily) || isInternalFamilyName(rawFamily)) return null
   const aliases = (entry.aliases ?? []).map((alias) => alias.trim()).filter(isFamilyName)
@@ -97,7 +109,9 @@ function displayFamilyFor(entry: FontCatalogEntry): { family: string; aliases: r
 
   // Some third-party fonts ship an obfuscated primary name but expose a normal
   // localized or Latin family alias in the same SFNT name table. Prefer it.
-  const candidates = aliases.filter((alias) => !alias.startsWith('_') && !isInternalFamilyName(alias))
+  const candidates = aliases.filter(
+    (alias) => !alias.startsWith('_') && !isInternalFamilyName(alias),
+  )
   const styleSuffix = /(?:\s|-)(?:bold|italic|oblique|regular|medium|light|heavy|black|thin)$/i
   const display = [...candidates].sort((a, b) => {
     const aHasStyle = styleSuffix.test(a) ? 1 : 0
@@ -107,7 +121,10 @@ function displayFamilyFor(entry: FontCatalogEntry): { family: string; aliases: r
   return display ? { family: display, aliases: [rawFamily, ...aliases] } : null
 }
 
-function normalizeEntries(values: readonly FontCatalogEntry[]): { families: string[]; aliases: Record<string, string> } {
+function normalizeEntries(values: readonly FontCatalogEntry[]): {
+  families: string[]
+  aliases: Record<string, string>
+} {
   const seen = new Set<string>()
   const canonicalByKey = new Map<string, string>()
   const families: string[] = []
@@ -126,12 +143,7 @@ function normalizeEntries(values: readonly FontCatalogEntry[]): { families: stri
     }
     for (const alias of display.aliases) {
       const aliasKey = alias.trim().normalize('NFKC').toLocaleLowerCase()
-      if (
-        isFamilyName(alias) &&
-        !isInternalFamilyName(alias) &&
-        aliasKey &&
-        aliasKey !== key
-      )
+      if (isFamilyName(alias) && !isInternalFamilyName(alias) && aliasKey && aliasKey !== key)
         aliases[aliasKey] = canonical
     }
     if (families.length === CACHE_MAX_FAMILIES) break
@@ -154,7 +166,10 @@ function parseCache(input: unknown): CacheFile | null {
     version: CACHE_VERSION,
     refreshedAt: value.refreshedAt as number,
     families: normalizeEntries((value.families as string[]).map((family) => ({ family }))).families,
-    aliases: typeof value.aliases === 'object' && value.aliases !== null ? value.aliases as Record<string, string> : {},
+    aliases:
+      typeof value.aliases === 'object' && value.aliases !== null
+        ? (value.aliases as Record<string, string>)
+        : {},
   }
 }
 
@@ -248,4 +263,5 @@ export class FontCatalogService {
   }
 }
 
-export const fontCatalogCachePath = (userDataPath: string) => join(userDataPath, 'font-catalog-v1.json')
+export const fontCatalogCachePath = (userDataPath: string) =>
+  join(userDataPath, 'font-catalog-v1.json')

@@ -94,8 +94,8 @@ import {
   spliceCharColors,
 } from './color-runs'
 import type { CharStyle } from './color-runs'
-import { platformShortcuts } from '@genoffice/i18n'
-import { Dropdown, useDismissablePopover } from '@genoffice/ui'
+import { platformShortcuts } from '@nexoffice/i18n'
+import { Dropdown, useDismissablePopover } from '@nexoffice/ui'
 import { useI18n } from './i18n/locale'
 import { handlePdfMcpRequest, type PdfMcpOperation } from './mcp-adapter'
 import { useAutosave } from './useAutosave'

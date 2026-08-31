@@ -24,7 +24,7 @@ import {
   type ParagraphFormatPatch,
   type TextBody,
   type TextElement,
-} from '@genoffice/pptx-engine'
+} from '@nexoffice/pptx-engine'
 import type { EditParagraph } from '../../shared/ipc'
 import { applyEditParagraphs, collectParagraphFormatPatches, levelsChanged } from '../edit-text'
 import {

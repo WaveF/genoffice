@@ -11,37 +11,34 @@ const workspaceAlias = {
   // harfbuzzjs intentionally exports only its ESM wrapper. The main process needs
   // its low-level CJS factory, so resolve those bundled files explicitly instead
   // of relying on a brittle workspace-relative node_modules path.
-  'harfbuzzjs/dist/harfbuzz.js': resolve(
-    here,
-    '../../node_modules/harfbuzzjs/dist/harfbuzz.js',
-  ),
+  'harfbuzzjs/dist/harfbuzz.js': resolve(here, '../../node_modules/harfbuzzjs/dist/harfbuzz.js'),
   'harfbuzzjs/dist/harfbuzz.wasm': resolve(
     here,
     '../../node_modules/harfbuzzjs/dist/harfbuzz.wasm',
   ),
   // Subpath before the bare name: string aliases are prefix replacements
-  '@genoffice/pptx-engine/table-grid': resolve(
+  '@nexoffice/pptx-engine/table-grid': resolve(
     here,
     '../../packages/pptx-engine/src/table-grid.ts',
   ),
-  '@genoffice/pptx-engine/identity': resolve(here, '../../packages/pptx-engine/src/identity.ts'),
-  '@genoffice/pptx-engine/custgeom': resolve(here, '../../packages/pptx-engine/src/custgeom.ts'),
-  '@genoffice/pptx-engine/background-promote': resolve(
+  '@nexoffice/pptx-engine/identity': resolve(here, '../../packages/pptx-engine/src/identity.ts'),
+  '@nexoffice/pptx-engine/custgeom': resolve(here, '../../packages/pptx-engine/src/custgeom.ts'),
+  '@nexoffice/pptx-engine/background-promote': resolve(
     here,
     '../../packages/pptx-engine/src/background-promote.ts',
   ),
-  '@genoffice/pptx-engine': resolve(here, '../../packages/pptx-engine/src/index.ts'),
-  '@genoffice/pptx-render/preset-geometry': resolve(
+  '@nexoffice/pptx-engine': resolve(here, '../../packages/pptx-engine/src/index.ts'),
+  '@nexoffice/pptx-render/preset-geometry': resolve(
     here,
     '../../packages/pptx-render/src/preset-geometry.ts',
   ),
-  '@genoffice/pptx-render': resolve(here, '../../packages/pptx-render/src/index.ts'),
+  '@nexoffice/pptx-render': resolve(here, '../../packages/pptx-render/src/index.ts'),
   // Metafile (EMF/WMF) rasterizer shared with the docs engine (renderer-only: needs canvas)
-  '@genoffice/docx-engine/metafile': resolve(here, '../../packages/docx-engine/src/metafile.ts'),
+  '@nexoffice/docx-engine/metafile': resolve(here, '../../packages/docx-engine/src/metafile.ts'),
 }
 
 export default defineConfig({
-  // Main process/preload must bundle @genoffice/* sources (they are pulled in as TS
+  // Main process/preload must bundle @nexoffice/* sources (they are pulled in as TS
   // source with extensionless relative imports; externalizing them under Node
   // yields ERR_MODULE_NOT_FOUND).
   main: {
@@ -50,11 +47,11 @@ export default defineConfig({
     plugins: [
       externalizeDepsPlugin({
         exclude: [
-          '@genoffice/pptx-engine',
-          '@genoffice/pptx-render',
-          '@genoffice/ai-search',
-          '@genoffice/file-parse',
-          '@genoffice/electron-utils',
+          '@nexoffice/pptx-engine',
+          '@nexoffice/pptx-render',
+          '@nexoffice/ai-search',
+          '@nexoffice/file-parse',
+          '@nexoffice/electron-utils',
           'opentype.js',
         ],
       }),

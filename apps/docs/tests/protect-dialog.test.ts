@@ -4,11 +4,11 @@
 import { describe, expect, it, vi } from 'vitest'
 import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { hashProtectionPassword, verifyProtectionPassword } from '@genoffice/docx-engine'
+import { hashProtectionPassword, verifyProtectionPassword } from '@nexoffice/docx-engine'
 import { ProtectDialog, type ProtectDialogResult } from '../src/renderer/components/ProtectDialog'
 
-vi.mock('@genoffice/docx-engine', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@genoffice/docx-engine')>()
+vi.mock('@nexoffice/docx-engine', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@nexoffice/docx-engine')>()
   return {
     ...actual,
     hashProtectionPassword: (password: string) => actual.hashProtectionPassword(password, 16),

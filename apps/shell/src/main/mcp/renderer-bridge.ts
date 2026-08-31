@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { ipcMain, webContents } from 'electron'
 import type { WebContents } from 'electron'
-import { CapabilityError } from '@genoffice/capabilities'
+import { CapabilityError } from '@nexoffice/capabilities'
 
 const REQUEST_CHANNEL = 'mcp:renderer-request'
 const RESPONSE_CHANNEL = 'mcp:renderer-response'

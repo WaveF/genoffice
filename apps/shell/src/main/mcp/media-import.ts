@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { chmodSync, lstatSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, isAbsolute, join, relative, resolve, sep } from 'node:path'
-import { CapabilityError } from '@genoffice/capabilities'
+import { CapabilityError } from '@nexoffice/capabilities'
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024
 const MAX_IMAGE_PIXELS = 24_000_000
@@ -114,7 +114,7 @@ export class McpMediaImportStore {
   private readonly entries = new Map<string, StoredImage>()
 
   constructor() {
-    this.directory = mkdtempSync(join(tmpdir(), 'genoffice-mcp-media-'))
+    this.directory = mkdtempSync(join(tmpdir(), 'nexoffice-mcp-media-'))
     // Do not rely on the process umask: discovery publishes this path to the
     // authenticated client, so it must never be readable by another local user.
     chmodSync(this.directory, 0o700)

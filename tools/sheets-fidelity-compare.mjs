@@ -177,15 +177,15 @@ async function shootOurs(xlsx, dir, sheets) {
   // RTL sheets put the row-header strip on the RIGHT — crop that side instead.
   const rightToLeft = sheets.find((s) => s.active)?.rightToLeft === true
   fs.mkdirSync(dir, { recursive: true })
-  const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'genoffice-fidelity-'))
+  const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nexoffice-fidelity-'))
   const app = await electron.launch({
     executablePath: ELECTRON_BIN,
     args: [SHELL_DIR, xlsx],
     env: {
       ...process.env,
-      GENOFFICE_USER_DATA: userDataDir,
+      NEXOFFICE_USER_DATA: userDataDir,
       AI_OFFICE_USER_DATA: userDataDir,
-      GENOFFICE_LANG: 'en',
+      NEXOFFICE_LANG: 'en',
     },
     timeout: 30_000,
   })
@@ -436,7 +436,7 @@ for (const xlsx of files) {
     : []
   try {
     // --reshoot: keep the Excel reference from a previous run (no Excel
-    // round-trip), redo only the GenOffice shot and the diff.
+    // round-trip), redo only the NexOffice shot and the diff.
     refs = cachedRefs.length ? cachedRefs : exportRef(xlsx, refDir)
   } catch (e) {
     console.error('  reference export failed:', e.message.split('\n')[0])
@@ -447,7 +447,7 @@ for (const xlsx of files) {
   try {
     ours = await shootOurs(xlsx, path.join(fileDir, 'ours'), sheets)
   } catch (e) {
-    console.error('  genoffice shot failed:', e.message.split('\n')[0])
+    console.error('  nexoffice shot failed:', e.message.split('\n')[0])
     rows.push({ file: name, error: 'ours: ' + e.message.split('\n')[0] })
     continue
   }
@@ -470,7 +470,7 @@ ${rows
       ? `<h2>${r.file} · <span class="err">${r.error}</span></h2>`
       : `
 <h2>${r.file} · <span class="pct ${r.pct > 0.2 ? 'bad' : 'ok'}">${(r.pct * 100).toFixed(1)}% mismatch</span> · ${r.pages} ref page(s)</h2>
-<table><tr><td>Excel<br><img src="${rel(r.ref)}"></td><td>GenOffice Sheets<br><img src="${rel(r.ours)}"></td><td>diff<br><img src="${rel(r.diff)}"></td></tr></table>`,
+<table><tr><td>Excel<br><img src="${rel(r.ref)}"></td><td>NexOffice Sheets<br><img src="${rel(r.ours)}"></td><td>diff<br><img src="${rel(r.diff)}"></td></tr></table>`,
   )
   .join('')}
 `

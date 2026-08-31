@@ -1,5 +1,5 @@
 import type { Readable, Writable } from 'node:stream'
-import { CapabilityError, type ToolResult } from '@genoffice/capabilities'
+import { CapabilityError, type ToolResult } from '@nexoffice/capabilities'
 import type { BridgeCallContext, BridgeToolDefinition } from './bridge-client'
 
 const FALLBACK_PROTOCOL_VERSION = '2025-06-18'
@@ -16,7 +16,11 @@ interface JsonRpcRequest {
 
 interface McpBackend {
   listTools(context: BridgeCallContext): Promise<BridgeToolDefinition[]>
-  callTool(name: string, input: Record<string, unknown>, context: BridgeCallContext): Promise<ToolResult>
+  callTool(
+    name: string,
+    input: Record<string, unknown>,
+    context: BridgeCallContext,
+  ): Promise<ToolResult>
 }
 
 export interface StdioMcpServerOptions {
@@ -27,15 +31,22 @@ export interface StdioMcpServerOptions {
   serverVersion?: string
 }
 
-function toolError(error: unknown): { content: Array<{ type: 'text'; text: string }>; isError: true } {
+function toolError(error: unknown): {
+  content: Array<{ type: 'text'; text: string }>
+  isError: true
+} {
   if (error instanceof CapabilityError) {
     return {
-      content: [{ type: 'text', text: JSON.stringify({ code: error.code, message: error.message }) }],
+      content: [
+        { type: 'text', text: JSON.stringify({ code: error.code, message: error.message }) },
+      ],
       isError: true,
     }
   }
   return {
-    content: [{ type: 'text', text: JSON.stringify({ code: 'internal_error', message: 'Tool failed' }) }],
+    content: [
+      { type: 'text', text: JSON.stringify({ code: 'internal_error', message: 'Tool failed' }) },
+    ],
     isError: true,
   }
 }
@@ -141,7 +152,7 @@ export class StdioMcpServer {
           : FALLBACK_PROTOCOL_VERSION,
       capabilities: { tools: { listChanged: false } },
       serverInfo: {
-        name: this.options.serverName ?? 'GenOffice',
+        name: this.options.serverName ?? 'NexOffice',
         version: this.options.serverVersion ?? '0.1.0',
       },
     }
@@ -164,7 +175,10 @@ export class StdioMcpServer {
       )
       return {
         content: [{ type: 'text', text: result.content }],
-        structuredContent: { mutated: result.mutated, ...(result.revision === undefined ? {} : { revision: result.revision }) },
+        structuredContent: {
+          mutated: result.mutated,
+          ...(result.revision === undefined ? {} : { revision: result.revision }),
+        },
       }
     } catch (error) {
       return toolError(error)

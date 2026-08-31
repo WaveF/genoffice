@@ -5,7 +5,7 @@ import {
   useDismissablePopover,
   wordArtSolidColor,
   type WordArtPreset,
-} from '@genoffice/ui'
+} from '@nexoffice/ui'
 import {
   buildLineParagraphXml,
   buildShapeParagraphXml,
@@ -14,7 +14,7 @@ import {
   LINE_KINDS,
   type HeaderFooter,
   type TextboxDisplay,
-} from '@genoffice/docx-engine'
+} from '@nexoffice/docx-engine'
 import type { DocsTabInfo } from '../../shared/ipc'
 import { tableModelToPmNode } from '../editor/convert'
 import { isStraightLineKind } from '../editor/shape-svg'
@@ -1171,7 +1171,7 @@ export function ViewTab({
                     }}
                   >
                     {w.focused ? '✓ ' : ''}
-                    {w.title || 'GenOffice Docs'}
+                    {w.title || 'NexOffice Docs'}
                   </button>
                 ))}
               </div>

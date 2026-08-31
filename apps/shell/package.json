@@ -1,13 +1,13 @@
 {
-  "name": "@genoffice/shell",
-  "productName": "GenOffice",
+  "name": "@nexoffice/shell",
+  "productName": "NexOffice",
   "version": "0.8.0",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/genspark-ai/genoffice",
+  "homepage": "https://github.com/WaveF/genoffice",
   "private": true,
-  "description": "Unified GenOffice shell: one app hosting the docs and sheets modules behind a home/launcher window",
+  "description": "Unified NexOffice shell: one app hosting the docs and sheets modules behind a home/launcher window",
   "main": "out/main/index.js",
-  "desktopName": "genoffice.desktop",
+  "desktopName": "nexoffice.desktop",
   "scripts": {
     "dev": "electron-vite dev --watch",
     "build": "electron-vite build",
@@ -19,18 +19,18 @@
     "dist:linux": "electron-vite build && electron-builder --linux"
   },
   "devDependencies": {
-    "@genoffice/ai-search": "*",
-    "@genoffice/capabilities": "*",
-    "@genoffice/docs": "*",
-    "@genoffice/docx-engine": "*",
-    "@genoffice/electron-utils": "*",
-    "@genoffice/font-metrics": "*",
-    "@genoffice/i18n": "*",
-    "@genoffice/pptx-engine": "*",
-    "@genoffice/pptx-render": "*",
-    "@genoffice/sheets": "*",
-    "@genoffice/slides": "*",
-    "@genoffice/ui": "*",
+    "@nexoffice/ai-search": "*",
+    "@nexoffice/capabilities": "*",
+    "@nexoffice/docs": "*",
+    "@nexoffice/docx-engine": "*",
+    "@nexoffice/electron-utils": "*",
+    "@nexoffice/font-metrics": "*",
+    "@nexoffice/i18n": "*",
+    "@nexoffice/pptx-engine": "*",
+    "@nexoffice/pptx-render": "*",
+    "@nexoffice/sheets": "*",
+    "@nexoffice/slides": "*",
+    "@nexoffice/ui": "*",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.0.4",
@@ -45,5 +45,5 @@
     "vite": "^7.3.1",
     "vitest": "^4.1.10"
   },
-  "author": "GenOffice"
+  "author": "NexOffice"
 }

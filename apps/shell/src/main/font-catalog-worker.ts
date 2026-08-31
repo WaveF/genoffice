@@ -1,5 +1,5 @@
 import { parentPort } from 'node:worker_threads'
-import { listSystemFontFamilyEntries } from '@genoffice/font-metrics'
+import { listSystemFontFamilyEntries } from '@nexoffice/font-metrics'
 
 if (!parentPort) throw new Error('Font catalog worker requires a parent port.')
 
