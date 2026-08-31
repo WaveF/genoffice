@@ -144,6 +144,19 @@ const homeApi: HomeApi = {
     const result: unknown = await ipcRenderer.invoke(HOME_CHANNELS.importSkill)
     return result && typeof result === 'object' ? (result as SkillSummary) : null
   },
+  async createSkill(name: string): Promise<SkillSummary> {
+    if (typeof name !== 'string') throw new Error('Invalid skill name.')
+    const result: unknown = await ipcRenderer.invoke(HOME_CHANNELS.createSkill, name)
+    if (!result || typeof result !== 'object') throw new Error('Unable to create skill.')
+    return result as SkillSummary
+  },
+  async editSkill(id: string): Promise<boolean> {
+    if (typeof id !== 'string') throw new Error('Invalid skill ID.')
+    return (await ipcRenderer.invoke(HOME_CHANNELS.editSkill, id)) === true
+  },
+  async openSkillsDirectory(): Promise<void> {
+    await ipcRenderer.invoke(HOME_CHANNELS.openSkillsDirectory)
+  },
   async exportSkill(id: string): Promise<boolean> {
     if (typeof id !== 'string') throw new Error('Invalid skill ID.')
     return (await ipcRenderer.invoke(HOME_CHANNELS.exportSkill, id)) === true
@@ -153,9 +166,9 @@ const homeApi: HomeApi = {
       throw new Error('Invalid skill state.')
     await ipcRenderer.invoke(HOME_CHANNELS.setSkillEnabled, id, enabled)
   },
-  async deleteSkill(id: string): Promise<void> {
+  async deleteSkill(id: string): Promise<boolean> {
     if (typeof id !== 'string') throw new Error('Invalid skill ID.')
-    await ipcRenderer.invoke(HOME_CHANNELS.deleteSkill, id)
+    return (await ipcRenderer.invoke(HOME_CHANNELS.deleteSkill, id)) === true
   },
   async accountStatus() {
     const result: unknown = await ipcRenderer.invoke(HOME_CHANNELS.accountStatus)

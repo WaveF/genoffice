@@ -144,6 +144,11 @@ export function SettingsModal({ onClose }: { onClose: () => void; [key: string]:
   const [copied, setCopied] = useState(false)
   const [skills, setSkills] = useState<SkillSummary[]>([])
   const [selectedSkill, setSelectedSkill] = useState<SkillContent | null>(null)
+  const [newSkillOpen, setNewSkillOpen] = useState(false)
+  const [newSkillName, setNewSkillName] = useState('')
+  const [newSkillError, setNewSkillError] = useState('')
+  const [skillMenuId, setSkillMenuId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<SkillSummary | null>(null)
   const prompt = useMemo(() => (mcp ? connectionPrompt(mcp) : ''), [mcp])
 
   useEffect(() => {
@@ -164,6 +169,14 @@ export function SettingsModal({ onClose }: { onClose: () => void; [key: string]:
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [onClose])
+  useEffect(() => {
+    const closeMenu = (event: MouseEvent) => {
+      if (event.target instanceof Element && !event.target.closest('.set-skill-menu-wrap'))
+        setSkillMenuId(null)
+    }
+    window.addEventListener('mousedown', closeMenu)
+    return () => window.removeEventListener('mousedown', closeMenu)
+  }, [])
   const applyTheme = (next: UiTheme) => {
     setTheme(next)
     void window.aiOffice.setTheme(next)
@@ -199,11 +212,32 @@ export function SettingsModal({ onClose }: { onClose: () => void; [key: string]:
           : current,
       )
     })
-  const deleteSkill = (skill: SkillSummary) =>
-    void window.aiOffice.deleteSkill?.(skill.id).then(() => {
-      setSkills((current) => current.filter((item) => item.id !== skill.id))
-      setSelectedSkill((current) => (current?.summary.id === skill.id ? null : current))
-    })
+  const deleteSkill = async (skill: SkillSummary): Promise<boolean> => {
+    const deleted = await window.aiOffice.deleteSkill?.(skill.id)
+    if (!deleted) return false
+    setSkills((current) => current.filter((item) => item.id !== skill.id))
+    setSelectedSkill((current) => (current?.summary.id === skill.id ? null : current))
+    return true
+  }
+  const normalizedNewSkillName = newSkillName.normalize('NFKC').trim().replace(/\s+/g, ' ')
+  const duplicateSkill = skills.find(
+    (skill) =>
+      skill.name.normalize('NFKC').trim().replace(/\s+/g, ' ').toLocaleLowerCase() ===
+      normalizedNewSkillName.toLocaleLowerCase(),
+  )
+  const nameHasUnsupportedCharacters = /[\\/:*?"<>|\u0000-\u001f]/.test(normalizedNewSkillName)
+  const createSkill = () => {
+    if (!normalizedNewSkillName || duplicateSkill || nameHasUnsupportedCharacters) return
+    setNewSkillError('')
+    void window.aiOffice
+      .createSkill?.(normalizedNewSkillName)
+      .then(() => onClose())
+      .catch((error: unknown) =>
+        setNewSkillError(error instanceof Error ? error.message : '无法创建技能，请重试。'),
+      )
+  }
+  const editSkill = (skill: SkillSummary) =>
+    void window.aiOffice.editSkill?.(skill.id).then((opened) => opened && onClose())
 
   return (
     <div
@@ -322,9 +356,27 @@ export function SettingsModal({ onClose }: { onClose: () => void; [key: string]:
                     <h3 className="set-pane-title">技能</h3>
                     <p className="set-skills-desc">供已连接 AI 阅读的 Markdown 操作指导。</p>
                   </div>
-                  <button className="set-btn primary" onClick={importSkill}>
-                    导入
-                  </button>
+                  <div className="set-skills-head-actions">
+                    <button
+                      className="set-btn"
+                      onClick={() => void window.aiOffice.openSkillsDirectory?.()}
+                    >
+                      打开技能目录
+                    </button>
+                    <button
+                      className="set-btn"
+                      onClick={() => {
+                        setNewSkillName('')
+                        setNewSkillError('')
+                        setNewSkillOpen(true)
+                      }}
+                    >
+                      新建
+                    </button>
+                    <button className="set-btn primary" onClick={importSkill}>
+                      导入
+                    </button>
+                  </div>
                 </div>
                 <div className="set-skills-list">
                   {skills.map((skill) => (
@@ -332,6 +384,13 @@ export function SettingsModal({ onClose }: { onClose: () => void; [key: string]:
                       key={skill.id}
                       className={`set-skill${selectedSkill?.summary.id === skill.id ? ' selected' : ''}`}
                     >
+                      <button
+                        className="set-switch"
+                        role="switch"
+                        aria-checked={skill.enabled}
+                        aria-label={`${skill.name} 已启用`}
+                        onClick={() => setSkillEnabled(skill, !skill.enabled)}
+                      />
                       <button className="set-skill-main" onClick={() => selectSkill(skill.id)}>
                         <span className="set-skill-name">{skill.name}</span>
                         <span className="set-skill-meta">
@@ -343,24 +402,43 @@ export function SettingsModal({ onClose }: { onClose: () => void; [key: string]:
                         )}
                       </button>
                       <div className="set-skill-actions">
-                        <button
-                          className="set-switch"
-                          role="switch"
-                          aria-checked={skill.enabled}
-                          aria-label={`${skill.name} 已启用`}
-                          onClick={() => setSkillEnabled(skill, !skill.enabled)}
-                        />
-                        <button
-                          className="set-btn"
-                          onClick={() => void window.aiOffice.exportSkill?.(skill.id)}
-                        >
-                          导出
-                        </button>
-                        {skill.source === 'custom' && (
-                          <button className="set-btn danger" onClick={() => deleteSkill(skill)}>
-                            删除
+                        <div className="set-skill-menu-wrap">
+                          <button
+                            className="set-skill-more"
+                            aria-label={`${skill.name} 的更多操作`}
+                            aria-expanded={skillMenuId === skill.id}
+                            onClick={() => setSkillMenuId((current) => (current === skill.id ? null : skill.id))}
+                          >
+                            …
                           </button>
-                        )}
+                          {skillMenuId === skill.id && (
+                            <div className="set-skill-menu" role="menu">
+                              {skill.source === 'custom' && (
+                                <button role="menuitem" onClick={() => editSkill(skill)}>
+                                  编辑
+                                </button>
+                              )}
+                              <button
+                                role="menuitem"
+                                onClick={() => void window.aiOffice.exportSkill?.(skill.id)}
+                              >
+                                导出
+                              </button>
+                              {skill.source === 'custom' && (
+                                <button
+                                  className="danger"
+                                  role="menuitem"
+                                  onClick={() => {
+                                    setSkillMenuId(null)
+                                    setDeleteTarget(skill)
+                                  }}
+                                >
+                                  删除
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -370,6 +448,73 @@ export function SettingsModal({ onClose }: { onClose: () => void; [key: string]:
                   <div className="set-skill-preview">
                     <div className="set-skill-preview-title">{selectedSkill.summary.name}</div>
                     <pre>{selectedSkill.content}</pre>
+                  </div>
+                )}
+                {newSkillOpen && (
+                  <div className="set-subdialog-overlay" role="presentation">
+                    <form
+                      className="set-subdialog"
+                      role="dialog"
+                      aria-modal="true"
+                      aria-labelledby="new-skill-title"
+                      onSubmit={(event) => {
+                        event.preventDefault()
+                        createSkill()
+                      }}
+                    >
+                      <h3 id="new-skill-title">新建技能</h3>
+                      <label htmlFor="new-skill-name">技能名称</label>
+                      <input
+                        id="new-skill-name"
+                        autoFocus
+                        value={newSkillName}
+                        maxLength={120}
+                        onChange={(event) => {
+                          setNewSkillName(event.target.value)
+                          setNewSkillError('')
+                        }}
+                        placeholder="例如：Webflow 建站助手"
+                      />
+                      {duplicateSkill && normalizedNewSkillName && (
+                        <p className="set-field-error">已有同名技能：{duplicateSkill.name}</p>
+                      )}
+                      {nameHasUnsupportedCharacters && (
+                        <p className="set-field-error">名称不能包含 / \\ : * ? &quot; &lt; &gt; | 等特殊字符。</p>
+                      )}
+                      {newSkillError && <p className="set-field-error">{newSkillError}</p>}
+                      <p className="set-subdialog-hint">创建后会在 NexOffice 的 Markdown 编辑器中打开模板。</p>
+                      <div className="set-subdialog-actions">
+                        <button type="button" className="set-btn" onClick={() => setNewSkillOpen(false)}>
+                          取消
+                        </button>
+                        <button
+                          type="submit"
+                          className="set-btn primary"
+                          disabled={!normalizedNewSkillName || !!duplicateSkill || nameHasUnsupportedCharacters}
+                        >
+                          创建
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+                {deleteTarget && (
+                  <div className="set-subdialog-overlay" role="presentation">
+                    <div className="set-subdialog" role="dialog" aria-modal="true" aria-labelledby="delete-skill-title">
+                      <h3 id="delete-skill-title">删除技能？</h3>
+                      <p>“{deleteTarget.name}”将从本机技能目录删除，此操作无法撤销。</p>
+                      <div className="set-subdialog-actions">
+                        <button className="set-btn" onClick={() => setDeleteTarget(null)}>
+                          取消
+                        </button>
+                        <button
+                          className="set-btn danger"
+                          onClick={() => void deleteSkill(deleteTarget).then((deleted) => deleted && setDeleteTarget(null))}
+                        >
+                          删除
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 )}
               </>

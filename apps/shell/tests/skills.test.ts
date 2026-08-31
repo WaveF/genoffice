@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs'
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -79,5 +79,48 @@ describe('NexOfficeSkillStore', () => {
     const store = new NexOfficeSkillStore(join(root, 'user'), join(root, 'bundled'))
 
     await expect(store.importFromPath(source)).rejects.toMatchObject({ code: 'validation_error' })
+  })
+
+  it('creates a custom skill with an opaque file ID and display name metadata', async () => {
+    const root = await temporaryDirectory('nexoffice-skills-create-')
+    const userData = join(root, 'user')
+    const store = new NexOfficeSkillStore(userData, join(root, 'bundled'))
+
+    const created = await store.create('Webflow 建站助手')
+
+    expect(created).toMatchObject({
+      id: expect.stringMatching(/^skill-[a-f0-9-]{36}$/),
+      name: 'Webflow 建站助手',
+      source: 'custom',
+      enabled: true,
+    })
+    const files = await readdir(join(userData, 'skills'))
+    expect(files).toContain(`${created.id}.md`)
+    expect(files).not.toContain('state.json')
+    await expect(store.read(created.id)).resolves.toMatchObject({
+      content: expect.stringContaining('# Webflow 建站助手'),
+    })
+    await expect(store.create(' Webflow  建站助手 ')).rejects.toMatchObject({
+      code: 'validation_error',
+    })
+    await expect(store.create('bad/name')).rejects.toMatchObject({ code: 'validation_error' })
+  })
+
+  it('uses a managed filename as the canonical ID when frontmatter is edited', async () => {
+    const root = await temporaryDirectory('nexoffice-skills-canonical-id-')
+    const userData = join(root, 'user')
+    const skillsDirectory = join(userData, 'skills')
+    await mkdir(skillsDirectory, { recursive: true })
+    await writeFile(
+      join(skillsDirectory, 'stable-id.md'),
+      '---\nid: changed-id\nname: Stable name\n---\n\n# Stable name',
+      'utf8',
+    )
+    const store = new NexOfficeSkillStore(userData, join(root, 'bundled'))
+
+    expect(await store.list()).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'stable-id', name: 'Stable name' })]),
+    )
+    await expect(store.read('changed-id')).rejects.toMatchObject({ code: 'not_found' })
   })
 })

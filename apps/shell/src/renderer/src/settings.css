@@ -225,6 +225,13 @@
   gap: 16px;
 }
 
+.set-skills-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .set-skills-desc,
 .set-skills-empty {
   margin: -10px 0 18px;
@@ -241,7 +248,8 @@
 .set-skill {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
+  padding-left: 2px;
   min-height: 68px;
   border-bottom: 1px solid var(--border-subtle);
 }
@@ -287,6 +295,126 @@
   flex-shrink: 0;
   align-items: center;
   gap: 6px;
+}
+
+.set-skill-menu-wrap {
+  position: relative;
+}
+
+.set-skill-more {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.set-skill-more:hover,
+.set-skill-more[aria-expanded='true'] {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.set-skill-menu {
+  position: absolute;
+  z-index: 2;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 94px;
+  padding: 4px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow-modal-strong);
+}
+
+.set-skill-menu button {
+  width: 100%;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+}
+
+.set-skill-menu button:hover {
+  background: var(--bg-hover);
+}
+
+.set-skill-menu button.danger,
+.set-subdialog p .danger {
+  color: var(--color-danger, #c73838);
+}
+
+.set-subdialog-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--color-bg-overlay) 80%, transparent);
+}
+
+.set-subdialog {
+  width: min(400px, 100%);
+  padding: 20px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow-modal-strong);
+}
+
+.set-subdialog h3,
+.set-subdialog p {
+  margin: 0;
+}
+
+.set-subdialog label {
+  display: block;
+  margin: 18px 0 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.set-subdialog input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.set-field-error {
+  margin-top: 7px !important;
+  color: var(--color-danger, #c73838);
+  font-size: 12px;
+}
+
+.set-subdialog-hint {
+  margin-top: 10px !important;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.set-subdialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
 }
 
 .set-skill-preview {

@@ -102,12 +102,18 @@ export interface HomeApi {
   readSkill(id: string): Promise<SkillContent | null>
   /** Import one UTF-8 Markdown skill through a native file picker. */
   importSkill(): Promise<SkillSummary | null>
+  /** Create and open one managed custom skill. */
+  createSkill(name: string): Promise<SkillSummary>
+  /** Open one custom skill in NexOffice's Markdown editor. */
+  editSkill(id: string): Promise<boolean>
+  /** Reveal the directory that contains custom skills. */
+  openSkillsDirectory(): Promise<void>
   /** Export one skill through a native save dialog. */
   exportSkill(id: string): Promise<boolean>
   /** Enable or disable a skill for MCP discovery. */
   setSkillEnabled(id: string, enabled: boolean): Promise<void>
-  /** Delete one imported skill. Built-in skills cannot be deleted. */
-  deleteSkill(id: string): Promise<void>
+  /** Delete one imported skill. Built-in skills cannot be deleted. Returns false when its editor stays open. */
+  deleteSkill(id: string): Promise<boolean>
   /** Genspark account status (gsk login state; to be upgraded to a signup/account system later) */
   accountStatus(): Promise<AccountStatus>
   /** start Genspark login (opens the browser; accountStatus flips to logged-in on completion); returns whether the launch succeeded */
@@ -297,6 +303,9 @@ export const HOME_CHANNELS = {
   listSkills: 'home:skills-list',
   readSkill: 'home:skills-read',
   importSkill: 'home:skills-import',
+  createSkill: 'home:skills-create',
+  editSkill: 'home:skills-edit',
+  openSkillsDirectory: 'home:skills-open-directory',
   exportSkill: 'home:skills-export',
   setSkillEnabled: 'home:skills-set-enabled',
   deleteSkill: 'home:skills-delete',

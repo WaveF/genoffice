@@ -3022,6 +3022,32 @@ function registerHomeIpc(): void {
     if (result.canceled || !path) return null
     return requireSkillStore().importFromPath(path)
   })
+  ipcMain.handle(HOME_CHANNELS.createSkill, async (_event, name: unknown) => {
+    if (typeof name !== 'string') throw new Error('Invalid skill name')
+    const store = requireSkillStore()
+    const summary = await store.create(name)
+    const path = await store.customPath(summary.id)
+    const existing = tabManager?.findMarkdownTabByPath(path)
+    if (existing) tabManager?.activateTab(existing)
+    else tabManager?.openMarkdownTab(path)
+    return summary
+  })
+  ipcMain.handle(HOME_CHANNELS.editSkill, async (_event, id: unknown): Promise<boolean> => {
+    if (typeof id !== 'string') return false
+    try {
+      const path = await requireSkillStore().customPath(id)
+      const existing = tabManager?.findMarkdownTabByPath(path)
+      if (existing) tabManager?.activateTab(existing)
+      else tabManager?.openMarkdownTab(path)
+      return tabManager !== null
+    } catch {
+      return false
+    }
+  })
+  ipcMain.handle(HOME_CHANNELS.openSkillsDirectory, async () => {
+    const path = await requireSkillStore().ensureUserDirectory()
+    await shell.openPath(path)
+  })
   ipcMain.handle(HOME_CHANNELS.exportSkill, async (_event, id: unknown): Promise<boolean> => {
     if (typeof id !== 'string') return false
     try {
@@ -3045,9 +3071,20 @@ function registerHomeIpc(): void {
     if (typeof id !== 'string' || typeof enabled !== 'boolean') return
     await requireSkillStore().setEnabled(id, enabled)
   })
-  ipcMain.handle(HOME_CHANNELS.deleteSkill, async (_event, id: unknown) => {
-    if (typeof id !== 'string') return
-    await requireSkillStore().remove(id)
+  ipcMain.handle(HOME_CHANNELS.deleteSkill, async (_event, id: unknown): Promise<boolean> => {
+    if (typeof id !== 'string') return false
+    try {
+      const store = requireSkillStore()
+      const path = await store.customPath(id)
+      const openTab = tabManager?.findMarkdownTabByPath(path)
+      if (openTab) await tabManager?.closeTab(openTab)
+      // The user may cancel the Markdown editor's unsaved-changes prompt.
+      if (tabManager?.findMarkdownTabByPath(path)) return false
+      await store.remove(id)
+      return true
+    } catch {
+      return false
+    }
   })
 
   ipcMain.handle(

@@ -6,7 +6,8 @@ import { CapabilityError } from '@nexoffice/capabilities'
 const MAX_SKILL_BYTES = 256 * 1024
 const MAX_SKILLS = 100
 const USER_SKILLS_DIRECTORY = 'skills'
-const STATE_FILENAME = 'state.json'
+const STATE_FILENAME = 'skills-state.json'
+const LEGACY_STATE_FILENAME = 'state.json'
 
 export type SkillSource = 'builtin' | 'custom'
 
@@ -69,6 +70,23 @@ function metadata(source: string, fallbackName: string): Omit<SkillSummary, 'sou
   }
 }
 
+function normalizedName(value: string): string {
+  return value.normalize('NFKC').trim().replace(/\s+/g, ' ')
+}
+
+function validateNewSkillName(value: string): string {
+  const name = normalizedName(value)
+  if (!name) throw new CapabilityError('validation_error', 'Skill name is required')
+  if (name.length > 120) throw new CapabilityError('validation_error', 'Skill name must be 120 characters or fewer')
+  if (/[\\/:*?"<>|\u0000-\u001f]/.test(name))
+    throw new CapabilityError('validation_error', 'Skill name contains unsupported characters')
+  return name
+}
+
+function skillTemplate(name: string): string {
+  return `---\nname: ${name}\ndescription: \nappliesTo: []\n---\n\n# ${name}\n\n## 何时使用\n\n<!-- 待补充：说明 AI 在何种任务中应读取此技能。 -->\n\n## 操作步骤\n\n<!-- 待补充：给出清晰、可执行的步骤。 -->\n\n## 注意事项\n\n<!-- 待补充：记录限制、安全边界或验证要求。 -->\n`
+}
+
 function assertMarkdown(source: Buffer, displayName: string): string {
   if (source.byteLength === 0 || source.byteLength > MAX_SKILL_BYTES)
     throw new CapabilityError(
@@ -88,13 +106,15 @@ function assertMarkdown(source: Buffer, displayName: string): string {
 export class NexOfficeSkillStore {
   private readonly userDirectory: string
   private readonly statePath: string
+  private readonly legacyStatePath: string
 
   constructor(
     userDataPath: string,
     private readonly bundledDirectory: string,
   ) {
     this.userDirectory = join(userDataPath, USER_SKILLS_DIRECTORY)
-    this.statePath = join(this.userDirectory, STATE_FILENAME)
+    this.statePath = join(userDataPath, STATE_FILENAME)
+    this.legacyStatePath = join(this.userDirectory, LEGACY_STATE_FILENAME)
   }
 
   async list(includeDisabled = true): Promise<SkillSummary[]> {
@@ -135,7 +155,7 @@ export class NexOfficeSkillStore {
       throw new CapabilityError('validation_error', `A maximum of ${MAX_SKILLS} skills is allowed`)
     if (records.some((record) => record.id === parsed.id))
       throw new CapabilityError('validation_error', 'A skill with this ID already exists')
-    await mkdir(this.userDirectory, { recursive: true, mode: 0o700 })
+    await this.ensureUserDirectory()
     const destination = join(this.userDirectory, `${parsed.id}.md`)
     await copyFile(sourcePath, destination)
     const next: SkillRecord = {
@@ -145,6 +165,53 @@ export class NexOfficeSkillStore {
       path: destination,
     }
     return this.summary(next)
+  }
+
+  /** Creates a locally managed skill whose opaque ID is derived from its file name. */
+  async create(nameInput: string): Promise<SkillSummary> {
+    const name = validateNewSkillName(nameInput)
+    const { records, state } = await this.load()
+    if (records.length >= MAX_SKILLS)
+      throw new CapabilityError('validation_error', `A maximum of ${MAX_SKILLS} skills is allowed`)
+    if (records.some((record) => normalizedName(record.name).toLocaleLowerCase() === name.toLocaleLowerCase()))
+      throw new CapabilityError('validation_error', 'A skill with this name already exists')
+
+    const id = `skill-${randomUUID()}`
+    const path = join(this.userDirectory, `${id}.md`)
+    await this.ensureUserDirectory()
+    const temp = `${path}.${randomUUID()}.tmp`
+    await writeFile(temp, skillTemplate(name), { encoding: 'utf8', mode: 0o600 })
+    await rename(temp, path)
+    return this.summary({
+      id,
+      name,
+      description: '',
+      appliesTo: [],
+      source: 'custom',
+      enabled: !state.disabled.includes(id),
+      path,
+    })
+  }
+
+  /** Returns the managed custom file without disclosing user-data paths to renderer callers. */
+  async customPath(id: string): Promise<string> {
+    if (!validId(id)) throw new CapabilityError('validation_error', 'Invalid skill ID')
+    const { records } = await this.load()
+    const record = records.find((candidate) => candidate.id === id)
+    if (!record || record.source !== 'custom')
+      throw new CapabilityError('validation_error', 'Only custom skills can be edited')
+    return record.path
+  }
+
+  async ensureUserDirectory(): Promise<string> {
+    await mkdir(this.userDirectory, { recursive: true, mode: 0o700 })
+    const legacyState = await readFile(this.legacyStatePath).catch(() => null)
+    if (legacyState) {
+      const currentState = await readFile(this.statePath).catch(() => null)
+      if (!currentState) await writeFile(this.statePath, legacyState, { mode: 0o600 })
+      await rm(this.legacyStatePath, { force: true })
+    }
+    return this.userDirectory
   }
 
   async setEnabled(id: string, enabled: boolean): Promise<void> {
@@ -208,8 +275,9 @@ export class NexOfficeSkillStore {
       try {
         const path = join(directory, entry.name)
         const parsed = metadata(assertMarkdown(await readFile(path), entry.name), fallback)
-        if (!validId(parsed.id)) continue
-        records.push({ ...parsed, source, enabled: !disabled.has(parsed.id), path })
+        // The managed filename is canonical. Frontmatter is user-editable and must not
+        // be allowed to silently change the opaque ID exposed to MCP clients.
+        records.push({ ...parsed, id: fallback, source, enabled: !disabled.has(fallback), path })
       } catch {
         // One malformed optional skill must never prevent NexOffice from starting.
       }
@@ -218,16 +286,18 @@ export class NexOfficeSkillStore {
   }
 
   private async readState(): Promise<SkillState> {
-    try {
-      const value = JSON.parse(await readFile(this.statePath, 'utf8')) as Partial<SkillState>
-      if (value.version === 1 && Array.isArray(value.disabled))
-        return {
-          version: 1,
-          disabled: value.disabled.filter(
-            (id): id is string => typeof id === 'string' && validId(id),
-          ),
-        }
-    } catch {}
+    for (const path of [this.statePath, this.legacyStatePath]) {
+      try {
+        const value = JSON.parse(await readFile(path, 'utf8')) as Partial<SkillState>
+        if (value.version === 1 && Array.isArray(value.disabled))
+          return {
+            version: 1,
+            disabled: value.disabled.filter(
+              (id): id is string => typeof id === 'string' && validId(id),
+            ),
+          }
+      } catch {}
+    }
     return { version: 1, disabled: [] }
   }
 
